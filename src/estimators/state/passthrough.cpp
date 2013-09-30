@@ -241,6 +241,7 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
     local_origin_shift_.x = msg->pose.pose.position.x;
     local_origin_shift_.y = msg->pose.pose.position.y;
     local_origin_shift_.z = msg->pose.pose.position.z;
+    ROS_INFO("[XXX]: Local origin shift set to %.2f, %.2f, %.2f]", local_origin_shift_.x, local_origin_shift_.y, local_origin_shift_.z);  
     local_origin_shift_set_ = true;
   }
   
@@ -312,6 +313,8 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
+  ROS_INFO_THROTTLE(1.0, "[XXX]: Uav state global origin set to %.2f, %.2f, %.2f]", uav_state.pose.position.x, uav_state.pose.position.y, uav_state.pose.position.z);  
+
   publishUavState();
   publishOdom();
   publishCovariance();
@@ -346,9 +349,10 @@ void Passthrough::callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg)
   global_origin_shift_.z = msg->altitude - _global_origin_.altitude - local_origin_shift_.z;
 
   global_origin_shift_set_ = true;
-  ROS_INFO("[%s]: Global origin shift set.", getPrintName().c_str());
+  ROS_INFO("[%s]: Global origin shift set to [%.2f, %.2f, %.2f] .", getPrintName().c_str(), global_origin_shift_.x, global_origin_shift_.y, global_origin_shift_.z);
 }
 /*//}*/
+
 /*//{ isConverged() */
 bool Passthrough::isConverged() {
 
@@ -393,6 +397,10 @@ void Passthrough::updateUavState() {
   uav_state.header.stamp = time_now;
 
   uav_state.pose.position    = msg->pose.pose.position;
+  uav_state.pose.position.x  += global_origin_shift_.x;
+  uav_state.pose.position.y  += global_origin_shift_.y;
+  uav_state.pose.position.z  += global_origin_shift_.z;
+
   uav_state.pose.orientation = msg->pose.pose.orientation;
 
   uav_state.velocity.linear  = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
@@ -428,7 +436,6 @@ void Passthrough::updateUavState() {
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
-  prev_msg_ = msg;
 }
 /*//}*/
 
