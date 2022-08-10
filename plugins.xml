@@ -1,0 +1,5 @@
+<library path="lib/libEstimationTesting">
+  <class name="mrs_uav_state_estimation/EstimationTesting" type="mrs_uav_state_estimation::EstimationTesting" base_class_type="nodelet::Nodelet">
+    <description>EstimationTesting nodelet</description>
+  </class>
+</library>
