@@ -19,22 +19,25 @@ void Garmin::initialize(const ros::NodeHandle &parent_nh) {
 
   // clang-format off
     dt_ = 0.01;
+    input_coeff_ = 0.1;
 
     A_ <<
-      1, dt_,
-      0, 1;
+      1, dt_, std::pow(dt_, 2)/2,
+      0, 1, dt_,
+      0, 0, 1-input_coeff_;
 
     B_ <<
       0,
-      1;
+      0,
+      input_coeff_;
 
     H_ <<
-      1, 0;
-      /* 0, 1; */
+      1, 0, 0;
 
     Q_ <<
-      1, 0,
-      0, 1;
+      1, 0, 0,
+      0, 1, 0,
+      0, 0, 1;
 
     R_ <<
       0.1;
@@ -205,6 +208,8 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
     if (sh_mavros_odom_.hasMsg()) {
       changeState(READY_STATE);
       ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+    } else {
+      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
     }
   }
 
@@ -243,7 +248,7 @@ bool Garmin::isConverged() {
 /*//{ getState() */
 double Garmin::getState(const int &state_id_in, const int &axis_in) const {
 
-  return getState(stateIdToIndex(state_id_in, axis_in));
+  return getState(stateIdToIndex(state_id_in, 0));
 }
 
 double Garmin::getState(const int &state_idx_in) const {
@@ -255,7 +260,7 @@ double Garmin::getState(const int &state_idx_in) const {
 
 /*//{ setState() */
 void Garmin::setState(const double &state_in, const int &state_id_in, const int &axis_in) {
-  setState(state_in, stateIdToIndex(state_id_in, axis_in));
+  setState(state_in, stateIdToIndex(state_id_in, 0));
 }
 
 void Garmin::setState(const double &state_in, const int &state_idx_in) {

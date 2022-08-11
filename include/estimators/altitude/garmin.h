@@ -23,7 +23,7 @@ namespace mrs_uav_state_estimation
 namespace garmin
 {
 
-const int n_states       = 2;
+const int n_states       = 3;
 const int n_inputs       = 1;
 const int n_measurements = 1;
 
@@ -52,6 +52,7 @@ private:
   ros::NodeHandle nh_;
 
   double                 dt_;
+  double                 input_coeff_;
   A_t                    A_;
   B_t                    B_;
   H_t                    H_;

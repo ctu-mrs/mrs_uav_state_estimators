@@ -71,7 +71,6 @@ void Gps::initialize(const ros::NodeHandle &parent_nh) {
 
 
   // | --------------- subscribers initialization --------------- |
-  //
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
@@ -212,12 +211,14 @@ void Gps::timerCheckHealth(const ros::TimerEvent &event) {
 
     if (sh_mavros_odom_.hasMsg()) {
       changeState(READY_STATE);
-      ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+      ROS_INFO("[%s]: Ready to start", getName().c_str());
+    } else {
+      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
     }
   }
 
   if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
+    ROS_INFO("[%s]:Waiting for convergence of LKF", getName().c_str());
 
     if (isConverged()) {
       ROS_INFO("[%s]: LKF converged", getName().c_str());
