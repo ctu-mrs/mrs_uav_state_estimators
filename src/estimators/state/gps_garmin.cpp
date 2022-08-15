@@ -17,10 +17,10 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh) {
   // TODO load parameters
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                     // TODO: parametrize
-  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &Gps::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                       // TODO: parametrize
-  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &Gps::timerCheckHealth, this);
+  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
+  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
+  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
+  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &GpsGarmin::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to mavros odometry
@@ -40,11 +40,11 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh) {
   pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(getName() + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
-  est_lat_gps_ = std::make_shared<Gps>();
-  est_lat_gps_.initialize();
+  est_lat_gps_ = std::make_unique<Gps>();
+  est_lat_gps_->initialize(nh_);
 
-  est_alt_garmin_ = std::make_shared<Garmin>();
-  est_alt_garmin_.initialize();
+  est_alt_garmin_ = std::make_unique<Garmin>();
+  est_alt_garmin_->initialize(nh_);
 
   // | ------------------ initialize uav state ------------------ |
   uav_state_.header.frame_id = frame_id_;
@@ -76,6 +76,9 @@ bool GpsGarmin::start(void) {
     }
     return false;
   }
+
+  ROS_ERROR("[%s]: Failed to start", getName().c_str());
+  return false;
 }
 /*//}*/
 
@@ -124,19 +127,19 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
 
   // TODO fill in estimator types
 
-  uav_state.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+  uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
 
-  uav_state.pose.position.x = est_lat_gps_.getState(POSITION, AXIS_X);
-  uav_state.pose.position.y = est_lat_gps_.getState(POSITION, AXIS_Y);
-  uav_state.pose.position.z = est_alt_garmin_.getState(POSITION);
+  uav_state_.pose.position.x = est_lat_gps_->getState(POSITION, AXIS_X);
+  uav_state_.pose.position.y = est_lat_gps_->getState(POSITION, AXIS_Y);
+  uav_state_.pose.position.z = est_alt_garmin_->getState(POSITION);
 
-  uav_state.velocity.linear.x = est_lat_gps_.getState(VELOCITY, AXIS_X);  // in global frame
-  uav_state.velocity.linear.y = est_lat_gps_.getState(VELOCITY, AXIS_Y);  // in global frame
-  uav_state.velocity.linear.z = est_alt_garmin_.getState(VELOCITY);       // in global frame
+  uav_state_.velocity.linear.x = est_lat_gps_->getState(VELOCITY, AXIS_X);  // in global frame
+  uav_state_.velocity.linear.y = est_lat_gps_->getState(VELOCITY, AXIS_Y);  // in global frame
+  uav_state_.velocity.linear.z = est_alt_garmin_->getState(VELOCITY);       // in global frame
 
-  uav_state.acceleration.linear.x = est_lat_gps_.getState(ACCELERATION, AXIS_X);  // in global frame
-  uav_state.acceleration.linear.y = est_lat_gps_.getState(ACCELERATION, AXIS_Y);  // in global frame
-  uav_state.acceleration.linear.z = est_alt_garmin_.getState(ACCELERATION);       // in global frame
+  uav_state_.acceleration.linear.x = est_lat_gps_->getState(ACCELERATION, AXIS_X);  // in global frame
+  uav_state_.acceleration.linear.y = est_lat_gps_->getState(ACCELERATION, AXIS_Y);  // in global frame
+  uav_state_.acceleration.linear.z = est_alt_garmin_->getState(ACCELERATION);       // in global frame
 
   publishUavState();
   publishDiagnostics();
@@ -153,7 +156,7 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(INITIALIZED_STATE)) {
 
     if (sh_mavros_odom_.hasMsg()) {
-      if (est_lat_gps_.isReady() && est_alt_garmin_.isReady()) {
+      if (est_lat_gps_->isReady() && est_alt_garmin_->isReady()) {
         changeState(READY_STATE);
         ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
       } else {
@@ -166,10 +169,16 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
     }
   }
 
+  if (isInState(READY_STATE)) {
+
+    est_lat_gps_->start();
+    est_alt_garmin_->start();
+  }
+
   if (isInState(STARTED_STATE)) {
     ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
 
-    if (est_lat_gps_.isConverged() && est_alt_garmin_.isConverged()) {
+    if (est_lat_gps_->isRunning() && est_alt_garmin_->isRunning()) {
       ROS_INFO("[%s]: Subestimators converged", getName().c_str());
       changeState(RUNNING_STATE);
     } else {
@@ -190,14 +199,14 @@ bool GpsGarmin::isConverged() {
 /*//}*/
 
 /*//{ getUavState() */
-mrs_msgs::UavState GpsGarmin::getUavState() {
+mrs_msgs::UavState GpsGarmin::getUavState() const {
 
   return uav_state_;
 }
 /*//}*/
 
 /*//{ setUavState() */
-bool GpsGarmin::setUavState(const mrs_msgs::UavState& uav_state) const {
+bool GpsGarmin::setUavState(const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", ros::this_node::getName().c_str());
@@ -205,8 +214,7 @@ bool GpsGarmin::setUavState(const mrs_msgs::UavState& uav_state) const {
   }
 
   ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", ros::this_node::getName().c_str());
- return false;
-
+  return false;
 }
 /*//}*/
 

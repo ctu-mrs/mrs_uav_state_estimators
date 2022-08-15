@@ -60,8 +60,20 @@ include_directories(
   ${Eigen_INCLUDE_DIRS}
   )
 
+set(src_files 
+  src/estimators/estimator.cpp 
+  src/estimators/state/state_estimator.cpp 
+  src/estimators/state/gps_garmin.cpp 
+  src/estimators/altitude/garmin.cpp 
+  src/estimators/lateral/gps.cpp 
+  src/estimators_testing.cpp 
+  )
+
 ## Declare a C++ executable
-add_library(EstimationTesting src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
+# add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
+add_library(EstimationTesting 
+  ${src_files}
+  )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(EstimationTesting

@@ -12,7 +12,7 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
 
-#include "lateral_estimator.h"
+#include "estimators/lateral/lateral_estimator.h"
 #include "support.h"
 
 //}

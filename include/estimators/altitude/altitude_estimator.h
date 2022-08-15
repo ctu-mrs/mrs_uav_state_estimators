@@ -3,7 +3,7 @@
 
 /* includes //{ */
 
-#include "estimator.h"
+#include "estimators/partial_estimator.h"
 
 //}
 
@@ -16,11 +16,11 @@ const std::string type = "ALTITUDE";
 }
 
 template <int n_states>
-class AltitudeEstimator : public Estimator<n_states, 1> {
+class AltitudeEstimator : public PartialEstimator<n_states, 1> {
 
 private:
 public:
-  AltitudeEstimator(const std::string& name, const std::string& frame_id) : Estimator<n_states, 1>(altitude::type, name, frame_id){};
+  AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id){};
 
   virtual ~AltitudeEstimator(void) {
   }

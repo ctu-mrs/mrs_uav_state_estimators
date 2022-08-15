@@ -3,7 +3,7 @@
 
 /* includes //{ */
 
-#include "estimator.h"
+#include "estimators/partial_estimator.h"
 
 //}
 
@@ -16,11 +16,11 @@ const std::string type = "LATERAL";
 }
 
 template <int n_states>
-class LateralEstimator : public Estimator<n_states, 2> {
+class LateralEstimator : public PartialEstimator<n_states, 2> {
 
 private:
 public:
-  LateralEstimator(const std::string& name, const std::string& frame_id) : Estimator<n_states, 2>(lateral::type, name, frame_id){};
+  LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 2>(lateral::type, name, frame_id){};
 
   virtual ~LateralEstimator(void) {
   }
