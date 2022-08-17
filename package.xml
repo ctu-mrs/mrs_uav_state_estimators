@@ -12,6 +12,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <depend>pluginlib</depend>
   <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
@@ -27,7 +28,8 @@
 
   <export>
     generate_messages_cpp
-    <nodelet plugin="${prefix}/plugins.xml" />
+    <nodelet plugin="${prefix}/nodelets.xml" />
+    <mrs_uav_state_estimation plugin="${prefix}/estimator_plugins.xml" />
   </export>
 
 </package>

@@ -1,8 +1,12 @@
 #define VERSION "0.6.0.0"
 #include "estimation_manager.h"
 
+namespace mrs_uav_state_estimation
+{
+
 /*//{ onInit() */
 void EstimationManager::onInit() {
+
   ros::NodeHandle nh = nodelet::Nodelet::getMTPrivateNodeHandle();
 
   ros::Time::waitForValid();
@@ -56,12 +60,12 @@ void EstimationManager::onInit() {
   ROS_INFO("[%s]: estimators were loaded", getName().c_str());
   /*//}*/
 
-/*//{ check whether initial estimator was loaded */
+  /*//{ check whether initial estimator was loaded */
   param_loader.loadParam("initial_estimator", initial_estimator_name_);
   bool initial_estimator_found = false;
   for (int i = 0; i < int(estimator_list_.size()); i++) {
     if (estimator_list_[i]->getName() == initial_estimator_name_) {
-      initial_estimator_ = estimator_list_[i];
+      initial_estimator_      = estimator_list_[i];
       initial_estimator_found = true;
       break;
     }
@@ -71,7 +75,7 @@ void EstimationManager::onInit() {
     ROS_ERROR("[%s]: initial estimator %s could not be found among loaded estimators. shutting down", getName().c_str(), initial_estimator_name_.c_str());
     ros::shutdown();
   }
-/*//}*/
+  /*//}*/
 
   /*//{ initialize estimators */
   for (int i = 0; i < int(estimator_list_.size()); i++) {
@@ -95,7 +99,7 @@ void EstimationManager::onInit() {
   /*//}*/
 
   /*//{ initialize timers */
-  param_loader.loadParam("rate/publish", timer_rate_publish_);
+  param_loader.loadParam("rate/uav_state", timer_rate_publish_);
   timer_publish_ = nh.createTimer(ros::Rate(timer_rate_publish_), &EstimationManager::timerPublish, this);
 
   param_loader.loadParam("rate/health", timer_rate_check_health_);
@@ -124,7 +128,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
     ph_uav_state_.publish(uav_state);
 
     // TODO transform velocity to body frame and publish odom
-    
+
   } else {
     ROS_WARN_THROTTLE(1.0, "[%s]: not publishing uav state in %s", getName().c_str(), sm_.getCurrentStateString().c_str());
   }
@@ -138,7 +142,22 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
     return;
   }
 
+  if (sm_.isInState(StateMachine::INITIALIZED_STATE)) {
+    if (initial_estimator_->isRunning()) {
+      std::scoped_lock lock(mutex_active_estimator_);
+      ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
+      active_estimator_ = initial_estimator_;
+      sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+    }
+  }
 
+  if (sm_.isInState(StateMachine::READY_FOR_TAKEOFF_STATE)) {
+    sm_.changeState(StateMachine::TAKING_OFF_STATE);
+  }
+
+  if (sm_.isInState(StateMachine::TAKING_OFF_STATE)) {
+    sm_.changeState(StateMachine::FLYING_STATE);
+  }
 }
 /*//}*/
 
@@ -147,3 +166,8 @@ std::string EstimationManager::getName() const {
   return nodelet_name_;
 }
 /*//}*/
+
+}  // namespace mrs_uav_state_estimation
+
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimation::EstimationManager, nodelet::Nodelet)

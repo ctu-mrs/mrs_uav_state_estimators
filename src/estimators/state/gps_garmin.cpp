@@ -36,8 +36,8 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh) {
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
 
   // | ---------------- publishers initialization --------------- |
-  pub_uav_state_   = nh_.advertise<mrs_msgs::UavState>(getName() + "/output", 1);
-  pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(getName() + "/diagnostics", 1);
+  pub_uav_state_   = nh_.advertise<mrs_msgs::UavState>(toSnakeCase(getName()) + "/output", 1);
+  pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
   est_lat_gps_ = std::make_unique<Gps>();
@@ -171,8 +171,24 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(READY_STATE)) {
 
-    est_lat_gps_->start();
-    est_alt_garmin_->start();
+    bool est_lat_gps_start_successful, est_alt_garmin_start_successful;
+
+    if (est_lat_gps_->isStarted() || est_lat_gps_->isRunning()) {
+      est_lat_gps_start_successful = true;
+    } else {
+      est_lat_gps_start_successful = est_lat_gps_->start();
+    }
+
+
+    if (est_alt_garmin_->isStarted() || est_alt_garmin_->isRunning()) {
+      est_alt_garmin_start_successful = true;
+    } else {
+      est_alt_garmin_start_successful = est_alt_garmin_->start();
+    }
+
+    if (est_lat_gps_start_successful && est_alt_garmin_start_successful) {
+      changeState(STARTED_STATE);
+    }
   }
 
   if (isInState(STARTED_STATE)) {
@@ -219,3 +235,6 @@ bool GpsGarmin::setUavState(const mrs_msgs::UavState &uav_state) {
 /*//}*/
 
 };  // namespace mrs_uav_state_estimation
+
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimation::GpsGarmin, mrs_uav_state_estimation::StateEstimator)

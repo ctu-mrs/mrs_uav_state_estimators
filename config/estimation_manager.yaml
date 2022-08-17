@@ -1,0 +1,13 @@
+version: "0.6.0.0"
+
+# loaded state estimator plugins
+state_estimators: [
+"GpsGarmin"
+]
+
+initial_estimator: "GpsGarmin" # will be used as the first estimator
+
+# rates of timers [Hz]
+rate:
+  uav_state: 100
+  health: 100

@@ -21,7 +21,10 @@
 #include <mrs_lib/service_client_handler.h>
 
 #include "estimators/state/state_estimator.h"
-#include "reference_frame_manager.h"
+/* #include "reference_frame_manager.h" */
+
+namespace mrs_uav_state_estimation
+{
 
 /*//{ class StateMachine */
 class StateMachine {
@@ -120,7 +123,7 @@ public:
       }
 
       case FLYING_STATE: {
-        if (current_state_ != TAKING_OFF_STATE || current_state_ != HOVER_STATE || current_state_ != ESTIMATOR_SWITCHING_STATE) {
+        if (current_state_ != TAKING_OFF_STATE && current_state_ != HOVER_STATE && current_state_ != ESTIMATOR_SWITCHING_STATE) {
           ROS_ERROR("[%s]: transition to %s is possible only from %s or %s or %s", getName().c_str(), getStateAsString(FLYING_STATE).c_str(),
                     getStateAsString(TAKING_OFF_STATE).c_str(), getStateAsString(HOVER_STATE).c_str(), getStateAsString(ESTIMATOR_SWITCHING_STATE).c_str());
           return false;
@@ -200,7 +203,7 @@ private:
   SMState_t current_state_  = UNINITIALIZED_STATE;
   SMState_t previous_state_ = UNINITIALIZED_STATE;
 
-  std::mutex mtx_state_;
+  mutable std::mutex mtx_state_;
 
   std::string getName() const {
     return name_;
@@ -224,15 +227,14 @@ private:
 };
 /*//}*/
 
-class EstimationManager {
+class EstimationManager : public nodelet::Nodelet {
 
 private:
   const std::string nodelet_name_ = "EstimationManager";
 
   std::string version_;
 
-
-  std::unique_ptr<mrs_uav_state_estimation::ReferenceFrameManager> ref_frame_manager_;
+  /* std::unique_ptr<mrs_uav_state_estimation::ReferenceFrameManager> ref_frame_manager_; */
 
   /* std::unique_ptr<StateMachine> sm_; */
   StateMachine sm_;
@@ -275,9 +277,10 @@ private:
   std::mutex                                                               mutex_estimator_list_;
   std::vector<std::string>                                                 estimator_names_;
   /* int                                                                      active_estimator_idx_; */
+  std::string                                                 initial_estimator_name_ = "UNDEFINED_INITIAL_ESTIMATOR";
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> initial_estimator_;
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> active_estimator_;
-  std::string                                                 initial_estimator_name_ = "UNDEFINED_INITIAL_ESTIMATOR";
+  std::mutex                                                  mutex_active_estimator_;
 
 public:
   EstimationManager();
@@ -290,5 +293,7 @@ public:
 // constructor
 EstimationManager::EstimationManager() {
 }
+
+}  // namespace mrs_uav_state_estimation
 
 #endif

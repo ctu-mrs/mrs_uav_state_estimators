@@ -42,6 +42,12 @@ bool Estimator::isReady() const {
 }
 /*//}*/
 
+/*//{ isStarted() */
+bool Estimator::isStarted() const {
+  return isInState(STARTED_STATE);
+}
+/*//}*/
+
 /*//{ isRunning() */
 bool Estimator::isRunning() const {
   return isInState(RUNNING_STATE);

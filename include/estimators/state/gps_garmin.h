@@ -12,8 +12,8 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
 
-#include "estimators/state/state_estimator.h"
 #include "support.h"
+#include "estimators/state/state_estimator.h"
 #include "estimators/lateral/gps.h"
 #include "estimators/altitude/garmin.h"
 
@@ -24,7 +24,7 @@ namespace mrs_uav_state_estimation
 
 namespace gps_garmin
 {
-const std::string name     = "gps_garmin";
+const std::string name     = "GpsGarmin";
 const std::string frame_id = "gps_garmin_origin";
 }  // namespace gps_garmin
 

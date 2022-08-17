@@ -57,6 +57,7 @@ public:
   bool isInState(const SMStates_t &state_in) const;
   bool isInitialized() const;
   bool isReady() const;
+  bool isStarted() const;
   bool isRunning() const;
   bool isStopped() const;
   bool isError() const;

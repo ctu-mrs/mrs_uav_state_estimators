@@ -13,7 +13,6 @@
 #include <mrs_lib/subscribe_handler.h>
 
 #include "estimators/lateral/lateral_estimator.h"
-#include "support.h"
 
 //}
 

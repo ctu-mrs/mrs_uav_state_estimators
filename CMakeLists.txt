@@ -43,7 +43,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES EstimationTesting
+  LIBRARIES GpsGarmin
   CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime
   DEPENDS Eigen
   )
@@ -66,17 +66,17 @@ set(src_files
   src/estimators/state/gps_garmin.cpp 
   src/estimators/altitude/garmin.cpp 
   src/estimators/lateral/gps.cpp 
-  src/estimators_testing.cpp 
+  # src/estimators_testing.cpp 
   )
 
 ## Declare a C++ executable
 # add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
-add_library(EstimationTesting 
+add_library(GpsGarmin 
   ${src_files}
   )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(EstimationTesting
+target_link_libraries(GpsGarmin
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -84,3 +84,14 @@ target_link_libraries(EstimationTesting
 ## Add configure headers for dynamic reconfigure
 # add_dependencies(EstimationTesting ${PROJECT_NAME}_gencfg)
 
+## Declare a C++ executable
+# add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
+add_library(EstimationManager 
+  src/estimation_manager.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(EstimationManager
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )

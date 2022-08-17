@@ -44,7 +44,9 @@ input=(
 "
   # 'Control' "waitForOdometry; roslaunch mrs_uav_general core.launch config_uav_manager:=./custom_configs/uav_manager.yaml
 # "
-  'OdometryTesting' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_testing.launch
+  # 'OdometryTesting' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_testing.launch
+# "
+  'EstimationManager' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_manager.launch
 "
   'AutomaticStart' "waitForSimulation; roslaunch mrs_uav_general automatic_start.launch
 "
