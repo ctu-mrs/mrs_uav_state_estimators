@@ -7,6 +7,7 @@ namespace mrs_uav_state_estimation
 void StateEstimator::publishUavState() const {
 
   try {
+    std::scoped_lock lock(mtx_uav_state_);
     pub_uav_state_.publish(uav_state_);
   }
   catch (...) {

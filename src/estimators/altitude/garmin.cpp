@@ -207,7 +207,7 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
 
     if (sh_mavros_odom_.hasMsg()) {
       changeState(READY_STATE);
-      ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+      ROS_INFO("[%s]: Ready to start", getName().c_str());
     } else {
       ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
     }

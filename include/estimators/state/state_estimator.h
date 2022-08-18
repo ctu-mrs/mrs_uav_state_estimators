@@ -27,7 +27,7 @@ class StateEstimator : public Estimator {
 public:
 protected:
   mrs_msgs::UavState uav_state_;
-  std::mutex         mutex_uav_state_;
+  mutable std::mutex         mtx_uav_state_;
 
 protected:
   ros::Publisher pub_uav_state_;

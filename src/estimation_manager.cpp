@@ -148,6 +148,8 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
       ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
       active_estimator_ = initial_estimator_;
       sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+    } else if (initial_estimator_->isReady()) {
+      initial_estimator_->start();
     }
   }
 
