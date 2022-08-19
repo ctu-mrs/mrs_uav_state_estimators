@@ -25,7 +25,7 @@ public:
   typedef Eigen::Matrix<double, n_states, n_states> covariance_t;
 
 protected:
-  ros::Publisher pub_output_;
+  mutable mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput> ph_output_;
 
 private:
   static const int _n_axes_   = n_axes;
@@ -51,6 +51,8 @@ public:
 
   virtual covariance_t getCovariance(void) const                 = 0;
   virtual void         setCovariance(const covariance_t &cov_in) = 0;
+
+  virtual double getInnovation(const int &state_id_in, const int &axis_in) const  = 0;
 
   // implemented methods
   // access methods
@@ -107,18 +109,13 @@ int PartialEstimator<n_states, n_axes>::stateIdToIndex(const int &axis_in, const
 template <int n_states, int n_axes>
 void PartialEstimator<n_states, n_axes>::publishOutput() const {
 
-  EstimatorOutput msg;
+  mrs_uav_state_estimation::EstimatorOutput msg;
   msg.header.stamp    = ros::Time::now();
   msg.header.frame_id = getFrameId();
   msg.state           = getStatesAsVector();
   msg.covariance      = getCovarianceAsVector();
 
-  try {
-    pub_output_.publish(msg);
-  }
-  catch (...) {
-    ROS_ERROR("exception caught during publishing topic '%s'", pub_output_.getTopic().c_str());
-  }
+  ph_output_.publish(msg);
 }
 /*//}*/
 /*//}*/

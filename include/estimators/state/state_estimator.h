@@ -1,11 +1,13 @@
-#ifndef STATEESTIMATOR_H_
-#define STATEESTIMATOR_H_
+#ifndef STATEESTIMATOR_H
+#define STATEESTIMATOR_H
 
 /* includes //{ */
 
 #include <ros/ros.h>
 
 #include <Eigen/Dense>
+
+#include <nav_msgs/Odometry.h>
 
 #include <mrs_msgs/UavState.h>
 
@@ -27,10 +29,14 @@ class StateEstimator : public Estimator {
 public:
 protected:
   mrs_msgs::UavState uav_state_;
-  mutable std::mutex         mtx_uav_state_;
+  mutable std::mutex mtx_uav_state_;
+
+  nav_msgs::Odometry innovation_;
+  mutable std::mutex mtx_innovation_;
 
 protected:
-  ros::Publisher pub_uav_state_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::UavState> ph_uav_state_;
+  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry> ph_innovation_;
 
 public:
   StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id){};
@@ -46,6 +52,7 @@ public:
 
   // implemented methods
   void publishUavState() const;
+  void publishInnovation() const;
 };
 
 

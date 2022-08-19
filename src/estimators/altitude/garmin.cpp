@@ -11,9 +11,10 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void Garmin::initialize(const ros::NodeHandle &parent_nh) {
+void Garmin::initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) {
 
   nh_ = parent_nh;
+  uav_name_ = uav_name;
 
   // TODO load parameters
 
@@ -78,8 +79,8 @@ void Garmin::initialize(const ros::NodeHandle &parent_nh) {
   sh_garmin_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "garmin_range_in");
 
   // | ---------------- publishers initialization --------------- |
-  pub_output_      = nh_.advertise<EstimatorOutput>(getName() + "/output", 1);
-  pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh_, getName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, getName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -296,4 +297,12 @@ void Garmin::setCovariance(const covariance_t &cov_in) {
   sc_.P = cov_in;
 }
 /*//}*/
+
+/*//{ getInnovation() */
+double Garmin::getInnovation(const int &state_id_in, const int &axis_in = 0) const {
+  // TODO
+  return 0;
+}
+/*//}*/
+
 };  // namespace mrs_uav_state_estimation

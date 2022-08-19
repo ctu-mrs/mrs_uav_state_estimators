@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   mrs_lib
   mrs_msgs
   nodelet
+  tf2_geometry_msgs
   dynamic_reconfigure
   message_generation
   )

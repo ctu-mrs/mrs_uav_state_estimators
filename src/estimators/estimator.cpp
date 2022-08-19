@@ -7,15 +7,6 @@ namespace mrs_uav_state_estimation
 /*//{ changeState() */
 bool Estimator::changeState(SMStates_t new_state) {
 
-  // do not initialize if the pub is empty
-  ros::Publisher empty_pub;
-  if (new_state == INITIALIZED_STATE) {
-    if (pub_diagnostics_ == empty_pub) {
-      ROS_ERROR("[%s]: cannot transition to %s - diagnostic publisher is not initialized", getName().c_str(), getSmStateString(INITIALIZED_STATE).c_str());
-      return false;
-    }
-  }
-
   previous_sm_state_ = current_sm_state_;
   current_sm_state_  = new_state;
 
@@ -92,7 +83,7 @@ std::string Estimator::getType(void) const {
 
 /*//{ getFrameId() */
 std::string Estimator::getFrameId(void) const {
-  return frame_id_;
+  return uav_name_ + "/" + frame_id_;
 }
 /*//}*/
 
@@ -106,12 +97,7 @@ void Estimator::publishDiagnostics() const {
   msg.estimator_type     = getType();
   msg.estimator_sm_state = getCurrentSmStateString();
 
-  try {
-    pub_diagnostics_.publish(msg);
-  }
-  catch (...) {
-    ROS_ERROR("exception caught during publishing topic '%s'", pub_diagnostics_.getTopic().c_str());
-  }
+  ph_diagnostics_.publish(msg);
 }
 /*//}*/
 

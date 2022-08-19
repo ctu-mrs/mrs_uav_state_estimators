@@ -10,9 +10,10 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void Gps::initialize(const ros::NodeHandle &parent_nh) {
+void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_name) {
 
-  nh_ = parent_nh;
+  nh_       = parent_nh;
+  uav_name_ = uav_name;
 
   // TODO load parameters
 
@@ -84,8 +85,8 @@ void Gps::initialize(const ros::NodeHandle &parent_nh) {
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
 
   // | ---------------- publishers initialization --------------- |
-  pub_output_      = nh_.advertise<EstimatorOutput>(getName() + "/output", 1);
-  pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh_, getName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorDiagnostics>(nh_, getName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -161,7 +162,13 @@ void Gps::timerUpdate(const ros::TimerEvent &event) {
   // TODO input and measurement from actual data
 
   // prediction step
-  u_t u = u_t::Zero();
+  u_t u;
+  if (is_input_ready_) {
+    u = input_;
+  } else {
+    u = u_t::Zero();
+  }
+
 
   try {
     // Apply the prediction step
@@ -183,15 +190,42 @@ void Gps::timerUpdate(const ros::TimerEvent &event) {
     z(0) = mavros_odom_msg->pose.pose.position.x;
     z(1) = mavros_odom_msg->pose.pose.position.y;
 
-    try {
-      // Apply the correction step
-      {
-        std::scoped_lock lock(mutex_lkf_);
-        sc_ = lkf_->correct(sc_, z, R_);
-      }
+    bool health_flag = true;
+
+    if (!std::isfinite(z(0))) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in mavros position x correction", getName().c_str());
+      health_flag = false;
     }
-    catch (const std::exception &e) {
-      ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+
+    if (!std::isfinite(z(1))) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in mavros position y correction", getName().c_str());
+      health_flag = false;
+    }
+
+    if (health_flag) {
+
+      {
+        std::scoped_lock lock(mtx_innovation_);
+
+
+        innovation_(0) = z(0) - getState(POSITION, AXIS_X);
+        innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
+
+        if (innovation_(0) > 1.0 || innovation_(1) > 1.0) {
+          ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f y: %.2f", getName().c_str(), innovation_(0), innovation_(1));
+        }
+      }
+
+      try {
+        // Apply the correction step
+        {
+          std::scoped_lock lock(mutex_lkf_);
+          sc_ = lkf_->correct(sc_, z, R_);
+        }
+      }
+      catch (const std::exception &e) {
+        ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+      }
     }
   }
 
@@ -209,7 +243,11 @@ void Gps::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
+    // initialize the estimator with current position
     if (sh_mavros_odom_.hasMsg()) {
+      nav_msgs::OdometryConstPtr msg = sh_mavros_odom_.getMsg();
+      setState(msg->pose.pose.position.x, POSITION, AXIS_X);
+      setState(msg->pose.pose.position.y, POSITION, AXIS_Y);
       changeState(READY_STATE);
       ROS_INFO("[%s]: Ready to start", getName().c_str());
     } else {
@@ -218,12 +256,18 @@ void Gps::timerCheckHealth(const ros::TimerEvent &event) {
   }
 
   if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]:Waiting for convergence of LKF", getName().c_str());
+    ROS_INFO("[%s]: Waiting for convergence of LKF", getName().c_str());
 
     if (isConverged()) {
       ROS_INFO("[%s]: LKF converged", getName().c_str());
       changeState(RUNNING_STATE);
     }
+  }
+
+  // check age of input
+  if (is_input_ready_ && (ros::Time::now() - last_input_stamp_).toSec() > 0.1) {
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getName().c_str(), (ros::Time::now() - last_input_stamp_).toSec());
+    is_input_ready_ = false;
   }
 }
 /*//}*/
@@ -298,6 +342,24 @@ Gps::covariance_t Gps::getCovariance(void) const {
 void Gps::setCovariance(const covariance_t &cov_in) {
   std::scoped_lock lock(mutex_lkf_);
   sc_.P = cov_in;
+}
+/*//}*/
+
+/*//{ getInnovation() */
+double Gps::getInnovation(const int &state_id_in, const int &axis_in) const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_(axis_in);
+}
+/*//}*/
+
+/*//{ setInput() */
+void Gps::setInput(const double input_x, const double input_y, const ros::Time &stamp) {
+
+  std::scoped_lock lock(mtx_input_);
+  input_[0]         = input_x;
+  input_[1]         = input_y;
+  last_input_stamp_ = stamp;
+  is_input_ready_   = true;
 }
 /*//}*/
 

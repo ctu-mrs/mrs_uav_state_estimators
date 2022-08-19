@@ -60,6 +60,14 @@ private:
   std::unique_ptr<lkf_t> lkf_;
   mutable std::mutex     mutex_lkf_;
 
+  u_t input_;
+  ros::Time last_input_stamp_;
+  std::mutex mtx_input_;
+  std::atomic<bool> is_input_ready_ = false;
+
+  z_t innovation_;
+  mutable std::mutex mtx_innovation_;
+
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;
 
@@ -79,7 +87,7 @@ public:
   ~Gps(void) {
   }
 
-  virtual void initialize(const ros::NodeHandle &parent_nh) override;
+  virtual void initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) override;
   virtual bool start(void) override;
   virtual bool pause(void) override;
   virtual bool reset(void) override;
@@ -95,6 +103,10 @@ public:
 
   virtual covariance_t getCovariance(void) const override;
   virtual void         setCovariance(const covariance_t &cov_in) override;
+
+  virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
+
+  void setInput(const double input_x, const double input_y, const ros::Time& stamp);
 
   void timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
 };

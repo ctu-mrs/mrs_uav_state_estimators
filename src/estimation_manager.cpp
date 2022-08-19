@@ -13,9 +13,9 @@ void EstimationManager::onInit() {
 
   ROS_INFO("[%s]: initializing", getName().c_str());
 
-  /* sm_ = std::make_unique<StateMachine>(); */
+  mrs_lib::ParamLoader param_loader(nh, getName());
 
-  mrs_lib::ParamLoader param_loader(nh, "EstimationManager");
+  param_loader.loadParam("uav_name", uav_name_);
 
   /*//{ check version */
   param_loader.loadParam("version", version_);
@@ -82,7 +82,7 @@ void EstimationManager::onInit() {
 
     try {
       ROS_INFO("[%s]: initializing the estimator '%s'", getName().c_str(), estimator_list_[i]->getName().c_str());
-      estimator_list_[i]->initialize(nh);
+      estimator_list_[i]->initialize(nh, uav_name_);
     }
     catch (std::runtime_error& ex) {
       ROS_ERROR("[%s]: exception caught during tracker initialization: '%s'", getName().c_str(), ex.what());
@@ -106,6 +106,11 @@ void EstimationManager::onInit() {
   timer_check_health_ = nh.createTimer(ros::Rate(timer_rate_check_health_), &EstimationManager::timerCheckHealth, this);
   /*//}*/
 
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[Odometry]: Could not load all non-optional parameters. Shutting down.");
+    ros::shutdown();
+  }
+
   sm_.changeState(StateMachine::INITIALIZED_STATE);
 
   ROS_INFO("[%s]: initialized", getName().c_str());
@@ -121,7 +126,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
   if (sm_.isInPublishableState()) {
 
-    mrs_msgs::UavState uav_state = active_estimator_->getUavState();
+    const mrs_msgs::UavState uav_state = active_estimator_->getUavState();
 
     // TODO state health checks
 

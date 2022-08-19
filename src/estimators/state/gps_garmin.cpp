@@ -10,11 +10,18 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void GpsGarmin::initialize(const ros::NodeHandle &parent_nh) {
+void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_name) {
 
-  nh_ = parent_nh;
+  nh_       = parent_nh;
+  uav_name_ = uav_name;
 
   // TODO load parameters
+  mrs_lib::ParamLoader param_loader(nh_, getName());
+
+  // | ----------------------- transformer ---------------------- |
+  transformer_ = std::make_unique<mrs_lib::Transformer>(nh_, getName());
+  /* transformer_->setDefaultPrefix(_uav_name_); */
+  /* transformer_->retryLookupNewest(true); */
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
@@ -35,20 +42,42 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh) {
 
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
 
+  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in", &GpsGarmin::callbackAttitudeCommand, this);
+
   // | ---------------- publishers initialization --------------- |
-  pub_uav_state_   = nh_.advertise<mrs_msgs::UavState>(toSnakeCase(getName()) + "/output", 1);
-  pub_diagnostics_ = nh_.advertise<EstimatorDiagnostics>(toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_uav_state_   = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh_, toSnakeCase(getName()) + "/uav_state", 1);
+  ph_innovation_   = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, toSnakeCase(getName()) + "/innovation", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
   est_lat_gps_ = std::make_unique<Gps>();
-  est_lat_gps_->initialize(nh_);
+  est_lat_gps_->initialize(nh_, uav_name_);
 
   est_alt_garmin_ = std::make_unique<Garmin>();
-  est_alt_garmin_->initialize(nh_);
+  est_alt_garmin_->initialize(nh_, uav_name_);
 
-  // | ------------------ initialize uav state ------------------ |
-  uav_state_.header.frame_id = frame_id_;
-  uav_state_.child_frame_id  = "fcu";
+  // | ------------------ initialize published messages ------------------ |
+  uav_state_.header.frame_id = uav_name_ + "/" + frame_id_;
+  uav_state_.child_frame_id  = uav_name_ + "/" + fcu_frame_id_;
+
+  innovation_.header.frame_id = uav_name_ + "/" + frame_id_;
+  innovation_.child_frame_id  = uav_name_ + "/" + fcu_frame_id_;
+  innovation_.pose.pose.position.x = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.position.y = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();
+
+  innovation_.pose.pose.orientation.x = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.orientation.y = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.orientation.z = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.orientation.w = std::numeric_limits<double>::quiet_NaN();
+
+  innovation_.twist.twist.linear.x = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.linear.y = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.linear.z = std::numeric_limits<double>::quiet_NaN(); 
+
+  innovation_.twist.twist.angular.x = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.angular.y = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.angular.z = std::numeric_limits<double>::quiet_NaN(); 
 
   // | ------------------ finish initialization ----------------- |
 
@@ -148,6 +177,8 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
 
+    uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
+
     uav_state_.pose.position.x = est_lat_gps_->getState(POSITION, AXIS_X);
     uav_state_.pose.position.y = est_lat_gps_->getState(POSITION, AXIS_Y);
     uav_state_.pose.position.z = est_alt_garmin_->getState(POSITION);
@@ -161,7 +192,14 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
     uav_state_.acceleration.linear.z = est_alt_garmin_->getState(ACCELERATION);       // in global frame
   }
 
+  innovation_.header.stamp = ros::Time::now();
+
+  innovation_.pose.pose.position.x = est_lat_gps_->getInnovation(POSITION, AXIS_X);
+  innovation_.pose.pose.position.y = est_lat_gps_->getInnovation(POSITION, AXIS_Y);
+  innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN(); // TODO
+
   publishUavState();
+  publishInnovation();
   publishDiagnostics();
 }
 /*//}*/
@@ -199,6 +237,38 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
     } else {
       return;
     }
+  }
+}
+/*//}*/
+
+/*//{ callbackAttitudeCommand() */
+void GpsGarmin::callbackAttitudeCommand(mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> &wrp) {
+
+  if (!isRunning()) {
+    return;
+  }
+
+  if (sh_mavros_odom_.hasMsg()) {
+
+    mrs_msgs::AttitudeCommandConstPtr msg = wrp.getMsg();
+    // untilt the desired acceleration vector
+    geometry_msgs::Vector3Stamped des_acc, des_acc_untilted;
+    des_acc.vector.x          = msg->desired_acceleration.x;
+    des_acc.vector.y          = msg->desired_acceleration.y;
+    des_acc.vector.z          = msg->desired_acceleration.z;
+    des_acc.header.frame_id = fcu_frame_id_;
+    des_acc.header.stamp    = msg->header.stamp;
+    auto response_acc                = transformer_->transformSingle(des_acc, fcu_untilted_frame_id_);
+    if (response_acc) {
+      des_acc_untilted = response_acc.value();
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), fcu_untilted_frame_id_.c_str());
+    }
+
+    // rotate the desired acceleration vector to global frame
+    const tf2::Vector3 des_acc_global = rotateVecByHdg(des_acc_untilted.vector, mrs_lib::AttitudeConverter(sh_mavros_odom_.getMsg()->pose.pose.orientation).getHeading());
+
+    est_lat_gps_->setInput(des_acc_global.getX(), des_acc_global.getY(), msg->header.stamp);
   }
 }
 /*//}*/

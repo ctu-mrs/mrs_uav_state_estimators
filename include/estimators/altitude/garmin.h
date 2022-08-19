@@ -84,7 +84,7 @@ public:
   ~Garmin(void) {
   }
 
-  virtual void initialize(const ros::NodeHandle &parent_nh) override;
+  virtual void initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) override;
   virtual bool start(void) override;
   virtual bool pause(void) override;
   virtual bool reset(void) override;
@@ -100,6 +100,8 @@ public:
 
   virtual covariance_t getCovariance(void) const override;
   virtual void         setCovariance(const covariance_t &cov_in) override;
+
+  virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
   void timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
   void timeoutGarminRange(const std::string &topic, const ros::Time &last_msg, const int n_pubs);

@@ -234,6 +234,7 @@ private:
 
   std::string version_;
 
+  std::string uav_name_;
   /* std::unique_ptr<mrs_uav_state_estimation::ReferenceFrameManager> ref_frame_manager_; */
 
   /* std::unique_ptr<StateMachine> sm_; */

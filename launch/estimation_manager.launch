@@ -21,11 +21,13 @@
     <node pkg="nodelet" type="nodelet" name="estimation_manager" args="$(arg nodelet) mrs_uav_state_estimation/EstimationManager $(arg nodelet_manager)" output="screen" launch-prefix="$(arg launch_prefix)">
 
       <param name="enable_profiler" value="$(arg PROFILER)" />
+      <param name="uav_name" value="$(arg UAV_NAME)" />
 
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimation_manager.yaml" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimators.yaml" command="load" />
 
       <!-- Subscribers -->
+      <remap from="~attitude_command_in" to="control_manager/attitude_cmd" />
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
       <remap from="~garmin_range_in" to="garmin/range" />
 

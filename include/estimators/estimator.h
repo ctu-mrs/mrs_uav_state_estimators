@@ -1,5 +1,5 @@
-#ifndef ESTIMATOR_H_
-#define ESTIMATOR_H_
+#ifndef ESTIMATOR_H
+#define ESTIMATOR_H
 
 /* includes //{ */
 
@@ -8,6 +8,8 @@
 #include <Eigen/Dense>
 
 #include <mrs_msgs/UavState.h>
+
+#include <mrs_lib/publisher_handler.h>
 
 #include <mrs_uav_state_estimation/EstimatorDiagnostics.h>
 
@@ -20,13 +22,18 @@ namespace mrs_uav_state_estimation
 
 class Estimator {
 
-public:
 protected:
-  ros::Publisher pub_diagnostics_;
+  mutable mrs_lib::PublisherHandler<EstimatorDiagnostics> ph_diagnostics_;
+
+  std::string uav_name_; 
 
   const std::string type_;
   const std::string name_;
   const std::string frame_id_;
+
+  // TODO load as parameters in manager, pass to estimators
+  const std::string fcu_frame_id_ = "fcu";
+  const std::string fcu_untilted_frame_id_ = "fcu_untilted";
 
 private:
   SMStates_t previous_sm_state_ = UNINITIALIZED_STATE;
@@ -39,7 +46,7 @@ public:
   }
 
   // virtual methods
-  virtual void initialize(const ros::NodeHandle &parent_nh) = 0;
+  virtual void initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) = 0;
   virtual bool start(void)                                  = 0;
   virtual bool pause(void)                                  = 0;
   virtual bool reset(void)                                  = 0;
