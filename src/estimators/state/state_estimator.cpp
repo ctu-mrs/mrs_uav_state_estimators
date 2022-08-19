@@ -10,6 +10,14 @@ void StateEstimator::publishUavState() const {
 }
 /*//}*/
 
+/*//{ publishCovariance() */
+void StateEstimator::publishCovariance() const {
+  std::scoped_lock lock(mtx_covariance_);
+  ph_pose_covariance_.publish(pose_covariance_);
+  ph_twist_covariance_.publish(twist_covariance_);
+}
+/*//}*/
+
 /*//{ publishInnovation() */
 void StateEstimator::publishInnovation() const {
 

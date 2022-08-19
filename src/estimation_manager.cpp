@@ -1,4 +1,4 @@
-#define VERSION "0.6.0.0"
+#define VERSION "0.0.0.1"
 #include "estimation_manager.h"
 
 namespace mrs_uav_state_estimation
@@ -16,6 +16,11 @@ void EstimationManager::onInit() {
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   param_loader.loadParam("uav_name", uav_name_);
+  std::string fcu_frame_id;
+  param_loader.loadParam("fcu_frame_id", fcu_frame_id);
+  ns_fcu_frame_id_ = uav_name_ + "/" + fcu_frame_id;
+
+  transformer_ = std::make_shared<mrs_lib::Transformer>();
 
   /*//{ check version */
   param_loader.loadParam("version", version_);
@@ -35,7 +40,7 @@ void EstimationManager::onInit() {
 
   for (int i = 0; i < int(estimator_names_.size()); i++) {
 
-    std::string estimator_name = estimator_names_[i];
+    const std::string estimator_name = estimator_names_[i];
 
     // load the estimator parameters
     std::string address;
@@ -107,7 +112,7 @@ void EstimationManager::onInit() {
   /*//}*/
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[Odometry]: Could not load all non-optional parameters. Shutting down.");
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
     ros::shutdown();
   }
 
@@ -132,7 +137,19 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     ph_uav_state_.publish(uav_state);
 
-    // TODO transform velocity to body frame and publish odom
+    nav_msgs::Odometry odom_main = uavStateToOdom(uav_state);
+
+    const std::vector<double> pose_covariance = active_estimator_->getPoseCovariance();
+    for (size_t i = 0; i < pose_covariance.size(); i++) {
+      odom_main.pose.covariance[i] = pose_covariance[i]; 
+    }
+
+    const std::vector<double> twist_covariance = active_estimator_->getTwistCovariance();
+    for (size_t i = 0; i < twist_covariance.size(); i++) {
+      odom_main.twist.covariance[i] = twist_covariance[i]; 
+    }
+
+    ph_odom_main_.publish(odom_main);
 
   } else {
     ROS_WARN_THROTTLE(1.0, "[%s]: not publishing uav state in %s", getName().c_str(), sm_.getCurrentStateString().c_str());
@@ -171,6 +188,31 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
 /*//{ getName() */
 std::string EstimationManager::getName() const {
   return nodelet_name_;
+}
+/*//}*/
+
+/*//{ uavStateToOdom() */
+nav_msgs::Odometry EstimationManager::uavStateToOdom(const mrs_msgs::UavState& uav_state) const {
+  nav_msgs::Odometry odom;
+  odom.header              = uav_state.header;
+  odom.child_frame_id      = uav_state.child_frame_id;
+  odom.pose.pose           = uav_state.pose;
+  odom.twist.twist.angular = uav_state.velocity.angular;
+
+  geometry_msgs::Vector3Stamped global_vel;
+  global_vel.header = uav_state.header;
+  global_vel.vector = uav_state.velocity.linear;
+
+  geometry_msgs::Vector3Stamped body_vel;
+  auto                          response = transformer_->transformSingle(global_vel, ns_fcu_frame_id_);
+  if (response) {
+    body_vel                = response.value();
+    odom.twist.twist.linear = body_vel.vector;
+  } else {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Transform from %s to %s failed when publishing odom_main.", getName().c_str(), global_vel.header.frame_id.c_str(),
+                       ns_fcu_frame_id_.c_str());
+  }
+  return odom;
 }
 /*//}*/
 

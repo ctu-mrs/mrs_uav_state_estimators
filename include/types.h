@@ -16,7 +16,8 @@ typedef enum
 {
 
   AXIS_X,
-  AXIS_Y
+  AXIS_Y,
+  AXIS_Z
 
 } AxisId_t;
 

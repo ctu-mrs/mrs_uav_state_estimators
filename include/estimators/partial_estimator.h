@@ -49,8 +49,11 @@ public:
   virtual states_t getStates(void) const                = 0;
   virtual void     setStates(const states_t &states_in) = 0;
 
-  virtual covariance_t getCovariance(void) const                 = 0;
-  virtual void         setCovariance(const covariance_t &cov_in) = 0;
+  virtual double getCovariance(const int &state_idx_in) const = 0;
+  virtual double getCovariance(const int &state_id_in, const int &axis_in) const  = 0;
+
+  virtual covariance_t getCovarianceMatrix(void) const = 0;
+  virtual void         setCovarianceMatrix(const covariance_t &cov_in) = 0;
 
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const  = 0;
 
@@ -59,7 +62,7 @@ public:
   std::vector<double> getStatesAsVector(void) const;
   std::vector<double> getCovarianceAsVector(void) const;
 
-  int stateIdToIndex(const int &axis_in, const int &state_id_in) const;
+  int stateIdToIndex(const int &state_id_in, const int &axis_in) const;
 
   void publishOutput() const;
 };
@@ -84,7 +87,7 @@ std::vector<double> PartialEstimator<n_states, n_axes>::getStatesAsVector(void) 
 /*//{ getCovarianceAsvector() */
 template <int n_states, int n_axes>
 std::vector<double> PartialEstimator<n_states, n_axes>::getCovarianceAsVector(void) const {
-  const covariance_t  covariance = getCovariance();
+  const covariance_t  covariance = getCovarianceMatrix();
   std::vector<double> covariance_vec;
   /* for (auto cov : covariance.reshaped<Eigen::RowMajor>(covariance.size())) { */
   /*   covariance_vec.push_back(*cov); */
@@ -100,7 +103,7 @@ std::vector<double> PartialEstimator<n_states, n_axes>::getCovarianceAsVector(vo
 
 /*//{ stateIdToIndex() */
 template <int n_states, int n_axes>
-int PartialEstimator<n_states, n_axes>::stateIdToIndex(const int &axis_in, const int &state_id_in) const {
+int PartialEstimator<n_states, n_axes>::stateIdToIndex(const int &state_id_in, const int &axis_in) const {
   return state_id_in * _n_axes_ + axis_in;
 }
 /*//}*/

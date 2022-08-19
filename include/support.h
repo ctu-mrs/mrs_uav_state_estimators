@@ -8,7 +8,8 @@
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/Pose.h>
 
 #include <mrs_lib/attitude_converter.h>
 
@@ -73,6 +74,78 @@ tf2::Vector3 rotateVecByHdg(const geometry_msgs::Vector3& acc_in, const double h
 
   return acc_rotated;
 }
+//}
+
+/* noNans() //{ */
+bool noNans(const geometry_msgs::TransformStamped& tf) {
+
+  return (std::isfinite(tf.transform.rotation.x) && std::isfinite(tf.transform.rotation.y) && std::isfinite(tf.transform.rotation.z) &&
+          std::isfinite(tf.transform.rotation.w) && std::isfinite(tf.transform.translation.x) && std::isfinite(tf.transform.translation.y) &&
+          std::isfinite(tf.transform.translation.z));
+}
+//}
+
+/* noNans() //{ */
+bool noNans(const geometry_msgs::Quaternion& q) {
+
+  return (std::isfinite(q.x) && std::isfinite(q.y) && std::isfinite(q.z) && std::isfinite(q.w));
+}
+//}
+
+/* isZeroQuaternion() //{ */
+bool isZeroQuaternion(const geometry_msgs::Quaternion& q) {
+
+  return (q.x == 0 && q.y == 0 && q.z == 0 && q.w == 0);
+}
+//}
+
+/* tf2FromPose() //{ */
+
+tf2::Transform tf2FromPose(const geometry_msgs::Pose& pose_in) {
+
+  tf2::Vector3 position(pose_in.position.x, pose_in.position.y, pose_in.position.z);
+
+  tf2::Quaternion q;
+  tf2::fromMsg(pose_in.orientation, q);
+
+  tf2::Transform tf_out;
+  tf_out.setOrigin(position);
+  tf_out.setRotation(q);
+  tf_out.inverse();
+
+  return tf_out;
+}
+
+//}
+
+/* poseFromTf2() //{ */
+
+geometry_msgs::Pose poseFromTf2(const tf2::Transform& tf_in) {
+
+  geometry_msgs::Pose pose_out;
+  pose_out.position.x = tf_in.getOrigin().getX();
+  pose_out.position.y = tf_in.getOrigin().getY();
+  pose_out.position.z = tf_in.getOrigin().getZ();
+
+  pose_out.orientation = tf2::toMsg(tf_in.getRotation());
+
+  return pose_out;
+}
+
+//}
+
+/* pointToVector3() //{ */
+
+geometry_msgs::Vector3 pointToVector3(const geometry_msgs::Point& point_in) {
+
+  geometry_msgs::Vector3 vec_out;
+  vec_out.x = point_in.x;
+  vec_out.y = point_in.y;
+  vec_out.z = point_in.z;
+
+  return vec_out;
+}
+
 //}
 
 }  // namespace mrs_uav_state_estimation

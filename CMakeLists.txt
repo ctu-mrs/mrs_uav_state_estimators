@@ -44,7 +44,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES GpsGarmin
+  LIBRARIES GpsGarmin EstimationManager TransformManager
   CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime
   DEPENDS Eigen
   )
@@ -93,6 +93,17 @@ add_library(EstimationManager
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(EstimationManager
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Declare a C++ executable
+add_library(TransformManager 
+  src/transform_manager.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(TransformManager
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

@@ -76,6 +76,8 @@ public:
   virtual bool reset(void) override;
 
   virtual mrs_msgs::UavState getUavState() const override;
+  virtual std::vector<double> getPoseCovariance() const override;
+  virtual std::vector<double> getTwistCovariance() const override;
 
   virtual bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };

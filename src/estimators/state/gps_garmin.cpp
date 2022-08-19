@@ -1,5 +1,3 @@
-#define VERSION "0.0.6.0"
-
 /* includes //{ */
 
 #include "estimators/state/gps_garmin.h"
@@ -45,9 +43,11 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in", &GpsGarmin::callbackAttitudeCommand, this);
 
   // | ---------------- publishers initialization --------------- |
-  ph_uav_state_   = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh_, toSnakeCase(getName()) + "/uav_state", 1);
-  ph_innovation_   = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh_, toSnakeCase(getName()) + "/uav_state", 1);
+  ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh_, toSnakeCase(getName()) + "/pose_covariance", 1);
+  ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh_, toSnakeCase(getName()) + "/twist_covariance", 1);
+  ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, toSnakeCase(getName()) + "/innovation", 1);
+  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
   est_lat_gps_ = std::make_unique<Gps>();
@@ -60,8 +60,8 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &
   uav_state_.header.frame_id = uav_name_ + "/" + frame_id_;
   uav_state_.child_frame_id  = uav_name_ + "/" + fcu_frame_id_;
 
-  innovation_.header.frame_id = uav_name_ + "/" + frame_id_;
-  innovation_.child_frame_id  = uav_name_ + "/" + fcu_frame_id_;
+  innovation_.header.frame_id      = uav_name_ + "/" + frame_id_;
+  innovation_.child_frame_id       = uav_name_ + "/" + fcu_frame_id_;
   innovation_.pose.pose.position.x = std::numeric_limits<double>::quiet_NaN();
   innovation_.pose.pose.position.y = std::numeric_limits<double>::quiet_NaN();
   innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();
@@ -71,18 +71,18 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &
   innovation_.pose.pose.orientation.z = std::numeric_limits<double>::quiet_NaN();
   innovation_.pose.pose.orientation.w = std::numeric_limits<double>::quiet_NaN();
 
-  innovation_.twist.twist.linear.x = std::numeric_limits<double>::quiet_NaN(); 
-  innovation_.twist.twist.linear.y = std::numeric_limits<double>::quiet_NaN(); 
-  innovation_.twist.twist.linear.z = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.linear.x = std::numeric_limits<double>::quiet_NaN();
+  innovation_.twist.twist.linear.y = std::numeric_limits<double>::quiet_NaN();
+  innovation_.twist.twist.linear.z = std::numeric_limits<double>::quiet_NaN();
 
-  innovation_.twist.twist.angular.x = std::numeric_limits<double>::quiet_NaN(); 
-  innovation_.twist.twist.angular.y = std::numeric_limits<double>::quiet_NaN(); 
-  innovation_.twist.twist.angular.z = std::numeric_limits<double>::quiet_NaN(); 
+  innovation_.twist.twist.angular.x = std::numeric_limits<double>::quiet_NaN();
+  innovation_.twist.twist.angular.y = std::numeric_limits<double>::quiet_NaN();
+  innovation_.twist.twist.angular.z = std::numeric_limits<double>::quiet_NaN();
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getName().c_str(), VERSION);
+    ROS_INFO("[%s]: Estimator initialized", getName().c_str());
   } else {
     ROS_INFO("[%s]: Estimator could not be initialized", getName().c_str());
   }
@@ -168,10 +168,12 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  const ros::Time time_now = ros::Time::now();
+
   {
     std::scoped_lock lock(mtx_uav_state_);
 
-    uav_state_.header.stamp = ros::Time::now();
+    uav_state_.header.stamp = time_now;
 
     // TODO fill in estimator types
 
@@ -192,13 +194,34 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
     uav_state_.acceleration.linear.z = est_alt_garmin_->getState(ACCELERATION);       // in global frame
   }
 
-  innovation_.header.stamp = ros::Time::now();
+  {
+    std::scoped_lock lock(mtx_innovation_);
 
-  innovation_.pose.pose.position.x = est_lat_gps_->getInnovation(POSITION, AXIS_X);
-  innovation_.pose.pose.position.y = est_lat_gps_->getInnovation(POSITION, AXIS_Y);
-  innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN(); // TODO
+    innovation_.header.stamp = time_now;
+
+    innovation_.pose.pose.position.x = est_lat_gps_->getInnovation(POSITION, AXIS_X);
+    innovation_.pose.pose.position.y = est_lat_gps_->getInnovation(POSITION, AXIS_Y);
+    innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();  // TODO
+  }
+
+  {
+    std::scoped_lock lock(mtx_covariance_);
+
+    pose_covariance_.header.stamp  = time_now;
+    twist_covariance_.header.stamp = time_now;
+
+    const int n_states                                     = 6;
+    pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(POSITION, AXIS_X);
+    pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(POSITION, AXIS_Y);
+    pose_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_garmin_->getCovariance(POSITION);
+
+    twist_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(VELOCITY, AXIS_X);
+    twist_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(VELOCITY, AXIS_Y);
+    twist_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_garmin_->getCovariance(VELOCITY);
+  }
 
   publishUavState();
+  publishCovariance();
   publishInnovation();
   publishDiagnostics();
 }
@@ -253,12 +276,12 @@ void GpsGarmin::callbackAttitudeCommand(mrs_lib::SubscribeHandler<mrs_msgs::Atti
     mrs_msgs::AttitudeCommandConstPtr msg = wrp.getMsg();
     // untilt the desired acceleration vector
     geometry_msgs::Vector3Stamped des_acc, des_acc_untilted;
-    des_acc.vector.x          = msg->desired_acceleration.x;
-    des_acc.vector.y          = msg->desired_acceleration.y;
-    des_acc.vector.z          = msg->desired_acceleration.z;
+    des_acc.vector.x        = msg->desired_acceleration.x;
+    des_acc.vector.y        = msg->desired_acceleration.y;
+    des_acc.vector.z        = msg->desired_acceleration.z;
     des_acc.header.frame_id = fcu_frame_id_;
     des_acc.header.stamp    = msg->header.stamp;
-    auto response_acc                = transformer_->transformSingle(des_acc, fcu_untilted_frame_id_);
+    auto response_acc       = transformer_->transformSingle(des_acc, fcu_untilted_frame_id_);
     if (response_acc) {
       des_acc_untilted = response_acc.value();
     } else {
@@ -266,7 +289,8 @@ void GpsGarmin::callbackAttitudeCommand(mrs_lib::SubscribeHandler<mrs_msgs::Atti
     }
 
     // rotate the desired acceleration vector to global frame
-    const tf2::Vector3 des_acc_global = rotateVecByHdg(des_acc_untilted.vector, mrs_lib::AttitudeConverter(sh_mavros_odom_.getMsg()->pose.pose.orientation).getHeading());
+    const tf2::Vector3 des_acc_global =
+        rotateVecByHdg(des_acc_untilted.vector, mrs_lib::AttitudeConverter(sh_mavros_odom_.getMsg()->pose.pose.orientation).getHeading());
 
     est_lat_gps_->setInput(des_acc_global.getX(), des_acc_global.getY(), msg->header.stamp);
   }
@@ -287,6 +311,20 @@ bool GpsGarmin::isConverged() {
 mrs_msgs::UavState GpsGarmin::getUavState() const {
   std::scoped_lock lock(mtx_uav_state_);
   return uav_state_;
+}
+/*//}*/
+
+/*//{ getPoseCovariance() */
+std::vector<double> GpsGarmin::getPoseCovariance() const {
+  std::scoped_lock lock(mtx_covariance_);
+  return pose_covariance_.values;
+}
+/*//}*/
+
+/*//{ getTwistCovariance() */
+std::vector<double> GpsGarmin::getTwistCovariance() const {
+  std::scoped_lock lock(mtx_covariance_);
+  return twist_covariance_.values;
 }
 /*//}*/
 

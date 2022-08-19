@@ -285,14 +285,27 @@ void Garmin::setStates(const states_t &states_in) {
 /*//}*/
 
 /*//{ getCovariance() */
-Garmin::covariance_t Garmin::getCovariance(void) const {
+double Garmin::getCovariance(const int &state_id_in, const int &axis_in) const {
+
+  return getCovariance(stateIdToIndex(state_id_in, 0));
+}
+
+double Garmin::getCovariance(const int &state_idx_in) const {
+
+  std::scoped_lock lock(mutex_lkf_);
+  return sc_.P(state_idx_in, state_idx_in);
+}
+/*//}*/
+
+/*//{ getCovarianceMatrix() */
+Garmin::covariance_t Garmin::getCovarianceMatrix(void) const {
   std::scoped_lock lock(mutex_lkf_);
   return sc_.P;
 }
 /*//}*/
 
-/*//{ setCovariance() */
-void Garmin::setCovariance(const covariance_t &cov_in) {
+/*//{ setCovarianceMatrix() */
+void Garmin::setCovarianceMatrix(const covariance_t &cov_in) {
   std::scoped_lock lock(mutex_lkf_);
   sc_.P = cov_in;
 }

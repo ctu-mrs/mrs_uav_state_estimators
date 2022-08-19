@@ -101,8 +101,11 @@ public:
   virtual states_t getStates(void) const override;
   virtual void     setStates(const states_t &states_in) override;
 
-  virtual covariance_t getCovariance(void) const override;
-  virtual void         setCovariance(const covariance_t &cov_in) override;
+  virtual double getCovariance(const int &state_idx_in) const override;
+  virtual double getCovariance(const int &state_id_in, const int &axis_in) const override;
+
+  virtual covariance_t getCovarianceMatrix(void) const override;
+  virtual void         setCovarianceMatrix(const covariance_t &cov_in) override;
 
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
 

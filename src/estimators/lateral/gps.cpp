@@ -1,4 +1,4 @@
-#define VERSION "0.0.6.0"
+#define VERSION "0.0.0.1"
 
 /* includes //{ */
 
@@ -332,14 +332,27 @@ void Gps::setStates(const states_t &states_in) {
 /*//}*/
 
 /*//{ getCovariance() */
-Gps::covariance_t Gps::getCovariance(void) const {
+double Gps::getCovariance(const int &state_id_in, const int &axis_in) const {
+
+  return getCovariance(stateIdToIndex(state_id_in, axis_in));
+}
+
+double Gps::getCovariance(const int &state_idx_in) const {
+
+  std::scoped_lock lock(mutex_lkf_);
+  return sc_.P(state_idx_in, state_idx_in);
+}
+/*//}*/
+
+/*//{ getCovarianceMatrix() */
+Gps::covariance_t Gps::getCovarianceMatrix(void) const {
   std::scoped_lock lock(mutex_lkf_);
   return sc_.P;
 }
 /*//}*/
 
-/*//{ setCovariance() */
-void Gps::setCovariance(const covariance_t &cov_in) {
+/*//{ setCovarianceMatrix() */
+void Gps::setCovarianceMatrix(const covariance_t &cov_in) {
   std::scoped_lock lock(mutex_lkf_);
   sc_.P = cov_in;
 }

@@ -1,0 +1,15 @@
+version: "0.0.0.1"
+
+fcu_untilted_tf:
+  enabled: false # fcu_untilted tf should be published by default unless some other node already publishes it
+  parent: "fcu" # fcu should be the parent if using the default inverted mrs tf tree convention with fcu as the root of the tf tree
+  child: "fcu_untilted"
+
+# the list of source topics from which the tfs will be constructed (expects nav_msgs/Odometry topic type)
+tf_sources: ["odom_main"]
+
+odom_main:
+  namespace: "estimation_manager" # the namespace of the topic (usually the node that publishes the topic)
+  inverted: true # publish as inverted tf (the default for inverted mrs tf tree convention)
+  republish_in_frames: ["local_origin"] # the odometry message will be transformed and republished in the specified frames
+

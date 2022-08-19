@@ -10,6 +10,7 @@
 #include <nav_msgs/Odometry.h>
 
 #include <mrs_msgs/UavState.h>
+#include <mrs_msgs/Float64ArrayStamped.h>
 
 #include "types.h"
 #include "estimators/estimator.h"
@@ -34,9 +35,13 @@ protected:
   nav_msgs::Odometry innovation_;
   mutable std::mutex mtx_innovation_;
 
+  mrs_msgs::Float64ArrayStamped pose_covariance_, twist_covariance_;
+  mutable std::mutex            mtx_covariance_;
+
 protected:
-  mutable mrs_lib::PublisherHandler<mrs_msgs::UavState> ph_uav_state_;
-  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry> ph_innovation_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::UavState>            ph_uav_state_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_pose_covariance_, ph_twist_covariance_;
+  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_innovation_;
 
 public:
   StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id){};
@@ -45,13 +50,16 @@ public:
   }
 
   // virtual methods
-  virtual mrs_msgs::UavState getUavState() const = 0;
+  virtual mrs_msgs::UavState            getUavState() const        = 0;
+  virtual std::vector<double> getPoseCovariance() const  = 0;
+  virtual std::vector<double> getTwistCovariance() const = 0;
 
   virtual bool setUavState(const mrs_msgs::UavState &uav_state) = 0;
 
 
   // implemented methods
   void publishUavState() const;
+  void publishCovariance() const;
   void publishInnovation() const;
 };
 
