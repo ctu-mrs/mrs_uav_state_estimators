@@ -19,7 +19,7 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &
   // | ----------------------- transformer ---------------------- |
   transformer_ = std::make_unique<mrs_lib::Transformer>(nh_, getName());
   /* transformer_->setDefaultPrefix(_uav_name_); */
-  /* transformer_->retryLookupNewest(true); */
+  transformer_->retryLookupNewest(true);
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
@@ -210,11 +210,13 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
     pose_covariance_.header.stamp  = time_now;
     twist_covariance_.header.stamp = time_now;
 
-    const int n_states                                     = 6;
+    const int n_states                                     = 6; // TODO this should be defined somewhere else
+    pose_covariance_.values.resize(n_states * n_states);
     pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(POSITION, AXIS_X);
     pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(POSITION, AXIS_Y);
     pose_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_garmin_->getCovariance(POSITION);
 
+    twist_covariance_.values.resize(n_states * n_states);
     twist_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(VELOCITY, AXIS_X);
     twist_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(VELOCITY, AXIS_Y);
     twist_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_garmin_->getCovariance(VELOCITY);
@@ -279,13 +281,13 @@ void GpsGarmin::callbackAttitudeCommand(mrs_lib::SubscribeHandler<mrs_msgs::Atti
     des_acc.vector.x        = msg->desired_acceleration.x;
     des_acc.vector.y        = msg->desired_acceleration.y;
     des_acc.vector.z        = msg->desired_acceleration.z;
-    des_acc.header.frame_id = fcu_frame_id_;
+    des_acc.header.frame_id = uav_name_ + "/" + fcu_untilted_frame_id_;
     des_acc.header.stamp    = msg->header.stamp;
-    auto response_acc       = transformer_->transformSingle(des_acc, fcu_untilted_frame_id_);
+    auto response_acc       = transformer_->transformSingle(des_acc, uav_name_ + "/" + fcu_untilted_frame_id_);
     if (response_acc) {
       des_acc_untilted = response_acc.value();
     } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), fcu_untilted_frame_id_.c_str());
+      ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), (uav_name_ + "/" + fcu_untilted_frame_id_).c_str());
     }
 
     // rotate the desired acceleration vector to global frame

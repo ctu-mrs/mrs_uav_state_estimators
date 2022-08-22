@@ -45,7 +45,7 @@ void TransformManager::onInit() {
   for (int i = 0; i < int(tf_source_names_.size()); i++) {
     const std::string tf_source_name = tf_source_names_[i];
     ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
-    tf_sources_.push_back(TfSource(tf_source_name, nh_, broadcaster_));
+    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_));
   }
 /*//}*/
 
@@ -118,7 +118,6 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
   }
 }
 /*//}*/
-
 
 /*//{ getName() */
 std::string TransformManager::getName() const {

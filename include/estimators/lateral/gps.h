@@ -51,6 +51,7 @@ private:
   ros::NodeHandle nh_;
 
   double                 dt_;
+  double                 input_coeff_;
   A_t                    A_;
   B_t                    B_;
   H_t                    H_;

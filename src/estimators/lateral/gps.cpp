@@ -19,44 +19,45 @@ void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_na
 
   // clang-format off
     dt_ = 0.01;
+    input_coeff_ = 0.1;
 
     A_ <<
       1, 0, dt_, 0, std::pow(dt_, 2)/2, 0,
       0, 1, 0, dt_, 0, std::pow(dt_, 2)/2,
       0, 0, 1, 0, dt_, 0,
       0, 0, 0, 1, 0, dt_,
-      0, 0, 0, 0, 1, 0,
-      0, 0, 0, 0, 0, 1;
+      0, 0, 0, 0, 1-input_coeff_, 0,
+      0, 0, 0, 0, 0, 1-input_coeff_;
 
     B_ <<
       0, 0,
       0, 0,
       0, 0,
       0, 0,
-      1, 0,
-      0, 1;
+      input_coeff_, 0,
+      0, input_coeff_;
 
     H_ <<
       1, 0, 0, 0, 0, 0,
       0, 1, 0, 0, 0, 0;
 
     Q_ <<
-      0.01, 0, 0, 0, 0, 0,
-      0, 0.01, 0, 0, 0, 0,
+      0.001, 0, 0, 0, 0, 0,
+      0, 0.001, 0, 0, 0, 0,
       0, 0, 0.01, 0, 0, 0,
       0, 0, 0, 0.01, 0, 0,
       0, 0, 0, 0, 0.01, 0,
       0, 0, 0, 0, 0, 0.01;
 
     R_ <<
-      0.1, 0,
-      0, 0.1;
+      0.01, 0,
+      0, 0.01;
 
   // clang-format on
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
-  const P_t        P0 = 1e3 * P_t::Identity();
+  const P_t        P0 = 1e1 * P_t::Identity();
   const statecov_t sc0({x0, P0});
   sc_ = sc0;
 

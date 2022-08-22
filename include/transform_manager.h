@@ -30,7 +30,7 @@ class TfSource {
 
 public:
   /*//{ constructor */
-  TfSource(const std::string& name, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster)
+  TfSource(const std::string& name, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster>& broadcaster)
       : name_(name), nh_(nh), broadcaster_(broadcaster) {
 
     ROS_INFO("[%s]: initializing", getName().c_str());
@@ -60,6 +60,7 @@ public:
       ros::shutdown();
     }
 
+    is_initialized_ = true;
     ROS_INFO("[%s]: initialized", getName().c_str());
   }
   /*//}*/
@@ -78,42 +79,54 @@ private:
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
   bool                                           inverted_;
 
+  std::atomic_bool is_initialized_ = false;
+
   std::vector<std::string> republish_in_frames_;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_tf_source_;
   /*//{ callbackTfSource()*/
   void callbackTfSource(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+
+    if (!is_initialized_) {
+      return;
+    }
+
     nav_msgs::OdometryConstPtr msg = wrp.getMsg();
+    publishTfFromOdom(msg);
   }
   /*//}*/
 
   /* publishTfFromOdom() //{*/
-  void publishTfFromOdom(const nav_msgs::Odometry& odom) {
+  void publishTfFromOdom(const nav_msgs::OdometryConstPtr& odom) {
 
 
     geometry_msgs::TransformStamped tf_msg;
-    tf_msg.header.stamp = odom.header.stamp;
+    tf_msg.header.stamp = odom->header.stamp;
 
     if (inverted_) {
 
-      const tf2::Transform      tf       = tf2FromPose(odom.pose.pose);
+      const tf2::Transform      tf       = tf2FromPose(odom->pose.pose);
       const tf2::Transform      tf_inv   = tf.inverse();
       const geometry_msgs::Pose pose_inv = poseFromTf2(tf_inv);
 
-      tf_msg.header.frame_id       = odom.child_frame_id;
-      tf_msg.child_frame_id        = odom.header.frame_id;
+      tf_msg.header.frame_id       = odom->child_frame_id;
+      tf_msg.child_frame_id        = odom->header.frame_id;
       tf_msg.transform.translation = pointToVector3(pose_inv.position);
       tf_msg.transform.rotation    = pose_inv.orientation;
 
     } else {
-      tf_msg.header.frame_id       = odom.header.frame_id;
-      tf_msg.child_frame_id        = odom.child_frame_id;
-      tf_msg.transform.translation = pointToVector3(odom.pose.pose.position);
-      tf_msg.transform.rotation    = odom.pose.pose.orientation;
+      tf_msg.header.frame_id       = odom->header.frame_id;
+      tf_msg.child_frame_id        = odom->child_frame_id;
+      tf_msg.transform.translation = pointToVector3(odom->pose.pose.position);
+      tf_msg.transform.rotation    = odom->pose.pose.orientation;
     }
 
     if (noNans(tf_msg)) {
-      broadcaster_->sendTransform(tf_msg);
+      try {
+        broadcaster_->sendTransform(tf_msg);
+      } catch (...) {
+        ROS_ERROR("exception caught ");
+      }
     } else {
       ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
                         tf_msg.child_frame_id.c_str());
@@ -147,7 +160,7 @@ private:
   bool publish_fcu_untilted_tf_;
 
   std::vector<std::string> tf_source_names_;
-  std::vector<TfSource>    tf_sources_;
+  std::vector<std::unique_ptr<TfSource>>    tf_sources_;
 
   ros::NodeHandle nh_;
 

@@ -24,6 +24,7 @@
 
 #include "estimators/state/state_estimator.h"
 /* #include "reference_frame_manager.h" */
+#include "support.h"
 
 namespace mrs_uav_state_estimation
 {

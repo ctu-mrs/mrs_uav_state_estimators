@@ -10,6 +10,7 @@
 
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PointStamped.h>
 
 #include <mrs_lib/attitude_converter.h>
 
@@ -147,6 +148,39 @@ geometry_msgs::Vector3 pointToVector3(const geometry_msgs::Point& point_in) {
 }
 
 //}
+
+/*//{ rotateTwist() */
+geometry_msgs::Vector3 rotateTwist(const geometry_msgs::Vector3& twist_in, const tf2::Quaternion& q_in, const std::shared_ptr<mrs_lib::Transformer> transformer) {
+
+  geometry_msgs::TransformStamped tf;
+  tf.header.stamp = ros::Time::now();
+  tf.header.frame_id = "fake_id";
+  tf.transform.translation.x = 0;
+  tf.transform.translation.y = 0;
+  tf.transform.translation.z = 0;
+  tf.transform.rotation = tf2::toMsg(q_in);
+
+  geometry_msgs::PointStamped twist_stamped;
+  twist_stamped.header.stamp = ros::Time::now();
+  twist_stamped.header.frame_id = "fake_id";
+  twist_stamped.point.x = twist_in.x;
+  twist_stamped.point.y = twist_in.y;
+  twist_stamped.point.z = twist_in.z;
+
+  auto response = transformer->transform(twist_stamped, tf);
+  if (response) {
+  geometry_msgs::Vector3 twist_out;
+  twist_out.x = response.value().point.x;
+  twist_out.y = response.value().point.y;
+  twist_out.z = response.value().point.z;
+    return twist_out;
+  } else {
+    ROS_ERROR("[support]: could not rotate twist by quaternion");
+    return twist_in;
+  }
+
+}
+/*//}*/
 
 }  // namespace mrs_uav_state_estimation
 

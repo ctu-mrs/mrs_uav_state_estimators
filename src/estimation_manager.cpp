@@ -20,7 +20,7 @@ void EstimationManager::onInit() {
   param_loader.loadParam("fcu_frame_id", fcu_frame_id);
   ns_fcu_frame_id_ = uav_name_ + "/" + fcu_frame_id;
 
-  transformer_ = std::make_shared<mrs_lib::Transformer>();
+  transformer_ = std::make_shared<mrs_lib::Transformer>(nh, getName());
 
   /*//{ check version */
   param_loader.loadParam("version", version_);
@@ -199,19 +199,23 @@ nav_msgs::Odometry EstimationManager::uavStateToOdom(const mrs_msgs::UavState& u
   odom.pose.pose           = uav_state.pose;
   odom.twist.twist.angular = uav_state.velocity.angular;
 
-  geometry_msgs::Vector3Stamped global_vel;
-  global_vel.header = uav_state.header;
-  global_vel.vector = uav_state.velocity.linear;
+  /* geometry_msgs::Vector3Stamped global_vel; */
+  /* global_vel.header = uav_state.header; */
+  /* global_vel.vector = uav_state.velocity.linear; */
 
-  geometry_msgs::Vector3Stamped body_vel;
-  auto                          response = transformer_->transformSingle(global_vel, ns_fcu_frame_id_);
-  if (response) {
-    body_vel                = response.value();
-    odom.twist.twist.linear = body_vel.vector;
-  } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Transform from %s to %s failed when publishing odom_main.", getName().c_str(), global_vel.header.frame_id.c_str(),
-                       ns_fcu_frame_id_.c_str());
-  }
+  tf2::Quaternion q;
+  tf2::fromMsg(odom.pose.pose.orientation, q);
+  odom.twist.twist.linear = rotateTwist(uav_state.velocity.linear, q.inverse(), transformer_);
+
+  /* geometry_msgs::Vector3Stamped body_vel; */
+  /* auto                          response = transformer_->transformSingle(global_vel, ns_fcu_frame_id_); */
+  /* if (response) { */
+  /*   body_vel                = response.value(); */
+  /*   odom.twist.twist.linear = body_vel.vector; */
+  /* } else { */
+  /*   ROS_ERROR_THROTTLE(1.0, "[%s]: Transform from %s to %s failed when publishing odom_main.", getName().c_str(), global_vel.header.frame_id.c_str(), */
+  /*                      ns_fcu_frame_id_.c_str()); */
+  /* } */
   return odom;
 }
 /*//}*/
