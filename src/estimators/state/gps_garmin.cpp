@@ -8,29 +8,25 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_name) {
+void GpsGarmin::initialize(ros::NodeHandle& nh,const std::shared_ptr<CommonHandlers_t>& ch) {
 
-  nh_       = parent_nh;
-  uav_name_ = uav_name;
+  ch_ = ch;
+
+  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // TODO load parameters
-  mrs_lib::ParamLoader param_loader(nh_, getName());
-
-  // | ----------------------- transformer ---------------------- |
-  transformer_ = std::make_unique<mrs_lib::Transformer>(nh_, getName());
-  /* transformer_->setDefaultPrefix(_uav_name_); */
-  transformer_->retryLookupNewest(true);
+  mrs_lib::ParamLoader param_loader(nh, getName());
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
-  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
+  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
   _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
-  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &GpsGarmin::timerCheckHealth, this);
+  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GpsGarmin::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh_;
+  shopts.nh                 = nh;
   shopts.node_name          = getName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
@@ -40,28 +36,26 @@ void GpsGarmin::initialize(const ros::NodeHandle &parent_nh, const std::string &
 
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
 
-  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in", &GpsGarmin::callbackAttitudeCommand, this);
-
   // | ---------------- publishers initialization --------------- |
-  ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh_, toSnakeCase(getName()) + "/uav_state", 1);
-  ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh_, toSnakeCase(getName()) + "/pose_covariance", 1);
-  ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh_, toSnakeCase(getName()) + "/twist_covariance", 1);
-  ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
+  ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
+  ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
+  ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
+  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
   est_lat_gps_ = std::make_unique<Gps>();
-  est_lat_gps_->initialize(nh_, uav_name_);
+  est_lat_gps_->initialize(nh, ch_);
 
   est_alt_garmin_ = std::make_unique<Garmin>();
-  est_alt_garmin_->initialize(nh_, uav_name_);
+  est_alt_garmin_->initialize(nh, ch_);
 
   // | ------------------ initialize published messages ------------------ |
-  uav_state_.header.frame_id = uav_name_ + "/" + frame_id_;
-  uav_state_.child_frame_id  = uav_name_ + "/" + fcu_frame_id_;
+  uav_state_.header.frame_id = ns_frame_id_;
+  uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  innovation_.header.frame_id      = uav_name_ + "/" + frame_id_;
-  innovation_.child_frame_id       = uav_name_ + "/" + fcu_frame_id_;
+  innovation_.header.frame_id      = ns_frame_id_;
+  innovation_.child_frame_id       = ch_->frames.ns_fcu;
   innovation_.pose.pose.position.x = std::numeric_limits<double>::quiet_NaN();
   innovation_.pose.pose.position.y = std::numeric_limits<double>::quiet_NaN();
   innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();
@@ -201,7 +195,7 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
 
     innovation_.pose.pose.position.x = est_lat_gps_->getInnovation(POSITION, AXIS_X);
     innovation_.pose.pose.position.y = est_lat_gps_->getInnovation(POSITION, AXIS_Y);
-    innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();  // TODO
+    innovation_.pose.pose.position.z = est_alt_garmin_->getInnovation(POSITION);
   }
 
   {
@@ -262,39 +256,6 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
     } else {
       return;
     }
-  }
-}
-/*//}*/
-
-/*//{ callbackAttitudeCommand() */
-void GpsGarmin::callbackAttitudeCommand(mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> &wrp) {
-
-  if (!isRunning()) {
-    return;
-  }
-
-  if (sh_mavros_odom_.hasMsg()) {
-
-    mrs_msgs::AttitudeCommandConstPtr msg = wrp.getMsg();
-    // untilt the desired acceleration vector
-    geometry_msgs::Vector3Stamped des_acc, des_acc_untilted;
-    des_acc.vector.x        = msg->desired_acceleration.x;
-    des_acc.vector.y        = msg->desired_acceleration.y;
-    des_acc.vector.z        = msg->desired_acceleration.z;
-    des_acc.header.frame_id = uav_name_ + "/" + fcu_untilted_frame_id_;
-    des_acc.header.stamp    = msg->header.stamp;
-    auto response_acc       = transformer_->transformSingle(des_acc, uav_name_ + "/" + fcu_untilted_frame_id_);
-    if (response_acc) {
-      des_acc_untilted = response_acc.value();
-    } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), (uav_name_ + "/" + fcu_untilted_frame_id_).c_str());
-    }
-
-    // rotate the desired acceleration vector to global frame
-    const tf2::Vector3 des_acc_global =
-        rotateVecByHdg(des_acc_untilted.vector, mrs_lib::AttitudeConverter(sh_mavros_odom_.getMsg()->pose.pose.orientation).getHeading());
-
-    est_lat_gps_->setInput(des_acc_global.getX(), des_acc_global.getY(), msg->header.stamp);
   }
 }
 /*//}*/

@@ -11,10 +11,9 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void Garmin::initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) {
+void Garmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
-  nh_ = parent_nh;
-  uav_name_ = uav_name;
+  ch_ = ch;
 
   // TODO load parameters
 
@@ -54,10 +53,10 @@ void Garmin::initialize(const ros::NodeHandle &parent_nh, const std::string& uav
   lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                        // TODO: parametrize
-  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &Garmin::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                          // TODO: parametrize
-  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &Garmin::timerCheckHealth, this);
+  _update_timer_rate_       = 100;                                                                                       // TODO: parametrize
+  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Garmin::timerUpdate, this, false, false);  // not running after init
+  _check_health_timer_rate_ = 1;                                                                                         // TODO: parametrize
+  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Garmin::timerCheckHealth, this);
 
   _critical_timeout_mavros_odom_  = 1.0;  // TODO: parametrize
   _critical_timeout_garmin_range_ = 1.0;  // TODO: parametrize
@@ -67,7 +66,7 @@ void Garmin::initialize(const ros::NodeHandle &parent_nh, const std::string& uav
 
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh_;
+  shopts.nh                 = nh;
   shopts.node_name          = getName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
@@ -75,12 +74,13 @@ void Garmin::initialize(const ros::NodeHandle &parent_nh, const std::string& uav
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_odom_  = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
-  sh_garmin_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "garmin_range_in");
+  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
+  sh_mavros_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
+  sh_garmin_range_     = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, "garmin_range_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh_, getName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -153,10 +153,22 @@ void Garmin::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  // TODO input and measurement from actual data
+  tf2::Vector3 des_acc_global;
+  if (sh_attitude_command_.hasMsg() && sh_mavros_odom_.hasMsg()) {
+
+    des_acc_global    = getAccGlobal(sh_attitude_command_.getMsg(), sh_mavros_odom_.getMsg());
+    last_input_stamp_ = sh_attitude_command_.getMsg()->header.stamp;
+    is_input_ready_   = true;
+  }
+
 
   // prediction step
-  u_t u = u_t::Zero();
+  u_t u;
+  if (is_input_ready_) {
+    u(0) = des_acc_global.getX();
+  } else {
+    u = u_t::Zero();
+  }
 
   try {
     // Apply the prediction step
@@ -179,16 +191,36 @@ void Garmin::timerUpdate(const ros::TimerEvent &event) {
     /* z(0) = mavros_odom_msg->twist.twist.linear.z; */
     z(0) = mavros_odom_msg->pose.pose.position.z;
 
-    try {
-      // Apply the correction step
-      {
-        std::scoped_lock lock(mutex_lkf_);
-        sc_ = lkf_->correct(sc_, z, R_);
-      }
+    bool health_flag = true;
+
+    if (!std::isfinite(z(0))) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in mavros position z correction", getName().c_str());
+      health_flag = false;
     }
-    catch (const std::exception &e) {
-      // In case of error, alert the user
-      ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+
+    if (health_flag) {
+
+      {
+        std::scoped_lock lock(mtx_innovation_);
+
+        innovation_(0) = z(0) - getState(POSITION);
+
+        if (innovation_(0) > 1.0) {
+          ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
+        }
+      }
+
+      try {
+        // Apply the correction step
+        {
+          std::scoped_lock lock(mutex_lkf_);
+          sc_ = lkf_->correct(sc_, z, R_);
+        }
+      }
+      catch (const std::exception &e) {
+        // In case of error, alert the user
+        ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+      }
     }
   }
 
@@ -206,7 +238,10 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
+    // initialize the estimator with current position
     if (sh_mavros_odom_.hasMsg()) {
+      nav_msgs::OdometryConstPtr msg = sh_mavros_odom_.getMsg();
+      setState(msg->pose.pose.position.z, POSITION);
       changeState(READY_STATE);
       ROS_INFO("[%s]: Ready to start", getName().c_str());
     } else {
@@ -221,6 +256,12 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
       ROS_INFO("[%s]: LKF converged", getName().c_str());
       changeState(RUNNING_STATE);
     }
+  }
+
+  // check age of input
+  if (is_input_ready_ && (ros::Time::now() - last_input_stamp_).toSec() > 0.1) {
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getName().c_str(), (ros::Time::now() - last_input_stamp_).toSec());
+    is_input_ready_ = false;
   }
 }
 /*//}*/
@@ -312,9 +353,13 @@ void Garmin::setCovarianceMatrix(const covariance_t &cov_in) {
 /*//}*/
 
 /*//{ getInnovation() */
-double Garmin::getInnovation(const int &state_id_in, const int &axis_in = 0) const {
-  // TODO
-  return 0;
+double Garmin::getInnovation(const int &state_idx) const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_(0);
+}
+
+double Garmin::getInnovation(const int &state_id_in, const int &axis_in) const {
+  return getInnovation(stateIdToIndex(0, 0));
 }
 /*//}*/
 

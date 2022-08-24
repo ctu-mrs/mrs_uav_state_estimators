@@ -111,7 +111,7 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
   tf.transform.translation.z = 0.0;
   tf.transform.rotation      = mrs_lib::AttitudeConverter(q_inv);
 
-  if (noNans(tf)) {
+  if (Support::noNans(tf)) {
     broadcaster_->sendTransform(tf);
   } else {
     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN encountered in fcu_untilted tf", getName().c_str());
@@ -124,7 +124,6 @@ std::string TransformManager::getName() const {
   return name_;
 }
 /*//}*/
-
 
 }  // namespace mrs_uav_state_estimation
 

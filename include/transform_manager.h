@@ -105,26 +105,27 @@ private:
 
     if (inverted_) {
 
-      const tf2::Transform      tf       = tf2FromPose(odom->pose.pose);
+      const tf2::Transform      tf       = Support::tf2FromPose(odom->pose.pose);
       const tf2::Transform      tf_inv   = tf.inverse();
-      const geometry_msgs::Pose pose_inv = poseFromTf2(tf_inv);
+      const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
 
       tf_msg.header.frame_id       = odom->child_frame_id;
       tf_msg.child_frame_id        = odom->header.frame_id;
-      tf_msg.transform.translation = pointToVector3(pose_inv.position);
+      tf_msg.transform.translation = Support::pointToVector3(pose_inv.position);
       tf_msg.transform.rotation    = pose_inv.orientation;
 
     } else {
       tf_msg.header.frame_id       = odom->header.frame_id;
       tf_msg.child_frame_id        = odom->child_frame_id;
-      tf_msg.transform.translation = pointToVector3(odom->pose.pose.position);
+      tf_msg.transform.translation = Support::pointToVector3(odom->pose.pose.position);
       tf_msg.transform.rotation    = odom->pose.pose.orientation;
     }
 
-    if (noNans(tf_msg)) {
+    if (Support::noNans(tf_msg)) {
       try {
         broadcaster_->sendTransform(tf_msg);
-      } catch (...) {
+      }
+      catch (...) {
         ROS_ERROR("exception caught ");
       }
     } else {
@@ -159,8 +160,8 @@ private:
 
   bool publish_fcu_untilted_tf_;
 
-  std::vector<std::string> tf_source_names_;
-  std::vector<std::unique_ptr<TfSource>>    tf_sources_;
+  std::vector<std::string>               tf_source_names_;
+  std::vector<std::unique_ptr<TfSource>> tf_sources_;
 
   ros::NodeHandle nh_;
 

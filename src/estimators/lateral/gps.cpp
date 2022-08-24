@@ -10,10 +10,9 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_name) {
+void Gps::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
-  nh_       = parent_nh;
-  uav_name_ = uav_name;
+  ch_ = ch;
 
   // TODO load parameters
 
@@ -64,10 +63,10 @@ void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_na
   lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                     // TODO: parametrize
-  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &Gps::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                       // TODO: parametrize
-  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &Gps::timerCheckHealth, this);
+  _update_timer_rate_       = 100;                                                                                    // TODO: parametrize
+  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Gps::timerUpdate, this, false, false);  // not running after init
+  _check_health_timer_rate_ = 1;                                                                                      // TODO: parametrize
+  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Gps::timerCheckHealth, this);
 
   _critical_timeout_mavros_odom_ = 1.0;  // TODO: parametrize
 
@@ -75,7 +74,7 @@ void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_na
   // | --------------- subscribers initialization --------------- |
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh_;
+  shopts.nh                 = nh;
   shopts.node_name          = getName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
@@ -83,11 +82,12 @@ void Gps::initialize(const ros::NodeHandle &parent_nh, const std::string &uav_na
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
+  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
+  sh_mavros_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh_, getName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorDiagnostics>(nh_, getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorDiagnostics>(nh, getName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -160,12 +160,20 @@ void Gps::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  // TODO input and measurement from actual data
+
+  tf2::Vector3 des_acc_global;
+  if (sh_attitude_command_.hasMsg() && sh_mavros_odom_.hasMsg()) {
+
+    des_acc_global    = getAccGlobal(sh_attitude_command_.getMsg(), sh_mavros_odom_.getMsg());
+    last_input_stamp_ = sh_attitude_command_.getMsg()->header.stamp;
+    is_input_ready_   = true;
+  }
 
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    u = input_;
+    u(0) = des_acc_global.getX();
+    u(1) = des_acc_global.getY();
   } else {
     u = u_t::Zero();
   }
@@ -360,20 +368,13 @@ void Gps::setCovarianceMatrix(const covariance_t &cov_in) {
 /*//}*/
 
 /*//{ getInnovation() */
-double Gps::getInnovation(const int &state_id_in, const int &axis_in) const {
+double Gps::getInnovation(const int &state_idx) const {
   std::scoped_lock lock(mtx_innovation_);
-  return innovation_(axis_in);
+  return innovation_(state_idx);
 }
-/*//}*/
 
-/*//{ setInput() */
-void Gps::setInput(const double input_x, const double input_y, const ros::Time &stamp) {
-
-  std::scoped_lock lock(mtx_input_);
-  input_[0]         = input_x;
-  input_[1]         = input_y;
-  last_input_stamp_ = stamp;
-  is_input_ready_   = true;
+double Gps::getInnovation(const int &state_id_in, const int &axis_in) const {
+  return getInnovation(stateIdToIndex(state_id_in, axis_in));
 }
 /*//}*/
 

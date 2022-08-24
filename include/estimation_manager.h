@@ -23,15 +23,14 @@
 #include <mrs_lib/transformer.h>
 
 #include "estimators/state/state_estimator.h"
-/* #include "reference_frame_manager.h" */
 #include "support.h"
+#include "common_handlers.h"
 
 namespace mrs_uav_state_estimation
 {
 
 /*//{ class StateMachine */
 class StateMachine {
-
 
   /*//{ states */
 public:
@@ -237,11 +236,8 @@ private:
 
   std::string version_;
 
-  std::string uav_name_;
-  std::string ns_fcu_frame_id_;
-  /* std::unique_ptr<mrs_uav_state_estimation::ReferenceFrameManager> ref_frame_manager_; */
+  std::shared_ptr<CommonHandlers_t> ch_;
 
-  /* std::unique_ptr<StateMachine> sm_; */
   StateMachine sm_;
 
   mrs_lib::PublisherHandler<mrs_msgs::OdometryDiag> ph_diagnostics_;
@@ -267,8 +263,6 @@ private:
   ros::ServiceServer srvs_change_estimator_;
   ros::ServiceServer srvs_toggle_callbacks_;
 
-  std::shared_ptr<mrs_lib::Transformer> transformer_;
-
   // TODO service clients
   /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvch_failsafe_; */
   /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvc_hover_; */
@@ -289,7 +283,7 @@ private:
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> active_estimator_;
   std::mutex                                                  mutex_active_estimator_;
 
-  nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState& uav_state) const;
+  nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState &uav_state) const;
 
 public:
   EstimationManager();

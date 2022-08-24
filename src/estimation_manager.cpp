@@ -13,14 +13,20 @@ void EstimationManager::onInit() {
 
   ROS_INFO("[%s]: initializing", getName().c_str());
 
+  ch_ = std::make_shared<CommonHandlers_t>();
+
   mrs_lib::ParamLoader param_loader(nh, getName());
 
-  param_loader.loadParam("uav_name", uav_name_);
-  std::string fcu_frame_id;
-  param_loader.loadParam("fcu_frame_id", fcu_frame_id);
-  ns_fcu_frame_id_ = uav_name_ + "/" + fcu_frame_id;
+  // load common parameters into the common handlers structure
+  param_loader.loadParam("uav_name", ch_->uav_name);
+  param_loader.loadParam("frame_id/fcu", ch_->frames.fcu);
+  ch_->frames.ns_fcu = ch_->uav_name + "/" + ch_->frames.fcu;
 
-  transformer_ = std::make_shared<mrs_lib::Transformer>(nh, getName());
+  param_loader.loadParam("frame_id/fcu_untilted", ch_->frames.fcu_untilted);
+  ch_->frames.ns_fcu_untilted = ch_->uav_name + "/" + ch_->frames.fcu_untilted;
+
+  ch_->transformer = std::make_shared<mrs_lib::Transformer>(nh, getName());
+  ch_->transformer->retryLookupNewest(true);
 
   /*//{ check version */
   param_loader.loadParam("version", version_);
@@ -87,7 +93,7 @@ void EstimationManager::onInit() {
 
     try {
       ROS_INFO("[%s]: initializing the estimator '%s'", getName().c_str(), estimator_list_[i]->getName().c_str());
-      estimator_list_[i]->initialize(nh, uav_name_);
+      estimator_list_[i]->initialize(nh, ch_);
     }
     catch (std::runtime_error& ex) {
       ROS_ERROR("[%s]: exception caught during tracker initialization: '%s'", getName().c_str(), ex.what());
@@ -141,12 +147,12 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     const std::vector<double> pose_covariance = active_estimator_->getPoseCovariance();
     for (size_t i = 0; i < pose_covariance.size(); i++) {
-      odom_main.pose.covariance[i] = pose_covariance[i]; 
+      odom_main.pose.covariance[i] = pose_covariance[i];
     }
 
     const std::vector<double> twist_covariance = active_estimator_->getTwistCovariance();
     for (size_t i = 0; i < twist_covariance.size(); i++) {
-      odom_main.twist.covariance[i] = twist_covariance[i]; 
+      odom_main.twist.covariance[i] = twist_covariance[i];
     }
 
     ph_odom_main_.publish(odom_main);
@@ -199,23 +205,10 @@ nav_msgs::Odometry EstimationManager::uavStateToOdom(const mrs_msgs::UavState& u
   odom.pose.pose           = uav_state.pose;
   odom.twist.twist.angular = uav_state.velocity.angular;
 
-  /* geometry_msgs::Vector3Stamped global_vel; */
-  /* global_vel.header = uav_state.header; */
-  /* global_vel.vector = uav_state.velocity.linear; */
-
   tf2::Quaternion q;
   tf2::fromMsg(odom.pose.pose.orientation, q);
-  odom.twist.twist.linear = rotateTwist(uav_state.velocity.linear, q.inverse(), transformer_);
+  odom.twist.twist.linear = Support::rotateTwist(uav_state.velocity.linear, q.inverse(), ch_->transformer);
 
-  /* geometry_msgs::Vector3Stamped body_vel; */
-  /* auto                          response = transformer_->transformSingle(global_vel, ns_fcu_frame_id_); */
-  /* if (response) { */
-  /*   body_vel                = response.value(); */
-  /*   odom.twist.twist.linear = body_vel.vector; */
-  /* } else { */
-  /*   ROS_ERROR_THROTTLE(1.0, "[%s]: Transform from %s to %s failed when publishing odom_main.", getName().c_str(), global_vel.header.frame_id.c_str(), */
-  /*                      ns_fcu_frame_id_.c_str()); */
-  /* } */
   return odom;
 }
 /*//}*/

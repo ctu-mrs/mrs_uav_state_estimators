@@ -16,7 +16,7 @@ bool Estimator::changeState(SMStates_t new_state) {
 /*//}*/
 
 /*//{ isInState() */
-bool Estimator::isInState(const SMStates_t &state_in) const {
+bool Estimator::isInState(const SMStates_t& state_in) const {
   return state_in == current_sm_state_;
 }
 /*//}*/
@@ -58,7 +58,7 @@ bool Estimator::isError() const {
 /*//}*/
 
 /*//{ getSmStateString() */
-std::string Estimator::getSmStateString(const SMStates_t &state) const {
+std::string Estimator::getSmStateString(const SMStates_t& state) const {
   return sm::state_names[state];
 }
 /*//}*/
@@ -83,7 +83,7 @@ std::string Estimator::getType(void) const {
 
 /*//{ getFrameId() */
 std::string Estimator::getFrameId(void) const {
-  return uav_name_ + "/" + frame_id_;
+  return ns_frame_id_;
 }
 /*//}*/
 
@@ -101,6 +101,35 @@ void Estimator::publishDiagnostics() const {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+/*//{ getAccGlobal() */
+tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const nav_msgs::Odometry::ConstPtr& mavros_odom_msg) {
+
+  // untilt the desired acceleration vector
+  geometry_msgs::PointStamped des_acc;
+  geometry_msgs::Vector3      des_acc_untilted;
+  des_acc.point.x         = att_cmd_msg->desired_acceleration.x;
+  des_acc.point.y         = att_cmd_msg->desired_acceleration.y;
+  des_acc.point.z         = att_cmd_msg->desired_acceleration.z;
+  des_acc.header.frame_id = ch_->frames.ns_fcu_untilted;
+  des_acc.header.stamp    = att_cmd_msg->header.stamp;
+  auto response_acc       = ch_->transformer->transformSingle(des_acc, ch_->frames.ns_fcu_untilted);
+  if (response_acc) {
+    des_acc_untilted.x = response_acc.value().point.x;
+    des_acc_untilted.y = response_acc.value().point.y;
+    des_acc_untilted.z = response_acc.value().point.z;
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
+  }
+
+  // rotate the desired acceleration vector to global frame
+  const tf2::Vector3 des_acc_global =
+      Support::rotateVecByHdg(des_acc_untilted, mrs_lib::AttitudeConverter(mavros_odom_msg->pose.pose.orientation).getHeading());
+
+  return des_acc_global;
+}
+/*//}*/
 
 /*//}*/
+
+}  // namespace mrs_uav_state_estimation
+

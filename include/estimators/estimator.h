@@ -7,13 +7,19 @@
 
 #include <Eigen/Dense>
 
+#include <nav_msgs/Odometry.h>
+
 #include <mrs_msgs/UavState.h>
+#include <mrs_msgs/AttitudeCommand.h>
 
 #include <mrs_lib/publisher_handler.h>
+#include <mrs_lib/attitude_converter.h>
 
 #include <mrs_uav_state_estimation/EstimatorDiagnostics.h>
 
 #include "types.h"
+#include "support.h"
+#include "common_handlers.h"
 
 //}
 
@@ -25,15 +31,15 @@ class Estimator {
 protected:
   mutable mrs_lib::PublisherHandler<EstimatorDiagnostics> ph_diagnostics_;
 
-  std::string uav_name_; 
+  /* std::string uav_name_; */
 
   const std::string type_;
   const std::string name_;
   const std::string frame_id_;
 
-  // TODO load as parameters in manager, pass to estimators
-  const std::string fcu_frame_id_ = "fcu";
-  const std::string fcu_untilted_frame_id_ = "fcu_untilted";
+  std::string ns_frame_id_;
+
+  std::shared_ptr<CommonHandlers_t> ch_;
 
 private:
   SMStates_t previous_sm_state_ = UNINITIALIZED_STATE;
@@ -46,10 +52,10 @@ public:
   }
 
   // virtual methods
-  virtual void initialize(const ros::NodeHandle &parent_nh, const std::string& uav_name) = 0;
-  virtual bool start(void)                                  = 0;
-  virtual bool pause(void)                                  = 0;
-  virtual bool reset(void)                                  = 0;
+  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) = 0;
+  virtual bool start(void)                                                                  = 0;
+  virtual bool pause(void)                                                                  = 0;
+  virtual bool reset(void)                                                                  = 0;
 
   // implemented methods
   // access methods
@@ -69,7 +75,8 @@ public:
   bool isStopped() const;
   bool isError() const;
 
-  void publishDiagnostics() const;
+  void         publishDiagnostics() const;
+  tf2::Vector3 getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const nav_msgs::Odometry::ConstPtr &mavros_odom_msg);
 };
 
 

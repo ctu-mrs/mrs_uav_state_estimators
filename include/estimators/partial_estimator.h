@@ -9,7 +9,6 @@
 
 #include <mrs_uav_state_estimation/EstimatorOutput.h>
 
-#include "types.h"
 #include "estimators/estimator.h"
 
 //}
@@ -49,13 +48,14 @@ public:
   virtual states_t getStates(void) const                = 0;
   virtual void     setStates(const states_t &states_in) = 0;
 
-  virtual double getCovariance(const int &state_idx_in) const = 0;
-  virtual double getCovariance(const int &state_id_in, const int &axis_in) const  = 0;
+  virtual double getCovariance(const int &state_idx_in) const                    = 0;
+  virtual double getCovariance(const int &state_id_in, const int &axis_in) const = 0;
 
-  virtual covariance_t getCovarianceMatrix(void) const = 0;
+  virtual covariance_t getCovarianceMatrix(void) const                 = 0;
   virtual void         setCovarianceMatrix(const covariance_t &cov_in) = 0;
 
-  virtual double getInnovation(const int &state_id_in, const int &axis_in) const  = 0;
+  virtual double getInnovation(const int &state_idx) const = 0;
+  virtual double getInnovation(const int &state_id_in, const int &axis_in) const = 0;
 
   // implemented methods
   // access methods
@@ -121,6 +121,7 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
   ph_output_.publish(msg);
 }
 /*//}*/
+
 /*//}*/
 
 }  // namespace mrs_uav_state_estimation

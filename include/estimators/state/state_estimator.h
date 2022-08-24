@@ -12,7 +12,6 @@
 #include <mrs_msgs/UavState.h>
 #include <mrs_msgs/Float64ArrayStamped.h>
 
-#include "types.h"
 #include "estimators/estimator.h"
 
 //}
@@ -27,7 +26,6 @@ const std::string type = "STATE";
 
 class StateEstimator : public Estimator {
 
-public:
 protected:
   mrs_msgs::UavState uav_state_;
   mutable std::mutex mtx_uav_state_;
@@ -50,7 +48,7 @@ public:
   }
 
   // virtual methods
-  virtual mrs_msgs::UavState            getUavState() const        = 0;
+  virtual mrs_msgs::UavState  getUavState() const        = 0;
   virtual std::vector<double> getPoseCovariance() const  = 0;
   virtual std::vector<double> getTwistCovariance() const = 0;
 

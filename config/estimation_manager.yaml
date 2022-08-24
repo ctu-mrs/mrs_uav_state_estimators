@@ -1,5 +1,10 @@
 version: "0.0.0.1"
 
+# names of used frames are specified here
+frame_id:
+  fcu: "fcu" # the body frame of the UAV where the flight control unit resides (default: "fcu")
+  fcu_untilted: "fcu_untilted" # the body frame with zero tilt angles default: ("fcu_untilted")
+
 # loaded state estimator plugins
 state_estimators: [
 "GpsGarmin"
@@ -9,5 +14,5 @@ initial_estimator: "GpsGarmin" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:
-  uav_state: 100
-  health: 100
+  uav_state: 100 # used by the control_manager for feedback control (default: 100)
+  health: 100 # checks if everything is ok (default: 100)
