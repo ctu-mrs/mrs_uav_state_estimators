@@ -1,5 +1,5 @@
-#ifndef GARMIN_H_
-#define GARMIN_H_
+#ifndef GARMIN_H
+#define GARMIN_H
 
 /* includes //{ */
 
@@ -50,7 +50,7 @@ class Garmin : public AltitudeEstimator<garmin::n_states> {
 
 private:
   double                 dt_;
-  double                 input_coeff_;
+  double                 input_coeff_, default_input_coeff_;
   A_t                    A_;
   B_t                    B_;
   H_t                    H_;
@@ -114,6 +114,12 @@ public:
 
   virtual double getInnovation(const int &state_idx) const override;
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
+
+  virtual void setDt(const double& dt);
+  virtual void setInputCoeff(const double& input_coeff);
+  
+  virtual void generateA();
+  virtual void generateB();
 
   void timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
   void timeoutGarminRange(const std::string &topic, const ros::Time &last_msg, const int n_pubs);

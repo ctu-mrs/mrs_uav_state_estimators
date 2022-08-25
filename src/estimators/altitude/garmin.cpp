@@ -20,16 +20,10 @@ void Garmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandler
   // clang-format off
     dt_ = 0.01;
     input_coeff_ = 0.1;
+    default_input_coeff_ = 0.1;
 
-    A_ <<
-      1, dt_, std::pow(dt_, 2)/2,
-      0, 1, dt_,
-      0, 0, 1-input_coeff_;
-
-    B_ <<
-      0,
-      0,
-      input_coeff_;
+    generateA();
+    generateB();
 
     H_ <<
       1, 0, 0;
@@ -153,22 +147,20 @@ void Garmin::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  tf2::Vector3 des_acc_global;
-  if (sh_attitude_command_.hasMsg() && sh_mavros_odom_.hasMsg()) {
-
-    des_acc_global    = getAccGlobal(sh_attitude_command_.getMsg(), sh_mavros_odom_.getMsg());
-    last_input_stamp_ = sh_attitude_command_.getMsg()->header.stamp;
-    is_input_ready_   = true;
-  }
-
+  const bool mavros_new_message = sh_mavros_odom_.newMsg();
 
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    u(0) = des_acc_global.getX();
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_mavros_odom_.getMsg());
+    setInputCoeff(default_input_coeff_);
+    u(0) = des_acc_global.getZ();
   } else {
+    setInputCoeff(0);
     u = u_t::Zero();
   }
+
+  setDt((event.current_real - event.last_real).toSec());
 
   try {
     // Apply the prediction step
@@ -182,7 +174,7 @@ void Garmin::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
 
-  if (sh_mavros_odom_.newMsg()) {
+  if (mavros_new_message) {
 
     z_t z = z_t::Zero();
 
@@ -256,6 +248,11 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
       ROS_INFO("[%s]: LKF converged", getName().c_str());
       changeState(RUNNING_STATE);
     }
+  }
+
+  if (sh_attitude_command_.newMsg()) {
+    is_input_ready_   = true;
+    last_input_stamp_ = sh_attitude_command_.peekMsg()->header.stamp;
   }
 
   // check age of input
@@ -360,6 +357,45 @@ double Garmin::getInnovation(const int &state_idx) const {
 
 double Garmin::getInnovation(const int &state_id_in, const int &axis_in) const {
   return getInnovation(stateIdToIndex(0, 0));
+}
+/*//}*/
+
+/*//{ setDt() */
+void Garmin::setDt(const double &dt) {
+  dt_ = dt;
+  generateA();
+}
+/*//}*/
+
+/*//{ setInputCoeff() */
+void Garmin::setInputCoeff(const double &input_coeff) {
+  input_coeff_ = input_coeff;
+  generateA();
+  generateB();
+}
+/*//}*/
+
+/*//{ generateA() */
+void Garmin::generateA() {
+
+  // clang-format off
+    A_ <<
+      1, dt_, std::pow(dt_, 2)/2,
+      0, 1, dt_,
+      0, 0, 1-input_coeff_;
+  // clang-format on
+}
+/*//}*/
+
+/*//{ generateB() */
+void Garmin::generateB() {
+
+  // clang-format off
+    B_ <<
+      0,
+      0,
+      input_coeff_;
+  // clang-format on
 }
 /*//}*/
 

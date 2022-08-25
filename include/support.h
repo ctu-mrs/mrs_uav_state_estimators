@@ -65,20 +65,15 @@ public:
   /*//}*/
 
   /* //{ rotateVecByHdg() */
-  static tf2::Vector3 rotateVecByHdg(const geometry_msgs::Vector3& acc_in, const double hdg_in) {
+  static tf2::Vector3 rotateVecByHdg(const geometry_msgs::Vector3& vec_in, const double hdg_in) {
 
     const tf2::Quaternion q_hdg = mrs_lib::AttitudeConverter(0, 0, 0).setHeading(hdg_in);
 
-    const tf2::Vector3 acc_tf2(acc_in.x, acc_in.y, acc_in.z);
+    const tf2::Vector3 vec_tf2(vec_in.x, vec_in.y, vec_in.z);
 
-    const tf2::Vector3 acc_rotated = quatRotate(q_hdg, acc_tf2);
+    const tf2::Vector3 vec_rotated = tf2::quatRotate(q_hdg, vec_tf2);
 
-    /* geometry_msgs::Vector3 acc_out; */
-    /* acc_out.x = acc_rotated.getX(); */
-    /* acc_out.y = acc_rotated.getY(); */
-    /* acc_out.z = acc_rotated.getZ(); */
-
-    return acc_rotated;
+    return vec_rotated;
   }
   //}
 
