@@ -57,6 +57,8 @@ input=(
   'GoToRelative' "rosservice call /$UAV_NAME/control_manager/goto_relative \"goal: [5.0, 5.0, 1.0, 3.14]\""
   'rviz' "waitForOdometry; roslaunch mrs_uav_testing rviz.launch
 "
+  'plot_juggler' "waitForOdometry; roslaunch mrs_uav_state_estimation plot_juggler.launch
+"
   'gzcamera_follow' "waitForOdometry; gz camera -c gzclient_camera -f $UAV_NAME
 "
   'Roscore' 'roscore
