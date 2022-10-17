@@ -122,6 +122,7 @@ tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& 
   }
 
   // rotate the desired acceleration vector to global frame
+  // TODO for non-ENU-based estimators this is not correct
   const tf2::Vector3 des_acc_global =
       Support::rotateVecByHdg(des_acc_untilted, mrs_lib::AttitudeConverter(mavros_odom_msg->pose.pose.orientation).getHeading());
 

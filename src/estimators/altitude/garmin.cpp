@@ -252,12 +252,11 @@ void Garmin::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (sh_attitude_command_.newMsg()) {
     is_input_ready_   = true;
-    last_input_stamp_ = sh_attitude_command_.peekMsg()->header.stamp;
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - last_input_stamp_).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getName().c_str(), (ros::Time::now() - last_input_stamp_).toSec());
+  if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getName().c_str(), (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }

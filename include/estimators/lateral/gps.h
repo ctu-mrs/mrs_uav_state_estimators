@@ -60,7 +60,6 @@ private:
   mutable std::mutex     mutex_lkf_;
 
   u_t               input_;
-  ros::Time         last_input_stamp_;
   std::mutex        mtx_input_;
   std::atomic<bool> is_input_ready_ = false;
 
