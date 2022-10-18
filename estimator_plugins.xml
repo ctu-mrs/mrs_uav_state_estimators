@@ -3,3 +3,9 @@
     <description>GpsGarmin state estimator</description>
   </class>
 </library>
+
+<library path="lib/libAloam">
+  <class name="mrs_uav_state_estimation/Aloam" type="mrs_uav_state_estimation::Aloam" base_class_type="mrs_uav_state_estimation::StateEstimator">
+    <description>Aloam state estimator</description>
+  </class>
+</library>

@@ -7,7 +7,8 @@ frame_id:
 
 # loaded state estimator plugins
 state_estimators: [
-"GpsGarmin"
+"GpsGarmin",
+"Aloam"
 ]
 
 initial_estimator: "GpsGarmin" # will be used as the first estimator

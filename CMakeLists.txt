@@ -44,7 +44,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES GpsGarmin EstimationManager TransformManager
+  LIBRARIES Aloam GpsGarmin EstimationManager TransformManager
   CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime
   DEPENDS Eigen
   )
@@ -65,8 +65,12 @@ set(src_files
   src/estimators/estimator.cpp 
   src/estimators/state/state_estimator.cpp 
   src/estimators/state/gps_garmin.cpp 
+  src/estimators/state/aloam.cpp 
   src/estimators/altitude/garmin.cpp 
+  src/estimators/altitude/alt_generic.cpp 
   src/estimators/lateral/gps.cpp 
+  src/estimators/lateral/lat_generic.cpp 
+  src/estimators/heading/hdg_generic.cpp 
   # src/estimators_testing.cpp 
   )
 
@@ -76,8 +80,17 @@ add_library(GpsGarmin
   ${src_files}
   )
 
+add_library(Aloam 
+  ${src_files}
+  )
+
 ## Specify libraries to link a library or executable target against
 target_link_libraries(GpsGarmin
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+target_link_libraries(Aloam
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

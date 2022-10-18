@@ -29,7 +29,7 @@ export UAV_NUMBER=$(shuf -i 1-30 -n 1);
 export UAV_NAME=uav$UAV_NUMBER
 
 # following commands will be executed first, in each window
-pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER export RUN_TYPE=simulation; export UAV_TYPE=f550; export WORLD_NAME=simulation; export SENSORS='garmin_down'"
+pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER export RUN_TYPE=simulation; export UAV_TYPE=x500; export WORLD_NAME=simulation; export SENSORS='garmin_down'"
 
 # define commands
 # 'name' 'command'
@@ -37,14 +37,16 @@ pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER exp
 # * "new line" after the command    => the command will be called after start
 # * NO "new line" after the command => the command will wait for user's <enter>
 input=(
-  'Gazebo' "waitForRos; roslaunch mrs_simulation simulation.launch world_name:=grass_plane gui:=true
+  'Gazebo' "waitForRos; roslaunch mrs_simulation simulation.launch world_name:=forest gui:=true
 "
-  'Spawn' 'waitForSimulation; rosservice call /mrs_drone_spawner/spawn "$UAV_NUMBER $UAV_TYPE --enable-rangefinder --enable-ground-truth"
+'Spawn' 'waitForSimulation; rosservice call /mrs_drone_spawner/spawn "$UAV_NUMBER $UAV_TYPE --enable-rangefinder --enable-ground-truth --enable-ouster --ouster-model OS0-32 --use-gpu-ray"
 '
   'Status' "waitForOdometry; roslaunch mrs_uav_status status.launch
 "
   'Control' "waitForOdometry; roslaunch mrs_uav_general core.launch config_uav_manager:=./custom_configs/uav_manager.yaml
 "
+  'SLAM' 'waitForRos; roslaunch mission_controller slam_pipeline.launch OUSTER_TYPE:=OS0-32
+'
   # 'OdometryTesting' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_testing.launch
 # "
   'EstimationManager' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_manager.launch

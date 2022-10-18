@@ -76,7 +76,9 @@ public:
   bool isError() const;
 
   void         publishDiagnostics() const;
+
   tf2::Vector3 getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const nav_msgs::Odometry::ConstPtr &mavros_odom_msg);
+  std::optional<double> getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg);
 };
 
 

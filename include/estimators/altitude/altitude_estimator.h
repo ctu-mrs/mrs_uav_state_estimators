@@ -13,6 +13,12 @@ namespace mrs_uav_state_estimation
 namespace altitude
 {
 const std::string type = "ALTITUDE";
+
+typedef enum {
+  ODOMETRY,
+  RANGE
+} MeasurementType_t;
+
 }
 
 template <int n_states>

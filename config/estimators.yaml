@@ -1,2 +1,4 @@
 GpsGarmin:
   address: "mrs_uav_state_estimation/GpsGarmin"
+Aloam:
+  address: "mrs_uav_state_estimation/Aloam"

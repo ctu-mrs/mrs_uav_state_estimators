@@ -130,6 +130,32 @@ tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& 
 }
 /*//}*/
 
+/*//{ getHeadingRate() */
+std::optional<double> Estimator::getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg) {
+
+  geometry_msgs::Vector3 des_att_rate;
+  des_att_rate.x = att_cmd_msg->attitude_rate.x;
+  des_att_rate.y = att_cmd_msg->attitude_rate.y;
+  des_att_rate.z = att_cmd_msg->attitude_rate.z;
+
+  double des_hdg_rate;
+  try {
+    des_hdg_rate = mrs_lib::AttitudeConverter(att_cmd_msg->attitude).getHeadingRate(des_att_rate);
+  }
+  catch (...) {
+    ROS_ERROR("[%s]: Exception caught during getting heading rate (attitude command)", getName().c_str());
+    return {};
+  }
+
+  if (!std::isfinite(des_hdg_rate)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in variable \"des_hdg_rate_\"", getName().c_str());
+    return {};
+  }
+
+  return des_hdg_rate;
+}
+/*//}*/
+
 /*//}*/
 
 }  // namespace mrs_uav_state_estimation

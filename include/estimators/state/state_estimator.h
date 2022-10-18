@@ -59,8 +59,9 @@ public:
   void publishUavState() const;
   void publishCovariance() const;
   void publishInnovation() const;
-};
+  geometry_msgs::Quaternion rotateQuaternionByHeading(const geometry_msgs::Quaternion& q, const double hdg) const;
 
+};
 
 }  // namespace mrs_uav_state_estimation
 
