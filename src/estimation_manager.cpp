@@ -74,9 +74,9 @@ void EstimationManager::onInit() {
   /*//{ check whether initial estimator was loaded */
   param_loader.loadParam("initial_estimator", initial_estimator_name_);
   bool initial_estimator_found = false;
-  for (int i = 0; i < int(estimator_list_.size()); i++) {
-    if (estimator_list_[i]->getName() == initial_estimator_name_) {
-      initial_estimator_      = estimator_list_[i];
+  for (auto estimator : estimator_list_) {
+    if (estimator->getName() == initial_estimator_name_) {
+      initial_estimator_      = estimator;
       initial_estimator_found = true;
       break;
     }
@@ -89,14 +89,14 @@ void EstimationManager::onInit() {
   /*//}*/
 
   /*//{ initialize estimators */
-  for (int i = 0; i < int(estimator_list_.size()); i++) {
+  for (auto estimator : estimator_list_) {
 
     try {
-      ROS_INFO("[%s]: initializing the estimator '%s'", getName().c_str(), estimator_list_[i]->getName().c_str());
-      estimator_list_[i]->initialize(nh, ch_);
+      ROS_INFO("[%s]: initializing the estimator '%s'", getName().c_str(), estimator->getName().c_str());
+      estimator->initialize(nh, ch_);
     }
     catch (std::runtime_error& ex) {
-      ROS_ERROR("[%s]: exception caught during tracker initialization: '%s'", getName().c_str(), ex.what());
+      ROS_ERROR("[%s]: exception caught during estimator initialization: '%s'", getName().c_str(), ex.what());
     }
   }
 
@@ -170,16 +170,28 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
     return;
   }
 
-  if (sm_.isInState(StateMachine::INITIALIZED_STATE)) {
-    if (initial_estimator_->isRunning()) {
-      std::scoped_lock lock(mutex_active_estimator_);
-      ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
-      active_estimator_ = initial_estimator_;
-      sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
-    } else if (initial_estimator_->isReady()) {
-      initial_estimator_->start();
+  /*//{ start ready estimators */
+  for (auto estimator : estimator_list_) {
+
+    if (estimator->isReady()) {
+      try {
+        ROS_INFO("[%s]: starting the estimator '%s'", getName().c_str(), estimator->getName().c_str());
+        estimator->start();
+      }
+      catch (std::runtime_error& ex) {
+        ROS_ERROR("[%s]: exception caught during estimator starting: '%s'", getName().c_str(), ex.what());
+      }
     }
   }
+
+  /*//}*/
+
+  if (sm_.isInState(StateMachine::INITIALIZED_STATE) && initial_estimator_->isRunning()) {
+    std::scoped_lock lock(mutex_active_estimator_);
+    ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
+    active_estimator_ = initial_estimator_;
+    sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+  }   
 
   if (sm_.isInState(StateMachine::READY_FOR_TAKEOFF_STATE)) {
     sm_.changeState(StateMachine::TAKING_OFF_STATE);

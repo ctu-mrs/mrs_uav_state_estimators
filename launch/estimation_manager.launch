@@ -31,10 +31,21 @@
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimation_manager.yaml" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimators.yaml" command="load" />
 
-      <!-- Subscribers -->
+<!--//{ subscribers-->
+      <!-- common -->
       <remap from="~attitude_command_in" to="control_manager/attitude_cmd" />
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
-      <remap from="~garmin_range_in" to="garmin/range" />
+
+      <!-- gps garmin -->
+      <remap from="~lateral_gps/odom_in" to="mavros/local_position/odom" />
+      <remap from="~altitude_garmin/odom_in" to="mavros/local_position/odom" />
+      <remap from="~altitude_garmin/range_in" to="garmin/range" />
+
+      <!-- aloam -->
+      <remap from="~lateral_aloam/odom_in" to="slam/odom" />
+      <remap from="~altitude_aloam/odom_in" to="slam/odom" />
+      <remap from="~heading_aloam/odom_in" to="slam/odom" />
+<!--//}-->
 
       <!-- Publishers -->
       <remap from="~profiler" to="profiler" />

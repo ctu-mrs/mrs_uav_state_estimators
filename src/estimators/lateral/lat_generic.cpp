@@ -71,7 +71,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "odom_in");
+  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getName() + "/output", 1);

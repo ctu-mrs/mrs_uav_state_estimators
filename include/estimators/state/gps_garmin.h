@@ -18,8 +18,8 @@
 #include <mrs_lib/transformer.h>
 
 #include "estimators/state/state_estimator.h"
-#include "estimators/lateral/gps.h"
-#include "estimators/altitude/garmin.h"
+#include "estimators/lateral/lat_generic.h"
+#include "estimators/altitude/alt_generic.h"
 
 //}
 
@@ -35,8 +35,11 @@ const std::string frame_id = "gps_garmin_origin";
 class GpsGarmin : public StateEstimator {
 
 private:
-  std::unique_ptr<Gps>    est_lat_gps_;
-  std::unique_ptr<Garmin> est_alt_garmin_;
+  std::unique_ptr<LatGeneric>    est_lat_gps_;
+  const std::string est_lat_name_ = "lateral_gps";
+
+  std::unique_ptr<AltGeneric> est_alt_garmin_;
+  const std::string est_alt_name_ = "altitude_garmin";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;

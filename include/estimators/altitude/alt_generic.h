@@ -65,6 +65,10 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
+  bool fuse_pos_range_;
+  bool fuse_pos_odom_;
+  bool fuse_vel_odom_;
+
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
@@ -81,10 +85,12 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
+  void doCorrection(const z_t& z);
+
   bool isConverged();
 
 public:
-  AltGeneric(const std::string name, const std::string frame_id) : AltitudeEstimator<alt_generic::n_states>(name, frame_id){};
+  AltGeneric(const std::string name, const std::string frame_id, const AltitudeSource_t& alt_src) : AltitudeEstimator<alt_generic::n_states>(name, frame_id), alt_src_(alt_src){};
 
   ~AltGeneric(void) {
   }
