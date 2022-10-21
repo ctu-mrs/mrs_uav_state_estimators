@@ -14,6 +14,7 @@
 #include <mrs_lib/subscribe_handler.h>
 
 #include "estimators/altitude/altitude_estimator.h"
+#include "estimators/correction.h"
 
 //}
 
@@ -65,9 +66,12 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
-  bool fuse_pos_range_;
-  bool fuse_pos_odom_;
-  bool fuse_vel_odom_;
+  /* bool fuse_pos_range_; */
+  /* bool fuse_pos_odom_; */
+  /* bool fuse_vel_odom_; */
+
+  std::vector<std::string> correction_names_;
+  std::vector<Correction> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 

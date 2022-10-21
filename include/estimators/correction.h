@@ -43,7 +43,8 @@ public:
   double    getR();
   StateId_t getStateId();
 
-  std::optional<double> getValue();
+  std::optional<measurement_t> getCorrection();
+  std::optional<measurement_t> getCorrection();
 
 private:
   const std::string name_;
@@ -51,8 +52,6 @@ private:
 
   MessageType_t msg_type_;
   std::string   msg_topic_;
-
-  std::atomic_bool is_healthy_;
 
   double    R_;
   StateId_t state_id_;
@@ -65,6 +64,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& n
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.loadParam("message/type", msg_type_);
   param_loader.loadParam("message/topic", msg_topic_);
+  param_loader.loadParam("state_id", state_id_);
+  param_loader.loadParam("noise", R_);
 
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
@@ -100,7 +101,9 @@ std::string Correction::getName() {
 }
 
 bool Correction::isHealthy() {
-  return is_healthy_;
+  // check age of message
+  const double time_since_last_msg_ = (ros::Time::now() - sh_.lastMsgTime()).toSec();
+  return (sh_.hasMsg() && time_since_last_msg_ > msg_timeout_);
 }
 
 double Correction::getR() {
@@ -117,7 +120,7 @@ std::optional<measurement_t> Correction::getCorrection() {
   // check age of message
   const double time_since_last_msg_ = (ros::Time::now() - sh_.lastMsgTime()).toSec();
   if (sh_.hasMsg() && time_since_last_msg_ > msg_timeout_) {
-    ROS_ERROT_THROTTLE(1.0, "[%s]: message too old (%.4f s)", getName().c_str(), time_since_last_msg_);
+    ROS_ERROR_THROTTLE(1.0, "[%s]: message too old (%.4f s)", getName().c_str(), time_since_last_msg_);
     return {};
   }
 
@@ -137,7 +140,7 @@ std::optional<measurement_t> Correction::getCorrection() {
 
 /*//{ getCorrectionFromMessage() */
 template <int n_measurements>
-measurement_t Correction<n_measurements>::getCorrectionFromMessage() {
+std::optional<measurement_t> Correction<n_measurements>::getCorrectionFromMessage() {
 
   auto msg = sh_.getMsg();
 
@@ -174,7 +177,7 @@ measurement_t Correction<n_measurements>::getCorrectionFromMessage() {
 
 /*//{ getCorrectionFromOdometry() */
 template <int n_measurements>
-measurement_t Correction<n_measurements>::getCorrectionFromOdometry(const std::shared_ptr<nav_msgs::Odometry>& msg) {
+std::optional<measurement_t> Correction<n_measurements>::getCorrectionFromOdometry(const std::shared_ptr<nav_msgs::Odometry>& msg) {
 
   measurement_t measurement;
 
@@ -252,10 +255,12 @@ measurement_t Correction<n_measurements>::getCorrectionFromOdometry(const std::s
 
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
-measurement_t Correction<n_measurements>::getCorrectionFromRange(const std::shared_ptr<sensor_msgs::Range>& msg) {
+std_optional<measurement_t> Correction<n_measurements>::getCorrectionFromRange(const std::shared_ptr<sensor_msgs::Range>& msg) {
 
   measurement_t measurement;
   measurement(0) = msg->range;
+
+  return measurement;
 }
 /*//}*/
 
