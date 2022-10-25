@@ -1,0 +1,21 @@
+alt_garmin: # namespace of the estimator
+  corrections: [
+    "pos_garmin",
+    "vel_baro"
+  ]
+
+  pos_garmin:
+    state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+    noise: 1.0 # measurement noise covariance (R)
+    message:
+      type: 3 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
+      topic: "garmin/range" # without uav namespace
+      timeout: 0.2 # [s] older messages will be discarded without fusing
+
+  vel_baro:
+    state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
+    noise: 1.0 # measurement noise covariance (R)
+    message:
+      type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
+      topic: "mavros/local_position/odom" # without uav namespace
+      timeout: 0.2 # [s] older messages will be discarded without fusing
