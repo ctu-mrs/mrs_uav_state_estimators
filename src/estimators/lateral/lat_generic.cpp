@@ -42,6 +42,16 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format on
 
+    // | --------------- corrections initialization --------------- |
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/lateral/" + getName() + ".yaml", nh.getNamespace());
+
+  mrs_lib::ParamLoader param_loader(nh, getName());
+  param_loader.setPrefix(getName() + "/");
+  param_loader.loadParam("corrections", correction_names_);
+
+  for (auto corr_name : correction_names_) {
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, EstimatorType_t::LATERAL, ch_));
+  }
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
   const P_t        P0 = 1e3 * P_t::Identity();
@@ -148,8 +158,6 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  const bool is_new_odom_message_ready = sh_odom_.newMsg();
-
   // prediction step
   u_t u;
   if (is_input_ready_) {
@@ -175,51 +183,62 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
 
-  if (is_new_odom_message_ready) {
+  /* if (is_new_odom_message_ready) { */
 
-    z_t z = z_t::Zero();
+  /*   z_t z = z_t::Zero(); */
 
-    nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg();
+  /*   nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
 
-    z(0) = odom_msg->pose.pose.position.x;
-    z(1) = odom_msg->pose.pose.position.y;
+  /*   z(0) = odom_msg->pose.pose.position.x; */
+  /*   z(1) = odom_msg->pose.pose.position.y; */
 
-    bool health_flag = true;
+  /*   bool health_flag = true; */
 
-    if (!std::isfinite(z(0))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position x correction", getName().c_str());
-      health_flag = false;
-    }
+  /*   if (!std::isfinite(z(0))) { */
+  /*     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position x correction", getName().c_str()); */
+  /*     health_flag = false; */
+  /*   } */
 
-    if (!std::isfinite(z(1))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position y correction", getName().c_str());
-      health_flag = false;
-    }
+  /*   if (!std::isfinite(z(1))) { */
+  /*     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position y correction", getName().c_str()); */
+  /*     health_flag = false; */
+  /*   } */
 
-    if (health_flag) {
+  /*   if (health_flag) { */
 
-      {
-        std::scoped_lock lock(mtx_innovation_);
+  /*     { */
+  /*       std::scoped_lock lock(mtx_innovation_); */
 
 
-        innovation_(0) = z(0) - getState(POSITION, AXIS_X);
-        innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
+  /*       innovation_(0) = z(0) - getState(POSITION, AXIS_X); */
+  /*       innovation_(1) = z(1) - getState(POSITION, AXIS_Y); */
 
-        if (innovation_(0) > 1.0 || innovation_(1) > 1.0) {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f y: %.2f", getName().c_str(), innovation_(0), innovation_(1));
-        }
-      }
+  /*       if (innovation_(0) > 1.0 || innovation_(1) > 1.0) { */
+  /*         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f y: %.2f", getName().c_str(), innovation_(0), innovation_(1)); */
+  /*       } */
+  /*     } */
 
-      try {
-        // Apply the correction step
-        {
-          std::scoped_lock lock(mutex_lkf_);
-          sc_ = lkf_->correct(sc_, z, R_);
-        }
-      }
-      catch (const std::exception &e) {
-        ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
-      }
+  /*     try { */
+  /*       // Apply the correction step */
+  /*       { */
+  /*         std::scoped_lock lock(mutex_lkf_); */
+  /*         sc_ = lkf_->correct(sc_, z, R_); */
+  /*       } */
+  /*     } */
+  /*     catch (const std::exception &e) { */
+  /*       ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what()); */
+  /*     } */
+  /*   } */
+  /* } */
+  
+  for (auto correction : corrections_) {
+    z_t z;
+    if (correction->getCorrection(z)) {
+
+      // TODO processing, median filter, gating etc.
+      doCorrection(z, correction->getR(), correction->getStateId());
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: correction is not valid", ros::this_node::getName().c_str());
     }
   }
 
@@ -237,15 +256,16 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    // initialize the estimator with current position
-    if (sh_odom_.hasMsg()) {
-      nav_msgs::OdometryConstPtr msg = sh_odom_.getMsg();
-      setState(msg->pose.pose.position.x, POSITION, AXIS_X);
-      setState(msg->pose.pose.position.y, POSITION, AXIS_Y);
-      changeState(READY_STATE);
-      ROS_INFO("[%s]: Ready to start", getName().c_str());
-    } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_odom_.topicName().c_str());
+    // initialize the estimator with current corrections
+    for (auto correction : corrections_) {
+      z_t z;
+      if (correction->getCorrection(z)) {
+        setState(z(AXIS_X), correction->getStateId(), AXIS_X);
+        setState(z(AXIS_Y), correction->getStateId(), AXIS_Y);
+      } else {
+        ROS_INFO("[%s]: Waiting for correction %s", getName().c_str(), correction->getName().c_str());
+        return;
+      }
     }
   }
 
@@ -280,6 +300,41 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*     changeState(ERROR_STATE); */
 /*   } */
 /* } */
+/*//}*/
+
+/*//{ doCorrection() */
+void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx) {
+
+  {
+    std::scoped_lock lock(mtx_innovation_);
+
+    innovation_(0) = z(0) - getState(POSITION, AXIS_X);
+    innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
+
+    if (innovation_(0) > 1.0) {
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getName().c_str(), innovation_(0));
+    }
+    if (innovation_(1) > 1.0) {
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getName().c_str(), innovation_(1));
+    }
+  }
+
+  try {
+    // Apply the correction step
+    {
+      std::scoped_lock lock(mutex_lkf_);
+      H_        = H_t::Zero();
+      H_(AXIS_X, H_idx) = 1;
+      H_(AXIS_Y, H_idx+1) = 1;
+      lkf_->H   = H_;
+      sc_       = lkf_->correct(sc_, z, R_t::Ones() * R);
+    }
+  }
+  catch (const std::exception &e) {
+    // In case of error, alert the user
+    ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+  }
+}
 /*//}*/
 
 /*//{ isConverged() */

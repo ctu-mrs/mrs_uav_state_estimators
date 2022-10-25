@@ -13,6 +13,7 @@
 #include <mrs_lib/subscribe_handler.h>
 
 #include "estimators/lateral/lateral_estimator.h"
+#include "estimators/correction.h"
 
 //}
 
@@ -61,6 +62,9 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
+  std::vector<std::string> correction_names_;
+  std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
+
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
   /* mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_; */
@@ -76,6 +80,8 @@ private:
   ros::Timer timer_check_health_;
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
+
+  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx);
 
   bool isConverged();
 

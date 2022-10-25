@@ -71,7 +71,7 @@ private:
   /* bool fuse_vel_odom_; */
 
   std::vector<std::string> correction_names_;
-  std::vector<Correction> corrections_;
+  std::vector<std::shared_ptr<Correction<alt_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
@@ -89,12 +89,12 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
-  void doCorrection(const z_t& z);
+  void doCorrection(const z_t& z, const double R, const StateId_t& H_idx);
 
   bool isConverged();
 
 public:
-  AltGeneric(const std::string name, const std::string frame_id, const AltitudeSource_t& alt_src) : AltitudeEstimator<alt_generic::n_states>(name, frame_id), alt_src_(alt_src){};
+  AltGeneric(const std::string name, const std::string frame_id) : AltitudeEstimator<alt_generic::n_states>(name, frame_id){};
 
   ~AltGeneric(void) {
   }

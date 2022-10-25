@@ -36,10 +36,10 @@ class GpsGarmin : public StateEstimator {
 
 private:
   std::unique_ptr<LatGeneric>    est_lat_gps_;
-  const std::string est_lat_name_ = "lateral_gps";
+  const std::string est_lat_name_ = "lat_gps";
 
   std::unique_ptr<AltGeneric> est_alt_garmin_;
-  const std::string est_alt_name_ = "altitude_garmin";
+  const std::string est_alt_name_ = "alt_garmin";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;

@@ -182,6 +182,16 @@ public:
   }
   /*//}*/
 
+  /*//{ loadParamFile() */
+  static void loadParamFile(const std::string& file_path, const std::string& ns = "") {
+      std::string command = "rosparam load " + file_path + " " + ns;
+      int         result  = std::system(command.c_str());
+      if (result != 0) {
+        ROS_ERROR_STREAM("Could not set config file " << file_path << " to the parameter server.");
+      }
+  }
+  /*//}*/
+
 private:
   Support(){};
 };

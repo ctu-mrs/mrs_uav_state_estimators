@@ -47,7 +47,7 @@ void GpsGarmin::initialize(ros::NodeHandle& nh,const std::shared_ptr<CommonHandl
   est_lat_gps_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_);
   est_lat_gps_->initialize(nh, ch_);
 
-  est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, alt_generic::AltitudeSource_t::RANGE);
+  est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_);
   est_alt_garmin_->initialize(nh, ch_);
 
   // | ------------------ initialize published messages ------------------ |

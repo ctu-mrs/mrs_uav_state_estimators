@@ -15,6 +15,8 @@ void EstimationManager::onInit() {
 
   ch_ = std::make_shared<CommonHandlers_t>();
 
+  ch_->package_name = "mrs_uav_state_estimation";
+
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   // load common parameters into the common handlers structure

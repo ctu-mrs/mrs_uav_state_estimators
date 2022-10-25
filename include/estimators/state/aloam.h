@@ -40,13 +40,13 @@ class Aloam : public StateEstimator {
 
 private:
   std::unique_ptr<LatGeneric>    est_lat_aloam_;
-  const std::string est_lat_name_ = "lateral_aloam";
+  const std::string est_lat_name_ = "lat_aloam";
 
   std::unique_ptr<AltGeneric> est_alt_aloam_;
-  const std::string est_alt_name_ = "altitude_aloam";
+  const std::string est_alt_name_ = "alt_aloam";
 
   std::unique_ptr<HdgGeneric> est_hdg_aloam_;
-  const std::string est_hdg_name_ = "heading_aloam";
+  const std::string est_hdg_name_ = "hdg_aloam";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;

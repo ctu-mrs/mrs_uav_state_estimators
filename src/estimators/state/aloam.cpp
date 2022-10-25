@@ -47,7 +47,7 @@ void Aloam::initialize(ros::NodeHandle& nh, const std::shared_ptr<CommonHandlers
   est_lat_aloam_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_);
   est_lat_aloam_->initialize(nh, ch_);
 
-  est_alt_aloam_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, alt_generic::AltitudeSource_t::ODOMETRY);
+  est_alt_aloam_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_);
   est_alt_aloam_->initialize(nh, ch_);
 
   est_hdg_aloam_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_);

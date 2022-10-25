@@ -1,13 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <root>
- <tabbed_widget name="Main Window" parent="main_window">
-  <Tab containers="1" tab_name="position">
+ <tabbed_widget parent="main_window" name="Main Window">
+  <Tab tab_name="position" containers="1">
    <Container>
-    <DockSplitter orientation="-" sizes="0.333333;0.333333;0.333333" count="3">
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+    <DockSplitter sizes="0.332734;0.334532;0.332734" orientation="-" count="3">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.640000" right="34.632000" bottom="-0.935007" top="1.061909"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="9.310276" left="1590.194567" bottom="9.279515" right="1617.198167"/>
         <limitY/>
         <curve color="#05c100" name="/uav0/estimation_manager/uav_state_out/pose/position/x"/>
         <curve color="#05c100" name="/uav0/estimation_manager/odom_main/pose/pose/position/x"/>
@@ -15,17 +15,17 @@
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.644000" right="34.632000" bottom="0.004685" top="0.006443"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.000566" left="1590.194567" bottom="0.000532" right="1617.198167"/>
         <limitY/>
         <curve color="#04c625" name="/uav0/estimation_manager/odom_main/pose/covariance[0;0]"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.640000" right="34.632000" bottom="-0.988518" top="0.596116"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="-2.982983" left="1590.194567" bottom="-3.019970" right="1617.198167"/>
         <limitY/>
         <curve color="#00c300" name="/uav0/estimation_manager/uav_state_out/pose/position/y"/>
         <curve color="#00b009" name="/uav0/estimation_manager/odom_main/pose/pose/position/y"/>
@@ -33,17 +33,17 @@
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.644000" right="34.632000" bottom="0.004685" top="0.006443"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.000566" left="1590.194567" bottom="0.000532" right="1617.198167"/>
         <limitY/>
         <curve color="#04c000" name="/uav0/estimation_manager/odom_main/pose/covariance[1;1]"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.640000" right="34.632000" bottom="1.466332" top="1.569708"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.025327" left="1590.194567" bottom="-0.095635" right="1617.198167"/>
         <limitY/>
         <curve color="#03ba22" name="/uav0/estimation_manager/uav_state_out/pose/position/z"/>
         <curve color="#00bd0e" name="/uav0/estimation_manager/odom_main/pose/pose/position/z"/>
@@ -51,8 +51,8 @@
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="4.644000" right="34.632000" bottom="0.026998" top="0.057901"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.040025" left="1590.194567" bottom="0.025597" right="1617.198167"/>
         <limitY/>
         <curve color="#02d100" name="/uav0/estimation_manager/odom_main/pose/covariance[2;2]"/>
        </plot>
@@ -61,55 +61,61 @@
     </DockSplitter>
    </Container>
   </Tab>
-  <Tab containers="1" tab_name="twist">
+  <Tab tab_name="twist" containers="1">
    <Container>
-    <DockSplitter orientation="-" sizes="0.333333;0.333333;0.333333" count="3">
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+    <DockSplitter sizes="0.332734;0.334532;0.332734" orientation="-" count="3">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="-4.046469" top="4.288764"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.017910" left="1605.080000" bottom="-0.063738" right="1635.088000"/>
         <limitY/>
         <curve color="#00c20a" name="/uav0/estimation_manager/odom_main/twist/twist/linear/x"/>
         <curve color="#000eff" name="/uav0/mavros/local_position/odom/twist/twist/linear/x"/>
+        <curve color="#1f77b4" name="/uav0/odometry/odom_main/twist/twist/linear/x"/>
+        <curve color="#ff7f0e" name="/uav0/estimation_manager/uav_state_out/velocity/linear/x"/>
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="0.026860" top="0.029556"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.005623" left="1605.088000" bottom="0.005495" right="1635.088000"/>
         <limitY/>
         <curve color="#19ad00" name="/uav0/estimation_manager/odom_main/twist/covariance[0;0]"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="-4.448782" top="2.596445"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.058013" left="1605.080000" bottom="-0.049428" right="1635.088000"/>
         <limitY/>
         <curve color="#00b601" name="/uav0/estimation_manager/odom_main/twist/twist/linear/y"/>
         <curve color="#0404ed" name="/uav0/mavros/local_position/odom/twist/twist/linear/y"/>
+        <curve color="#d62728" name="/uav0/odometry/odom_main/twist/twist/linear/y"/>
+        <curve color="#f14cc1" name="/uav0/estimation_manager/uav_state_out/velocity/linear/y"/>
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="0.026860" top="0.029556"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.005623" left="1605.088000" bottom="0.005495" right="1635.088000"/>
         <limitY/>
         <curve color="#00af06" name="/uav0/estimation_manager/odom_main/twist/covariance[1;1]"/>
        </plot>
       </DockArea>
      </DockSplitter>
-     <DockSplitter orientation="|" sizes="0.50022;0.49978" count="2">
+     <DockSplitter sizes="0.502623;0.497377" orientation="|" count="2">
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="-0.040170" top="0.062862"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="0.021483" left="1605.080000" bottom="-0.108920" right="1635.088000"/>
         <limitY/>
         <curve color="#00ad07" name="/uav0/estimation_manager/odom_main/twist/twist/linear/z"/>
         <curve color="#0e1bff" name="/uav0/mavros/local_position/odom/twist/twist/linear/z"/>
+        <curve color="#1ac938" name="/uav0/odometry/odom_main/twist/twist/linear/z"/>
+        <curve color="#9467bd" name="/uav0/estimation_manager/uav_state_out/velocity/linear/z"/>
        </plot>
       </DockArea>
       <DockArea name="...">
-       <plot flip_x="false" style="Lines" flip_y="false" mode="TimeSeries">
-        <range left="1.492000" right="31.492000" bottom="1.035672" top="1.064934"/>
+       <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
+        <range top="1.047257" left="1605.088000" bottom="1.034242" right="1635.088000"/>
         <limitY/>
         <curve color="#05b100" name="/uav0/estimation_manager/odom_main/twist/covariance[2;2]"/>
        </plot>
@@ -118,7 +124,7 @@
     </DockSplitter>
    </Container>
   </Tab>
-  <currentTabIndex index="0"/>
+  <currentTabIndex index="1"/>
  </tabbed_widget>
  <use_relative_time_offset enabled="1"/>
  <!-- - - - - - - - - - - - - - - -->

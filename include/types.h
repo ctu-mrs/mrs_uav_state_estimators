@@ -29,6 +29,7 @@ typedef enum
   ACCELERATION
 
 } StateId_t;
+const int n_StateId_t = 3;
 
 typedef enum
 {

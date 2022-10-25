@@ -17,9 +17,9 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // TODO load parameters
 
-    /* fuse_pos_odom_ = false; */
-    /* fuse_pos_range_ = false; */
-    /* fuse_vel_odom_ = false; */
+  /* fuse_pos_odom_ = false; */
+  /* fuse_pos_range_ = false; */
+  /* fuse_vel_odom_ = false; */
 
   // clang-format off
     dt_ = 0.01;
@@ -42,14 +42,15 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format on
 
+  // | --------------- corrections initialization --------------- |
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/altitude/" + getName() + ".yaml", nh.getNamespace());
+
   mrs_lib::ParamLoader param_loader(nh, getName());
-  /* param_loader.loadParam("fuse_pos_odom", fuse_pos_odom_); */
-  /* param_loader.loadParam("fuse_pos_range", fuse_pos_range_); */
-  /* param_loader.loadParam("fuse_vel_odom", fuse_vel_odom_); */
+  param_loader.setPrefix(getName() + "/");
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(Correction(nh, corr_name, ch_->uav_name));
+    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, EstimatorType_t::ALTITUDE, ch_));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -61,9 +62,9 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                       // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &AltGeneric::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                         // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &AltGeneric::timerCheckHealth, this);
 
   _critical_timeout_odom_  = 1.0;  // TODO: parametrize
@@ -83,11 +84,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  /* sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in"); */
-
-  /* if (alt_src_ == alt_generic::AltitudeSource_t::RANGE) { */
-  /*   sh_range_     = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, getName() + "/range_in"); */
-  /* } */
+  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
@@ -164,9 +161,6 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  // check if new correction is available
-  const bool is_new_odom_message = sh_odom_.newMsg();
-
   // prediction step
   u_t u;
   if (is_input_ready_) {
@@ -192,33 +186,32 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
 
-  // correction step 
-    /* z_t z = z_t::Zero(); */
+  // correction step
+  /* z_t z = z_t::Zero(); */
 
   /* if (is_new_odom_message) { */
-    /* nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
+  /* nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
 
-    /* if (fuse_pos_odom_) { */
-    /*   z(0) = odom_msg->pose.pose.position.z; */
-    /* } */
+  /* if (fuse_pos_odom_) { */
+  /*   z(0) = odom_msg->pose.pose.position.z; */
+  /* } */
 
-    /* if (fuse_vel_odom_) { */
-    /* z(1) = odom_msg->twist.twist.linear.z; */
-    /* } */
+  /* if (fuse_vel_odom_) { */
+  /* z(1) = odom_msg->twist.twist.linear.z; */
+  /* } */
   /* } */
 
   /* if (fuse_pos_range_ && sh_range_.newMsg()) { */
-    /* sensor_msgs::Range::ConstPtr range_msg = sh_range_.getMsg(); */
-    /* z(0) = range_msg->range; */
+  /* sensor_msgs::Range::ConstPtr range_msg = sh_range_.getMsg(); */
+  /* z(0) = range_msg->range; */
   /* } */
 
-  for (auto correction : corrections) {
-    auto res = correction.getCorrection();
-    if (res) {
-      z_t z = res.value();
+  for (auto correction : corrections_) {
+    z_t z;
+    if (correction->getCorrection(z)) {
 
       // TODO processing, median filter, gating etc.
-      doCorrection(z);
+      doCorrection(z, correction->getR(), correction->getStateId());
     } else {
       ROS_WARN_THROTTLE(1.0, "[%s]: correction is not valid", ros::this_node::getName().c_str());
     }
@@ -238,15 +231,18 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    // initialize the estimator with current position
-    if (sh_odom_.hasMsg()) {
-      nav_msgs::OdometryConstPtr msg = sh_odom_.getMsg();
-      setState(msg->pose.pose.position.z, POSITION);
-      changeState(READY_STATE);
-      ROS_INFO("[%s]: Ready to start", getName().c_str());
-    } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_odom_.topicName().c_str());
+    // initialize the estimator with current corrections
+    for (auto correction : corrections_) {
+      z_t z;
+      if (correction->getCorrection(z)) {
+        setState(z(0), correction->getStateId());
+      } else {
+        ROS_INFO("[%s]: Waiting for correction %s", getName().c_str(), correction->getName().c_str());
+        return;
+      }
     }
+    changeState(READY_STATE);
+    ROS_INFO("[%s]: Ready to start", getName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
@@ -259,7 +255,7 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   }
 
   if (sh_attitude_command_.newMsg()) {
-    is_input_ready_   = true;
+    is_input_ready_ = true;
   }
 
   // check age of input
@@ -271,39 +267,32 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ doCorrection() */
-void AltGeneric::doCorrection(const z_t& z) {
+void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx) {
 
-    bool health_flag = true;
+  {
+    std::scoped_lock lock(mtx_innovation_);
 
-    if (!std::isfinite(z(0))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position z correction", getName().c_str());
-      health_flag = false;
+    innovation_(0) = z(0) - getState(POSITION);
+
+    if (innovation_(0) > 1.0) {
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
     }
+  }
 
-    if (health_flag) {
-
-      {
-        std::scoped_lock lock(mtx_innovation_);
-
-        innovation_(0) = z(0) - getState(POSITION);
-
-        if (innovation_(0) > 1.0) {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
-        }
-      }
-
-      try {
-        // Apply the correction step
-        {
-          std::scoped_lock lock(mutex_lkf_);
-          sc_ = lkf_->correct(sc_, z, R_);
-        }
-      }
-      catch (const std::exception &e) {
-        // In case of error, alert the user
-        ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
-      }
+  try {
+    // Apply the correction step
+    {
+      std::scoped_lock lock(mutex_lkf_);
+      H_        = H_t::Zero();
+      H_(H_idx) = 1;
+      lkf_->H   = H_;
+      sc_       = lkf_->correct(sc_, z, R_t::Ones() * R);
     }
+  }
+  catch (const std::exception &e) {
+    // In case of error, alert the user
+    ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+  }
 }
 /*//}*/
 
