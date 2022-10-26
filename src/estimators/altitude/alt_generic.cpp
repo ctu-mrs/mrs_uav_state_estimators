@@ -15,6 +15,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   ch_ = ch;
 
+  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
+
   // TODO load parameters
 
   /* fuse_pos_odom_ = false; */
@@ -49,8 +51,13 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.setPrefix(getName() + "/");
   param_loader.loadParam("corrections", correction_names_);
 
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ros::shutdown();
+  }
+
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, EstimatorType_t::ALTITUDE, ch_));
+    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, frame_id_, EstimatorType_t::ALTITUDE, ch_));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -67,13 +74,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &AltGeneric::timerCheckHealth, this);
 
-  _critical_timeout_odom_  = 1.0;  // TODO: parametrize
-  _critical_timeout_range_ = 1.0;  // TODO: parametrize
-
-
   // | --------------- subscribers initialization --------------- |
-
-  // subscriber to mavros odometry
+  // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getName();
@@ -84,7 +86,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");
+  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in"); // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
@@ -164,7 +166,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg());
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg()->pose.pose.orientation);
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
@@ -185,26 +187,6 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     // In case of error, alert the user
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
-
-  // correction step
-  /* z_t z = z_t::Zero(); */
-
-  /* if (is_new_odom_message) { */
-  /* nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
-
-  /* if (fuse_pos_odom_) { */
-  /*   z(0) = odom_msg->pose.pose.position.z; */
-  /* } */
-
-  /* if (fuse_vel_odom_) { */
-  /* z(1) = odom_msg->twist.twist.linear.z; */
-  /* } */
-  /* } */
-
-  /* if (fuse_pos_range_ && sh_range_.newMsg()) { */
-  /* sensor_msgs::Range::ConstPtr range_msg = sh_range_.getMsg(); */
-  /* z(0) = range_msg->range; */
-  /* } */
 
   for (auto correction : corrections_) {
     z_t z;
@@ -294,18 +276,6 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
   }
 }
-/*//}*/
-
-/*//{ timeoutMavrosOdom() */
-/* void Garmin::timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs) { */
-/*   ROS_ERROR_STREAM("[" << getName().c_str() << "]: Estimator has not received message from topic '" << topic << "' for " */
-/*                        << (ros::Time::now() - last_msg).toSec() << " seconds (" << n_pubs << " publishers on topic)"); */
-
-/*   if ((ros::Time::now() - last_msg).toSec() > _critical_timeout_mavros_odom_) { */
-/*     ROS_ERROR("[%s]: Estimator not healthy", getName().c_str()); */
-/*     changeState(ERROR_STATE); */
-/*   } */
-/* } */
 /*//}*/
 
 /*//{ isConverged() */

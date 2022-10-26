@@ -66,9 +66,9 @@ set(src_files
   src/estimators/state/state_estimator.cpp 
   src/estimators/state/gps_garmin.cpp 
   src/estimators/state/aloam.cpp 
-  src/estimators/altitude/garmin.cpp 
+  # src/estimators/altitude/garmin.cpp 
   src/estimators/altitude/alt_generic.cpp 
-  src/estimators/lateral/gps.cpp 
+  # src/estimators/lateral/gps.cpp 
   src/estimators/lateral/lat_generic.cpp 
   src/estimators/heading/hdg_generic.cpp 
   # src/estimators_testing.cpp 

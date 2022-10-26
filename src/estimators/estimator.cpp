@@ -102,7 +102,11 @@ void Estimator::publishDiagnostics() const {
 /*//}*/
 
 /*//{ getAccGlobal() */
-tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const nav_msgs::Odometry::ConstPtr& mavros_odom_msg) {
+tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const geometry_msgs::Quaternion& orientation) {
+ return getAccGlobal(att_cmd_msg, mrs_lib::AttitudeConverter(orientation).getHeading());
+}
+
+tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const double hdg) {
 
   // untilt the desired acceleration vector
   geometry_msgs::PointStamped des_acc;
@@ -122,9 +126,8 @@ tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& 
   }
 
   // rotate the desired acceleration vector to global frame
-  // TODO for non-ENU-based estimators this is not correct
   const tf2::Vector3 des_acc_global =
-      Support::rotateVecByHdg(des_acc_untilted, mrs_lib::AttitudeConverter(mavros_odom_msg->pose.pose.orientation).getHeading());
+      Support::rotateVecByHdg(des_acc_untilted, hdg);
 
   return des_acc_global;
 }

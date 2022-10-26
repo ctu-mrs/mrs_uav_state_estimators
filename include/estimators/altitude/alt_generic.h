@@ -28,9 +28,6 @@ const int n_states       = 3;
 const int n_inputs       = 1;
 const int n_measurements = 1;
 
-/* const std::string name     = "altitude_garmin"; */
-/* const std::string frame_id = "pixhawk_gps_origin"; */
-
 }  // namespace alt_generic
 
 using namespace mrs_lib;
@@ -66,20 +63,14 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
-  /* bool fuse_pos_range_; */
-  /* bool fuse_pos_odom_; */
-  /* bool fuse_vel_odom_; */
-
   std::vector<std::string> correction_names_;
   std::vector<std::shared_ptr<Correction<alt_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  double                                        _critical_timeout_odom_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
-  double                                        _critical_timeout_range_;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -94,7 +85,7 @@ private:
   bool isConverged();
 
 public:
-  AltGeneric(const std::string name, const std::string frame_id) : AltitudeEstimator<alt_generic::n_states>(name, frame_id){};
+  AltGeneric(const std::string name, const std::string ns_frame_id) : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id){};
 
   ~AltGeneric(void) {
   }

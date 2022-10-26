@@ -75,10 +75,11 @@ public:
   bool isStopped() const;
   bool isError() const;
 
-  void         publishDiagnostics() const;
+  void publishDiagnostics() const;
 
-  tf2::Vector3 getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const nav_msgs::Odometry::ConstPtr &mavros_odom_msg);
-  std::optional<double> getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg);
+  tf2::Vector3          getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const geometry_msgs::Quaternion &orientation);
+  tf2::Vector3          getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const double hdg);
+  std::optional<double> getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg);
 };
 
 

@@ -13,7 +13,9 @@ namespace mrs_uav_state_estimation
 /* initialize() //{*/
 void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
-  nh_ = nh;
+  ch_ = ch;
+
+  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // TODO load parameters
 
@@ -37,6 +39,24 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format on
 
+  // | --------------- corrections initialization --------------- |
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/heading/" + getName() + ".yaml", nh.getNamespace());
+
+  mrs_lib::ParamLoader param_loader(nh, getName());
+  param_loader.setPrefix(getName() + "/");
+  param_loader.loadParam("corrections", correction_names_);
+
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ros::shutdown();
+  }
+
+  ROS_INFO("[%s]: FRAME ID: %s", ros::this_node::getName().c_str(), ns_frame_id_.c_str());
+
+  for (auto corr_name : correction_names_) {
+    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_));
+  }
+
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
   const P_t        P0 = 1e3 * P_t::Identity();
@@ -47,18 +67,14 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                            // TODO: parametrize
-  timer_update_             = nh_.createTimer(ros::Rate(_update_timer_rate_), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
+  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
   _check_health_timer_rate_ = 1;                                                                                              // TODO: parametrize
-  timer_check_health_       = nh_.createTimer(ros::Rate(_check_health_timer_rate_), &HdgGeneric::timerCheckHealth, this);
-
-  _critical_timeout_odom_ = 1.0;  // TODO: parametrize
-
+  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &HdgGeneric::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
-
-  // subscriber to mavros odometry
+  // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh_;
+  shopts.nh                 = nh;
   shopts.node_name          = getName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
@@ -67,11 +83,10 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_odom_             = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh_, getName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh_, getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -144,8 +159,6 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  const bool is_new_odom_message = sh_odom_.newMsg();
-
   // prediction step
   u_t u;
   if (is_input_ready_) {
@@ -178,47 +191,58 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
 
-  if (is_new_odom_message) {
+  for (auto correction : corrections_) {
+    z_t z;
+    if (correction->getCorrection(z)) {
 
-    z_t z = z_t::Zero();
-
-    nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg();
-
-    /* z(0) = odom_msg->twist.twist.linear.z; */
-    z(0) = odom_msg->pose.pose.position.z;
-
-    bool health_flag = true;
-
-    if (!std::isfinite(z(0))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position z correction", getName().c_str());
-      health_flag = false;
-    }
-
-    if (health_flag) {
-
-      {
-        std::scoped_lock lock(mtx_innovation_);
-
-        innovation_(0) = z(0) - getState(POSITION);
-
-        if (innovation_(0) > 1.0) {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
-        }
-      }
-
-      try {
-        // Apply the correction step
-        {
-          std::scoped_lock lock(mutex_lkf_);
-          sc_ = lkf_->correct(sc_, z, R_);
-        }
-      }
-      catch (const std::exception &e) {
-        // In case of error, alert the user
-        ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
-      }
+      // TODO processing, median filter, gating etc.
+      doCorrection(z, correction->getR(), correction->getStateId());
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: correction is not valid", ros::this_node::getName().c_str());
     }
   }
+
+  /* if (is_new_odom_message) { */
+
+  /*   z_t z = z_t::Zero(); */
+
+  /*   nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
+
+  /*   /1* z(0) = odom_msg->twist.twist.linear.z; *1/ */
+  /*   z(0) = odom_msg->pose.pose.position.z; */
+
+  /*   bool health_flag = true; */
+
+  /*   if (!std::isfinite(z(0))) { */
+  /*     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position z correction", getName().c_str()); */
+  /*     health_flag = false; */
+  /*   } */
+
+  /*   if (health_flag) { */
+
+  /*     { */
+  /*       std::scoped_lock lock(mtx_innovation_); */
+
+  /*       innovation_(0) = z(0) - getState(POSITION); */
+
+  /*       if (innovation_(0) > 1.0) { */
+  /*         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0)); */
+  /*       } */
+  /*     } */
+
+  /*     try { */
+  /*       // Apply the correction step */
+  /*       { */
+  /*         std::scoped_lock lock(mutex_lkf_); */
+  /*         sc_ = lkf_->correct(sc_, z, R_); */
+  /*       } */
+  /*     } */
+  /*     catch (const std::exception &e) { */
+  /*       // In case of error, alert the user */
+  /*       ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what()); */
+  /*     } */
+  /*   } */
+  /* } */
 
   publishOutput();
   publishDiagnostics();
@@ -234,12 +258,8 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    if (sh_odom_.hasMsg()) {
-      changeState(READY_STATE);
-      ROS_INFO("[%s]: Ready to start", getName().c_str());
-    } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_odom_.topicName().c_str());
-    }
+    changeState(READY_STATE);
+    ROS_INFO("[%s]: Ready to start", getName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
@@ -263,16 +283,34 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 }
 /*//}*/
 
-/*//{ timeoutMavrosOdom() */
-/* void HdgGeneric::timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs) { */
-/*   ROS_ERROR_STREAM("[" << getName().c_str() << "]: Estimator has not received message from topic '" << topic << "' for " */
-/*                        << (ros::Time::now() - last_msg).toSec() << " seconds (" << n_pubs << " publishers on topic)"); */
+/*//{ doCorrection() */
+void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx) {
 
-/*   if ((ros::Time::now() - last_msg).toSec() > _critical_timeout_mavros_odom_) { */
-/*     ROS_ERROR("[%s]: Estimator not healthy", getName().c_str()); */
-/*     changeState(ERROR_STATE); */
-/*   } */
-/* } */
+  {
+    std::scoped_lock lock(mtx_innovation_);
+
+    innovation_(0) = z(0) - getState(POSITION);
+
+    if (innovation_(0) > 1.0) {
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
+    }
+  }
+
+  try {
+    // Apply the correction step
+    {
+      std::scoped_lock lock(mutex_lkf_);
+      H_        = H_t::Zero();
+      H_(H_idx) = 1;
+      lkf_->H   = H_;
+      sc_       = lkf_->correct(sc_, z, R_t::Ones() * R);
+    }
+  }
+  catch (const std::exception &e) {
+    // In case of error, alert the user
+    ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+  }
+}
 /*//}*/
 
 /*//{ isConverged() */

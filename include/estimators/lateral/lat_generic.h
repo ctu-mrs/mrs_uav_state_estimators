@@ -67,11 +67,9 @@ private:
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
-  /* mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_; */
-  /* double                                        _critical_timeout_mavros_odom_; */
-
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  double                                        _critical_timeout_odom_;
+  std::string hdg_source_topic_;
+  mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput> sh_hdg_;
+  /* mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_; */
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -86,7 +84,7 @@ private:
   bool isConverged();
 
 public:
-  LatGeneric(const std::string name, const std::string frame_id) : LateralEstimator<lat_generic::n_states>(name, frame_id){};
+  LatGeneric(const std::string name, const std::string ns_frame_id) : LateralEstimator<lat_generic::n_states>(name, ns_frame_id){};
 
   ~LatGeneric(void) {
   }
@@ -120,7 +118,6 @@ public:
   virtual void generateA();
   virtual void generateB();
 
-  /* void timeoutMavrosOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs); */
 };
 }  // namespace mrs_uav_state_estimation
 

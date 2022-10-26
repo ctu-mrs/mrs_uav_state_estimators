@@ -40,7 +40,7 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const EstimatorType_t& est_type,
+  Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id,const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::string getName();
@@ -65,9 +65,9 @@ private:
 
   const std::string                 est_name_;
   const std::string                 name_;
+  const std::string                 ns_frame_id_;
   const EstimatorType_t             est_type_;
   std::shared_ptr<CommonHandlers_t> ch_;
-  const std::string                 frame_id_; // TODO get from state estimator
 
   MessageType_t msg_type_;
   std::string   msg_topic_;
@@ -81,9 +81,9 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const EstimatorType_t& est_type,
+Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id, const EstimatorType_t& est_type,
                                        const std::shared_ptr<CommonHandlers_t>& ch)
-    : est_name_(est_name), name_(name), est_type_(est_type), ch_(ch) {
+    : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch) {
 
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.setPrefix(est_name_ + "/" + getName() + "/");
@@ -109,6 +109,11 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ros::shutdown();
   }
   param_loader.loadParam("noise", R_);
+
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ros::shutdown();
+  }
 
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
@@ -244,7 +249,7 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
         }
 
         case StateId_t::VELOCITY: {
-          if (!getVelInFrame(msg, frame_id_, measurement)) {
+          if (!getVelInFrame(msg, ns_frame_id_, measurement)) {
             return false;
           }
           break;

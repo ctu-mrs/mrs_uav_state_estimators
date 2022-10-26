@@ -37,14 +37,13 @@
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
 
       <!-- gps garmin -->
-      <remap from="~lateral_gps/odom_in" to="mavros/local_position/odom" />
-      <remap from="~altitude_garmin/odom_in" to="mavros/local_position/odom" />
-      <remap from="~altitude_garmin/range_in" to="garmin/range" />
+      <remap from="~lat_gps/odom_in" to="mavros/local_position/odom" />
+      <remap from="~alt_garmin/odom_in" to="mavros/local_position/odom" />
 
       <!-- aloam -->
-      <remap from="~lateral_aloam/odom_in" to="slam/odom" />
-      <remap from="~altitude_aloam/odom_in" to="slam/odom" />
-      <remap from="~heading_aloam/odom_in" to="slam/odom" />
+      <remap from="~lat_aloam/odom_in" to="slam/odom" />
+      <remap from="~alt_aloam/odom_in" to="slam/odom" />
+      <remap from="~hdg_aloam/odom_in" to="slam/odom" />
 <!--//}-->
 
       <!-- Publishers -->

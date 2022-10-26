@@ -14,6 +14,8 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   ch_ = ch;
 
+  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
+
   // TODO load parameters
 
   // clang-format off
@@ -42,16 +44,23 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format on
 
-    // | --------------- corrections initialization --------------- |
+  // | --------------- corrections initialization --------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/lateral/" + getName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.setPrefix(getName() + "/");
+  param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
   param_loader.loadParam("corrections", correction_names_);
 
-  for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, EstimatorType_t::LATERAL, ch_));
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ros::shutdown();
   }
+
+  for (auto corr_name : correction_names_) {
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, frame_id_, EstimatorType_t::LATERAL, ch_));
+  }
+
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
   const P_t        P0 = 1e3 * P_t::Identity();
@@ -61,16 +70,13 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                    // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &LatGeneric::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                      // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &LatGeneric::timerCheckHealth, this);
 
-  _critical_timeout_odom_ = 1.0;  // TODO: parametrize
-
-
   // | --------------- subscribers initialization --------------- |
-  // subscriber to mavros odometry
+  // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getName();
@@ -81,7 +87,10 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");
+  /* sh_odom_ = */
+  /*     mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");  // for transformation of desired accelerations from body to global frame */
+  sh_hdg_ =
+      mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput>(shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getName() + "/output", 1);
@@ -161,7 +170,9 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg());
+    //TODO check if hdg is ready
+    /* const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg()->pose.pose.orientation); */
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_hdg_.getMsg()->state[0]);
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
@@ -230,7 +241,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   /*     } */
   /*   } */
   /* } */
-  
+
   for (auto correction : corrections_) {
     z_t z;
     if (correction->getCorrection(z)) {
@@ -267,6 +278,9 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
         return;
       }
     }
+
+    changeState(READY_STATE);
+    ROS_INFO("[%s]: Ready to start", getName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
@@ -279,7 +293,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   }
 
   if (sh_attitude_command_.newMsg()) {
-    is_input_ready_   = true;
+    is_input_ready_ = true;
   }
 
   // check age of input
@@ -323,11 +337,11 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     // Apply the correction step
     {
       std::scoped_lock lock(mutex_lkf_);
-      H_        = H_t::Zero();
-      H_(AXIS_X, H_idx) = 1;
-      H_(AXIS_Y, H_idx+1) = 1;
-      lkf_->H   = H_;
-      sc_       = lkf_->correct(sc_, z, R_t::Ones() * R);
+      H_                    = H_t::Zero();
+      H_(AXIS_X, H_idx)     = 1;
+      H_(AXIS_Y, H_idx + 1) = 1;
+      lkf_->H               = H_;
+      sc_                   = lkf_->correct(sc_, z, R_t::Ones() * R);
     }
   }
   catch (const std::exception &e) {

@@ -1,0 +1,13 @@
+lat_aloam: # namespace of the estimator
+  hdg_source_topic: "hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
+  corrections: [
+    "pos_aloam"
+  ]
+
+  pos_aloam:
+    state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+    noise: 1.0 # measurement noise covariance (R)
+    message:
+      type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
+      topic: "slam/odom" # without uav namespace
+      timeout: 1.0 # [s] older messages will be discarded without fusing

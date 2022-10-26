@@ -13,6 +13,7 @@
 #include <mrs_lib/subscribe_handler.h>
 
 #include "estimators/heading/heading_estimator.h"
+#include "estimators/correction.h"
 
 //}
 
@@ -25,9 +26,6 @@ namespace hdg_generic
 const int n_states       = 2;
 const int n_inputs       = 1;
 const int n_measurements = 1;
-
-/* const std::string name     = "heading_pixhawk"; */
-/* const std::string frame_id = "pixhawk_gps_origin"; */
 
 }  // namespace hdg_generic
 
@@ -48,7 +46,6 @@ class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
   using statecov_t = lkf_t::statecov_t;
 
 private:
-  ros::NodeHandle nh_;
 
   double                 dt_;
   double                 input_coeff_;
@@ -67,10 +64,10 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
-  mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
+  std::vector<std::string>                                              correction_names_;
+  std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  double                                        _critical_timeout_odom_;
+  mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -80,10 +77,12 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
+  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx);
+
   bool isConverged();
 
 public:
-  HdgGeneric(const std::string name, const std::string frame_id) : HeadingEstimator<hdg_generic::n_states>(name, frame_id){};
+  HdgGeneric(const std::string name, const std::string ns_frame_id) : HeadingEstimator<hdg_generic::n_states>(name, ns_frame_id){};
 
   ~HdgGeneric(void) {
   }
@@ -111,13 +110,11 @@ public:
   virtual double getInnovation(const int &state_idx) const override;
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
-  virtual void setDt(const double& dt);
-  virtual void setInputCoeff(const double& input_coeff);
-  
+  virtual void setDt(const double &dt);
+  virtual void setInputCoeff(const double &input_coeff);
+
   virtual void generateA();
   virtual void generateB();
-
-  void timeoutOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
 };
 }  // namespace mrs_uav_state_estimation
 
