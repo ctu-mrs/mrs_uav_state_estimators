@@ -51,8 +51,6 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     ros::shutdown();
   }
 
-  ROS_INFO("[%s]: FRAME ID: %s", ros::this_node::getName().c_str(), ns_frame_id_.c_str());
-
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_));
   }
@@ -292,7 +290,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     innovation_(0) = z(0) - getState(POSITION);
 
     if (innovation_(0) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getName().c_str(), innovation_(0));
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getName().c_str(), innovation_(0));
     }
   }
 

@@ -68,10 +68,6 @@ private:
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-
-  mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
-
   ros::Timer timer_update_;
   int        _update_timer_rate_;
   void       timerUpdate(const ros::TimerEvent &event);

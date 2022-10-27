@@ -57,7 +57,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, frame_id_, EstimatorType_t::ALTITUDE, ch_));
+    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -86,7 +86,6 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_odom_      = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in"); // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
@@ -166,7 +165,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg()->pose.pose.orientation);
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), 0); // we don't care about heading
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {

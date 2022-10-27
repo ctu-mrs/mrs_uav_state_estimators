@@ -1,0 +1,3 @@
+hdg_mavros: # namespace of the estimator
+    message:
+      topic: "mavros/local_position/odom" # without uav namespace

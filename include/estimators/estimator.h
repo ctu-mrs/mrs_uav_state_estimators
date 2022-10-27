@@ -31,8 +31,6 @@ class Estimator {
 protected:
   mutable mrs_lib::PublisherHandler<EstimatorDiagnostics> ph_diagnostics_;
 
-  /* std::string uav_name_; */
-
   const std::string type_;
   const std::string name_;
   const std::string frame_id_;
@@ -79,7 +77,9 @@ public:
 
   tf2::Vector3          getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const geometry_msgs::Quaternion &orientation);
   tf2::Vector3          getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg, const double hdg);
+  std::optional<double> getHeadingRate(const geometry_msgs::Quaternion &att, const geometry_msgs::Vector3 &att_rate);
   std::optional<double> getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr &att_cmd_msg);
+  std::optional<double> getHeadingRate(const nav_msgs::Odometry::ConstPtr &odom_msg);
 };
 
 

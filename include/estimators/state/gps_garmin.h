@@ -20,6 +20,7 @@
 #include "estimators/state/state_estimator.h"
 #include "estimators/lateral/lat_generic.h"
 #include "estimators/altitude/alt_generic.h"
+#include "estimators/heading/hdg_passthrough.h"
 
 //}
 
@@ -40,6 +41,9 @@ private:
 
   std::unique_ptr<AltGeneric> est_alt_garmin_;
   const std::string est_alt_name_ = "alt_garmin";
+
+  std::unique_ptr<HdgPassthrough> est_hdg_mavros_;
+  const std::string est_hdg_name_ = "hdg_mavros";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;

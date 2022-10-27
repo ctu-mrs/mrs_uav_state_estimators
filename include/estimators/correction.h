@@ -11,6 +11,7 @@
 #include <nav_msgs/Odometry.h>
 
 #include "types.h"
+#include "mrs_uav_state_estimation/EstimatorCorrection.h"
 
 namespace mrs_uav_state_estimation
 {
@@ -40,7 +41,7 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id,const EstimatorType_t& est_type,
+  Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::string getName();
@@ -50,7 +51,6 @@ public:
 
   bool isReady();
 
-  /* measurement_t getCorrection(); */
   bool                  getCorrection(measurement_t& measurement);
   bool                  getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement);
   bool                  getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement);
@@ -62,6 +62,8 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
+
+  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_;
 
   const std::string                 est_name_;
   const std::string                 name_;
@@ -77,12 +79,14 @@ private:
   StateId_t state_id_;
 
   bool isMsgFresh(const ros::Time& last_msg_time);
+
+  void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp);
 };
 
 /*//{ constructor */
 template <int n_measurements>
-Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id, const EstimatorType_t& est_type,
-                                       const std::shared_ptr<CommonHandlers_t>& ch)
+Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
+                                       const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch)
     : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch) {
 
   mrs_lib::ParamLoader param_loader(nh, getName());
@@ -144,6 +148,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
   }
+
+  ph_correction_      = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/correction/" + getName(), 1);
 }
 /*//}*/
 
@@ -174,6 +180,8 @@ bool Correction<n_measurements>::isReady() {
 template <int n_measurements>
 bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
 
+  ros::Time measurement_stamp;
+
   switch (msg_type_) {
 
     case MessageType_t::ODOMETRY: {
@@ -184,6 +192,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
       if (!getCorrectionFromOdometry(*msg, measurement)) {
         return false;
       }
+      measurement_stamp = msg->header.stamp;
       break;
     }
 
@@ -210,6 +219,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
       if (!getCorrectionFromRange(*msg, measurement)) {
         return false;
       }
+      measurement_stamp = msg->header.stamp;
       break;
     }
 
@@ -226,6 +236,8 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
         }
       }
   }
+
+  publishCorrection(measurement, measurement_stamp); 
 
   return true;
 }
@@ -418,6 +430,25 @@ bool Correction<n_measurements>::isMsgFresh(const ros::Time& last_msg_time) {
   } else {
     return true;
   }
+}
+/*//}*/
+
+/*//{ publishCorrection() */
+template <int n_measurements>
+void Correction<n_measurements>::publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp) {
+  EstimatorCorrection msg;
+  msg.header.stamp = measurement_stamp;
+  msg.header.frame_id = ns_frame_id_;
+  msg.name = name_;
+  msg.estimator_name = est_name_;
+  msg.state_id = state_id_;
+  msg.covariance.resize(n_measurements*n_measurements);
+  for (int i = 0; i < measurement.rows(); i++) {
+  msg.state.push_back(measurement(i));
+  msg.covariance[n_measurements * i + i] = R_;
+  }
+
+  ph_correction_.publish(msg);
 }
 /*//}*/
 

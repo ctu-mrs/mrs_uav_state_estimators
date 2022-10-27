@@ -32,6 +32,7 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 add_message_files(DIRECTORY msg FILES
   EstimatorDiagnostics.msg
   EstimatorOutput.msg
+  EstimatorCorrection.msg
   )
 
 generate_messages(
@@ -71,6 +72,7 @@ set(src_files
   # src/estimators/lateral/gps.cpp 
   src/estimators/lateral/lat_generic.cpp 
   src/estimators/heading/hdg_generic.cpp 
+  src/estimators/heading/hdg_passthrough.cpp 
   # src/estimators_testing.cpp 
   )
 

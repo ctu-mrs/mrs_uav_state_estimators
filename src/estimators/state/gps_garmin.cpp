@@ -8,7 +8,7 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void GpsGarmin::initialize(ros::NodeHandle& nh,const std::shared_ptr<CommonHandlers_t>& ch) {
+void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
 
@@ -18,9 +18,9 @@ void GpsGarmin::initialize(ros::NodeHandle& nh,const std::shared_ptr<CommonHandl
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                          // TODO: parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                            // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GpsGarmin::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -50,9 +50,16 @@ void GpsGarmin::initialize(ros::NodeHandle& nh,const std::shared_ptr<CommonHandl
   est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_);
   est_alt_garmin_->initialize(nh, ch_);
 
+  est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_);
+  est_hdg_mavros_->initialize(nh, ch_);
+
   // | ------------------ initialize published messages ------------------ |
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
+
+  uav_state_.estimator_horizontal.name = est_lat_name_;
+  uav_state_.estimator_vertical.name   = est_alt_name_;
+  uav_state_.estimator_heading.name    = est_hdg_name_;
 
   innovation_.header.frame_id      = ns_frame_id_;
   innovation_.child_frame_id       = ch_->frames.ns_fcu;
@@ -204,7 +211,7 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
     pose_covariance_.header.stamp  = time_now;
     twist_covariance_.header.stamp = time_now;
 
-    const int n_states                                     = 6; // TODO this should be defined somewhere else
+    const int n_states = 6;  // TODO this should be defined somewhere else
     pose_covariance_.values.resize(n_states * n_states);
     pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(POSITION, AXIS_X);
     pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(POSITION, AXIS_Y);

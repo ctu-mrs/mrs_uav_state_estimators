@@ -103,7 +103,7 @@ void Estimator::publishDiagnostics() const {
 
 /*//{ getAccGlobal() */
 tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const geometry_msgs::Quaternion& orientation) {
- return getAccGlobal(att_cmd_msg, mrs_lib::AttitudeConverter(orientation).getHeading());
+  return getAccGlobal(att_cmd_msg, mrs_lib::AttitudeConverter(orientation).getHeading());
 }
 
 tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg, const double hdg) {
@@ -126,14 +126,32 @@ tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& 
   }
 
   // rotate the desired acceleration vector to global frame
-  const tf2::Vector3 des_acc_global =
-      Support::rotateVecByHdg(des_acc_untilted, hdg);
+  const tf2::Vector3 des_acc_global = Support::rotateVecByHdg(des_acc_untilted, hdg);
 
   return des_acc_global;
 }
 /*//}*/
 
 /*//{ getHeadingRate() */
+std::optional<double> Estimator::getHeadingRate(const geometry_msgs::Quaternion& att, const geometry_msgs::Vector3& att_rate) {
+
+  double hdg_rate;
+  try {
+    hdg_rate = mrs_lib::AttitudeConverter(att).getHeadingRate(att_rate);
+  }
+  catch (...) {
+    ROS_ERROR("[%s]: Exception caught during getting heading rate", getName().c_str());
+    return {};
+  }
+
+  if (!std::isfinite(hdg_rate)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in variable \"hdg_rate_\"", getName().c_str());
+    return {};
+  }
+
+  return hdg_rate;
+}
+
 std::optional<double> Estimator::getHeadingRate(const mrs_msgs::AttitudeCommand::ConstPtr& att_cmd_msg) {
 
   geometry_msgs::Vector3 des_att_rate;
@@ -141,21 +159,17 @@ std::optional<double> Estimator::getHeadingRate(const mrs_msgs::AttitudeCommand:
   des_att_rate.y = att_cmd_msg->attitude_rate.y;
   des_att_rate.z = att_cmd_msg->attitude_rate.z;
 
-  double des_hdg_rate;
-  try {
-    des_hdg_rate = mrs_lib::AttitudeConverter(att_cmd_msg->attitude).getHeadingRate(des_att_rate);
-  }
-  catch (...) {
-    ROS_ERROR("[%s]: Exception caught during getting heading rate (attitude command)", getName().c_str());
-    return {};
-  }
+  return getHeadingRate(att_cmd_msg->attitude, des_att_rate);
+}
 
-  if (!std::isfinite(des_hdg_rate)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in variable \"des_hdg_rate_\"", getName().c_str());
-    return {};
-  }
+std::optional<double> Estimator::getHeadingRate(const nav_msgs::Odometry::ConstPtr& odom_msg) {
 
-  return des_hdg_rate;
+  geometry_msgs::Vector3 att_rate;
+  att_rate.x = odom_msg->twist.twist.angular.x;
+  att_rate.y = odom_msg->twist.twist.angular.y;
+  att_rate.z = odom_msg->twist.twist.angular.z;
+
+  return getHeadingRate(odom_msg->pose.pose.orientation, att_rate);
 }
 /*//}*/
 

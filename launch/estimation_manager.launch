@@ -36,14 +36,6 @@
       <remap from="~attitude_command_in" to="control_manager/attitude_cmd" />
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
 
-      <!-- gps garmin -->
-      <remap from="~lat_gps/odom_in" to="mavros/local_position/odom" />
-      <remap from="~alt_garmin/odom_in" to="mavros/local_position/odom" />
-
-      <!-- aloam -->
-      <remap from="~lat_aloam/odom_in" to="slam/odom" />
-      <remap from="~alt_aloam/odom_in" to="slam/odom" />
-      <remap from="~hdg_aloam/odom_in" to="slam/odom" />
 <!--//}-->
 
       <!-- Publishers -->

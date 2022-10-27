@@ -58,7 +58,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, frame_id_, EstimatorType_t::LATERAL, ch_));
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -87,9 +87,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  /* sh_odom_ = */
-  /*     mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, getName() + "/odom_in");  // for transformation of desired accelerations from body to global frame */
-  sh_hdg_ =
+  sh_hdg_state_ =
       mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput>(shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
@@ -169,10 +167,8 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   // prediction step
   u_t u;
-  if (is_input_ready_) {
-    //TODO check if hdg is ready
-    /* const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_odom_.getMsg()->pose.pose.orientation); */
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_hdg_.getMsg()->state[0]);
+  if (is_input_ready_ && is_hdg_state_ready_) {
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_hdg_state_.getMsg()->state[0]);
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
@@ -301,6 +297,17 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getName().c_str(), (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
+
+  if (sh_hdg_state_.newMsg()) {
+    is_hdg_state_ready_ = true;
+  }
+
+  // check age of heading
+  if (is_hdg_state_ready_ && (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec() > 0.1) {
+    ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
+    is_hdg_state_ready_ = false;
+  }
+
 }
 /*//}*/
 

@@ -59,8 +59,6 @@ private:
   std::unique_ptr<lkf_t> lkf_;
   mutable std::mutex     mutex_lkf_;
 
-  std::atomic<bool> is_input_ready_ = false;
-
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
@@ -68,6 +66,7 @@ private:
   std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
+  std::atomic<bool> is_input_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
