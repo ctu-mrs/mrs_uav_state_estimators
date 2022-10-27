@@ -6,12 +6,14 @@
 
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/param_loader.h>
+#include <mrs_lib/dynamic_reconfigure_mgr.h>
 
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
 
 #include "types.h"
 #include "mrs_uav_state_estimation/EstimatorCorrection.h"
+#include "mrs_uav_state_estimation/CorrectionConfig.h"
 
 namespace mrs_uav_state_estimation
 {
@@ -38,13 +40,15 @@ template <int n_measurements>
 class Correction {
 
 public:
-  typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
+  typedef Eigen::Matrix<double, n_measurements, 1>         measurement_t;
+  typedef mrs_lib::DynamicReconfigureMgr<CorrectionConfig> drmgr_t;
 
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::string getName();
+  std::string getNamespacedName();
 
   double    getR();
   StateId_t getStateId();
@@ -75,8 +79,11 @@ private:
   std::string   msg_topic_;
   double        msg_timeout_;
 
-  double    R_;
-  StateId_t state_id_;
+  double     R_;
+  std::mutex mtx_R_;
+  StateId_t  state_id_;
+
+  std::unique_ptr<mrs_lib::DynamicReconfigureMgr<CorrectionConfig>> drmgr_;
 
   bool isMsgFresh(const ros::Time& last_msg_time);
 
@@ -89,15 +96,16 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
                                        const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch)
     : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch) {
 
+  // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getName());
-  param_loader.setPrefix(est_name_ + "/" + getName() + "/");
+  param_loader.setPrefix(getNamespacedName() + "/");
 
   int msg_type_tmp;
   param_loader.loadParam("message/type", msg_type_tmp);
   if (msg_type_tmp < n_MessageType_t) {
     msg_type_ = static_cast<MessageType_t>(msg_type_tmp);
   } else {
-    ROS_ERROR("[%s]: wrong message type: %d of correction %s", getName().c_str(), msg_type_tmp, getName().c_str());
+    ROS_ERROR("[%s]: wrong message type: %d of correction %s", getNamespacedName().c_str(), msg_type_tmp, getName().c_str());
     ros::shutdown();
   }
   param_loader.loadParam("message/topic", msg_topic_);
@@ -109,19 +117,24 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (state_id_tmp < n_StateId_t) {
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
-    ROS_ERROR("[%s]: wrong state id: %d of correction %s", getName().c_str(), state_id_tmp, getName().c_str());
+    ROS_ERROR("[%s]: wrong state id: %d of correction %s", getNamespacedName().c_str(), state_id_tmp, getName().c_str());
     ros::shutdown();
   }
   param_loader.loadParam("noise", R_);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
     ros::shutdown();
   }
 
+  // | ------------- initialize dynamic reconfigure ------------- |
+  drmgr_ = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getNamespacedName());
+  drmgr_->config.noise = R_;
+
+  // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getName();
+  shopts.node_name          = getNamespacedName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -149,7 +162,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
   }
 
-  ph_correction_      = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/correction/" + getName(), 1);
+  // | --------------- initialize publish handlers -------------- |
+  ph_correction_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/correction/" + getName(), 1);
 }
 /*//}*/
 
@@ -159,7 +173,14 @@ std::string Correction<n_measurements>::getName() {
 }
 
 template <int n_measurements>
+std::string Correction<n_measurements>::getNamespacedName() {
+  return est_name_ + "/" + name_;
+}
+
+template <int n_measurements>
 double Correction<n_measurements>::getR() {
+  std::scoped_lock lock(mtx_R_);
+  R_ = drmgr_->config.noise;
   return R_;
 }
 
@@ -224,20 +245,20 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
     }
 
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getNamespacedName().c_str());
       return false;
     }
 
       // check for nans
       for (int i = 0; i < measurement.rows(); i++) {
         if (!std::isfinite(measurement(i))) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getNamespacedName().c_str());
           return false;
         }
       }
   }
 
-  publishCorrection(measurement, measurement_stamp); 
+  publishCorrection(measurement, measurement_stamp);
 
   return true;
 }
@@ -268,7 +289,7 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
           /* return {}; */
           return false;
         }
@@ -297,7 +318,7 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
           return false;
         }
       }
@@ -314,7 +335,7 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
             measurement(0) = mrs_lib::AttitudeConverter(msg.pose.pose.orientation).getHeading();
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getName().c_str());
+            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getNamespacedName().c_str());
             return false;
           }
           break;
@@ -325,14 +346,14 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
             measurement(0) = mrs_lib::AttitudeConverter(msg.pose.pose.orientation).getHeadingRate(msg.twist.twist.angular);
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getName().c_str());
+            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getNamespacedName().c_str());
             return false;
           }
           break;
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
           return false;
         }
       }
@@ -363,7 +384,7 @@ bool Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::Range
   if (res) {
     measurement(0) = -res.value().pose.position.z;
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getName().c_str(),
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getNamespacedName().c_str(),
                        ch_->frames.ns_fcu_untilted.c_str());
     /* return {}; */
     return false;
@@ -389,7 +410,7 @@ std::optional<double> Correction<n_measurements>::getZVelUntilted(const nav_msgs
   if (res) {
     return res.value().point.z;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), vel.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getNamespacedName().c_str(), vel.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
     return {};
   }
 }
@@ -413,7 +434,7 @@ bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, co
     measurement_out(1) = transformed_vel.vector.y;
     return true;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getNamespacedName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
     return false;
   }
 }
@@ -425,7 +446,7 @@ bool Correction<n_measurements>::isMsgFresh(const ros::Time& last_msg_time) {
 
   const double time_since_last_msg = (ros::Time::now() - last_msg_time).toSec();
   if (time_since_last_msg > msg_timeout_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: message too old (%.4f s)", getName().c_str(), time_since_last_msg);
+    ROS_ERROR_THROTTLE(1.0, "[%s]: message too old (%.4f s)", getNamespacedName().c_str(), time_since_last_msg);
     return false;
   } else {
     return true;
@@ -437,15 +458,15 @@ bool Correction<n_measurements>::isMsgFresh(const ros::Time& last_msg_time) {
 template <int n_measurements>
 void Correction<n_measurements>::publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp) {
   EstimatorCorrection msg;
-  msg.header.stamp = measurement_stamp;
+  msg.header.stamp    = measurement_stamp;
   msg.header.frame_id = ns_frame_id_;
-  msg.name = name_;
-  msg.estimator_name = est_name_;
-  msg.state_id = state_id_;
-  msg.covariance.resize(n_measurements*n_measurements);
+  msg.name            = name_;
+  msg.estimator_name  = est_name_;
+  msg.state_id        = state_id_;
+  msg.covariance.resize(n_measurements * n_measurements);
   for (int i = 0; i < measurement.rows(); i++) {
-  msg.state.push_back(measurement(i));
-  msg.covariance[n_measurements * i + i] = R_;
+    msg.state.push_back(measurement(i));
+    msg.covariance[n_measurements * i + i] = getR();
   }
 
   ph_correction_.publish(msg);

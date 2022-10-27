@@ -41,6 +41,7 @@ generate_messages(
   )
 
 generate_dynamic_reconfigure_options(
+  cfg/Correction.cfg
   )
 
 catkin_package(
@@ -60,6 +61,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Eigen_INCLUDE_DIRS}
+  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   )
 
 set(src_files 
@@ -67,9 +69,7 @@ set(src_files
   src/estimators/state/state_estimator.cpp 
   src/estimators/state/gps_garmin.cpp 
   src/estimators/state/aloam.cpp 
-  # src/estimators/altitude/garmin.cpp 
   src/estimators/altitude/alt_generic.cpp 
-  # src/estimators/lateral/gps.cpp 
   src/estimators/lateral/lat_generic.cpp 
   src/estimators/heading/hdg_generic.cpp 
   src/estimators/heading/hdg_passthrough.cpp 
@@ -92,13 +92,16 @@ target_link_libraries(GpsGarmin
   ${Eigen_LIBRARIES}
   )
 
+## Add configure headers for dynamic reconfigure
+add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
+
 target_link_libraries(Aloam
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-# add_dependencies(EstimationTesting ${PROJECT_NAME}_gencfg)
+add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
 
 ## Declare a C++ executable
 # add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
