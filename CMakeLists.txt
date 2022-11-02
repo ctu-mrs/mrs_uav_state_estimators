@@ -42,6 +42,9 @@ generate_messages(
 
 generate_dynamic_reconfigure_options(
   cfg/Correction.cfg
+  cfg/LateralEstimator.cfg
+  cfg/AltitudeEstimator.cfg
+  cfg/HeadingEstimator.cfg
   )
 
 catkin_package(

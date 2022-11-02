@@ -17,48 +17,58 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO load parameters
-
-  /* fuse_pos_odom_ = false; */
-  /* fuse_pos_range_ = false; */
-  /* fuse_vel_odom_ = false; */
-
   // clang-format off
-    dt_ = 0.01;
-    input_coeff_ = 0.1;
-    default_input_coeff_ = 0.1;
+  dt_ = 0.01;
+  input_coeff_ = 0.1;
+  default_input_coeff_ = 0.1;
 
-    generateA();
-    generateB();
+  generateA();
+  generateB();
 
-    H_ <<
-      1, 0, 0;
-
-    Q_ <<
-      1, 0, 0,
-      0, 1, 0,
-      0, 0, 1;
-
-    R_ <<
-      0.1;
+  H_ <<
+    1, 0, 0;
 
   // clang-format on
 
-  // | --------------- corrections initialization --------------- |
+  // | --------------- initialize parameter loader -------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/altitude/" + getName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.setPrefix(getName() + "/");
+
+  // | --------------- corrections initialization --------------- |
   param_loader.loadParam("corrections", correction_names_);
 
+  for (auto corr_name : correction_names_) {
+    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
+  }
+
+  // | ----------- initialize process noise covariance ---------- |
+  Q_ = Q_t::Zero();
+  double tmp_noise;
+  param_loader.loadParam("process_noise/pos", tmp_noise);
+  Q_(POSITION, POSITION) = tmp_noise;
+  param_loader.loadParam("process_noise/vel", tmp_noise);
+  Q_(VELOCITY, VELOCITY) = tmp_noise;
+  param_loader.loadParam("process_noise/acc", tmp_noise);
+  Q_(ACCELERATION, ACCELERATION) = tmp_noise;
+
+  ROS_WARN_STREAM(getName() << " Q: " << Q_);
+
+  // | ------- check if all parameters loaded successfully ------ |
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
     ros::shutdown();
   }
 
-  for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
-  }
+  // | ------------- initialize dynamic reconfigure ------------- |
+  drmgr_                   = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getName()), getName());
+  drmgr_->config.pos = Q_(POSITION, POSITION);
+  drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
+  drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION);
+  drmgr_->update_config(drmgr_->config);
+
+  ROS_WARN_STREAM(getName() << " Q: " << Q_);
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
@@ -165,7 +175,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   // prediction step
   u_t u;
   if (is_input_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), 0); // we don't care about heading
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), 0);  // we don't care about heading
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
@@ -179,7 +189,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     // Apply the prediction step
     {
       std::scoped_lock lock(mutex_lkf_);
-      sc_ = lkf_->predict(sc_, u, Q_, dt_);
+      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
     }
   }
   catch (const std::exception &e) {
@@ -398,6 +408,16 @@ void AltGeneric::generateB() {
       0,
       input_coeff_;
   // clang-format on
+}
+/*//}*/
+
+/*//{ getQ() */
+AltGeneric::Q_t AltGeneric::getQ() {
+  std::scoped_lock lock(mtx_Q_);
+  Q_(POSITION, POSITION)         = drmgr_->config.pos;
+  Q_(VELOCITY, VELOCITY)         = drmgr_->config.vel;
+  Q_(ACCELERATION, ACCELERATION) = drmgr_->config.acc;
+  return Q_;
 }
 /*//}*/
 

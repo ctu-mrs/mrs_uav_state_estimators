@@ -1,4 +1,9 @@
 hdg_aloam: # namespace of the estimator
+
+  process_noise: # process noise covariance (Q)
+    pos: 1.0 # position state
+    vel: 1.0 # velocity state
+
   corrections: [
     "hdg_aloam"
   ]

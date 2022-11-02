@@ -13,6 +13,7 @@
 
 #include "types.h"
 #include "mrs_uav_state_estimation/EstimatorCorrection.h"
+
 #include "mrs_uav_state_estimation/CorrectionConfig.h"
 
 namespace mrs_uav_state_estimation
@@ -83,7 +84,7 @@ private:
   std::mutex mtx_R_;
   StateId_t  state_id_;
 
-  std::unique_ptr<mrs_lib::DynamicReconfigureMgr<CorrectionConfig>> drmgr_;
+  std::unique_ptr<drmgr_t> drmgr_;
 
   bool isMsgFresh(const ros::Time& last_msg_time);
 

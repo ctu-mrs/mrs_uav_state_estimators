@@ -1,5 +1,11 @@
 lat_aloam: # namespace of the estimator
   hdg_source_topic: "hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
+
+  process_noise: # process noise covariance (Q)
+    pos: 0.001 # position state
+    vel: 1.0 # velocity state
+    acc: 0.01 # acceleration state
+
   corrections: [
     "pos_aloam"
   ]

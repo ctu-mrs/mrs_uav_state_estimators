@@ -15,6 +15,8 @@
 #include "estimators/lateral/lateral_estimator.h"
 #include "estimators/correction.h"
 
+#include "mrs_uav_state_estimation/LateralEstimatorConfig.h"
+
 //}
 
 namespace mrs_uav_state_estimation
@@ -32,6 +34,8 @@ const int n_measurements = 2;
 using namespace mrs_lib;
 
 class LatGeneric : public LateralEstimator<lat_generic::n_states> {
+
+  typedef mrs_lib::DynamicReconfigureMgr<LateralEstimatorConfig> drmgr_t;
 
   using lkf_t      = LKF<lat_generic::n_states, lat_generic::n_inputs, lat_generic::n_measurements>;
   using A_t        = lkf_t::A_t;
@@ -52,10 +56,11 @@ private:
   B_t                    B_;
   H_t                    H_;
   Q_t                    Q_;
-  R_t                    R_;
   statecov_t             sc_;
   std::unique_ptr<lkf_t> lkf_;
   mutable std::mutex     mutex_lkf_;
+
+  std::unique_ptr<drmgr_t> drmgr_;
 
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
@@ -81,6 +86,9 @@ private:
   void doCorrection(const z_t &z, const double R, const StateId_t &H_idx);
 
   bool isConverged();
+
+  Q_t getQ();
+  mutable std::mutex mtx_Q_;
 
 public:
   LatGeneric(const std::string name, const std::string ns_frame_id) : LateralEstimator<lat_generic::n_states>(name, ns_frame_id){};

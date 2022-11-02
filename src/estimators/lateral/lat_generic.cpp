@@ -16,50 +16,61 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO load parameters
-
   // clang-format off
-    dt_ = 0.01;
-    input_coeff_ = 0.1;
-    default_input_coeff_ = 0.1;
+  dt_ = 0.01;
+  input_coeff_ = 0.1;
+  default_input_coeff_ = 0.1;
 
-    generateA();
-    generateB();
+  generateA();
+  generateB();
 
-    H_ <<
-      1, 0, 0, 0, 0, 0,
-      0, 1, 0, 0, 0, 0;
-
-    Q_ <<
-      0.001, 0, 0, 0, 0, 0,
-      0, 0.001, 0, 0, 0, 0,
-      0, 0, 1, 0, 0, 0,
-      0, 0, 0, 1, 0, 0,
-      0, 0, 0, 0, 0.01, 0,
-      0, 0, 0, 0, 0, 0.01;
-
-    R_ <<
-      0.01, 0,
-      0, 0.01;
+  H_ <<
+    1, 0, 0, 0, 0, 0,
+    0, 1, 0, 0, 0, 0;
 
   // clang-format on
 
-  // | --------------- corrections initialization --------------- |
+  // | --------------- initialize parameter loader -------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/lateral/" + getName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.setPrefix(getName() + "/");
+
+  // | --------------------- load parameters -------------------- |
   param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
+
+  // | --------------- corrections initialization --------------- |
   param_loader.loadParam("corrections", correction_names_);
 
+  for (auto corr_name : correction_names_) {
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_));
+  }
+
+  // | ------- check if all parameters loaded successfully ------ |
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
     ros::shutdown();
   }
 
-  for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_));
-  }
+  // | ----------- initialize process noise covariance ---------- |
+  Q_ = Q_t::Zero();
+  double tmp_noise;
+  param_loader.loadParam("process_noise/pos", tmp_noise);
+  Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X)) = tmp_noise;
+  Q_(stateIdToIndex(POSITION, AXIS_Y), stateIdToIndex(POSITION, AXIS_Y)) = tmp_noise;
+  param_loader.loadParam("process_noise/vel", tmp_noise);
+  Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X)) = tmp_noise;
+  Q_(stateIdToIndex(VELOCITY, AXIS_Y), stateIdToIndex(VELOCITY, AXIS_Y)) = tmp_noise;
+  param_loader.loadParam("process_noise/acc", tmp_noise);
+  Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = tmp_noise;
+  Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = tmp_noise;
+
+  // | ------------- initialize dynamic reconfigure ------------- |
+  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getName()), getName());
+  drmgr_->config.pos = Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X));
+  drmgr_->config.vel = Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X));
+  drmgr_->config.acc = Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X));
+  drmgr_->update_config(drmgr_->config);
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
@@ -87,8 +98,8 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_hdg_state_ =
-      mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput>(shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
+  sh_hdg_state_        = mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput>(
+      shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getName() + "/output", 1);
@@ -183,60 +194,12 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     // Apply the prediction step
     {
       std::scoped_lock lock(mutex_lkf_);
-      sc_ = lkf_->predict(sc_, u, Q_, dt_);
+      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
     }
   }
   catch (const std::exception &e) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
   }
-
-  /* if (is_new_odom_message_ready) { */
-
-  /*   z_t z = z_t::Zero(); */
-
-  /*   nav_msgs::Odometry::ConstPtr odom_msg = sh_odom_.getMsg(); */
-
-  /*   z(0) = odom_msg->pose.pose.position.x; */
-  /*   z(1) = odom_msg->pose.pose.position.y; */
-
-  /*   bool health_flag = true; */
-
-  /*   if (!std::isfinite(z(0))) { */
-  /*     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position x correction", getName().c_str()); */
-  /*     health_flag = false; */
-  /*   } */
-
-  /*   if (!std::isfinite(z(1))) { */
-  /*     ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in position y correction", getName().c_str()); */
-  /*     health_flag = false; */
-  /*   } */
-
-  /*   if (health_flag) { */
-
-  /*     { */
-  /*       std::scoped_lock lock(mtx_innovation_); */
-
-
-  /*       innovation_(0) = z(0) - getState(POSITION, AXIS_X); */
-  /*       innovation_(1) = z(1) - getState(POSITION, AXIS_Y); */
-
-  /*       if (innovation_(0) > 1.0 || innovation_(1) > 1.0) { */
-  /*         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f y: %.2f", getName().c_str(), innovation_(0), innovation_(1)); */
-  /*       } */
-  /*     } */
-
-  /*     try { */
-  /*       // Apply the correction step */
-  /*       { */
-  /*         std::scoped_lock lock(mutex_lkf_); */
-  /*         sc_ = lkf_->correct(sc_, z, R_); */
-  /*       } */
-  /*     } */
-  /*     catch (const std::exception &e) { */
-  /*       ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what()); */
-  /*     } */
-  /*   } */
-  /* } */
 
   for (auto correction : corrections_) {
     z_t z;
@@ -307,7 +270,6 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
     is_hdg_state_ready_ = false;
   }
-
 }
 /*//}*/
 
@@ -485,6 +447,19 @@ void LatGeneric::generateB() {
       input_coeff_, 0,
       0, input_coeff_;
   // clang-format on
+}
+/*//}*/
+
+/*//{ getQ() */
+LatGeneric::Q_t LatGeneric::getQ() {
+  std::scoped_lock lock(mtx_Q_);
+  Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X))         = drmgr_->config.pos;
+  Q_(stateIdToIndex(POSITION, AXIS_Y), stateIdToIndex(POSITION, AXIS_Y))         = drmgr_->config.pos;
+  Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X))         = drmgr_->config.vel;
+  Q_(stateIdToIndex(VELOCITY, AXIS_Y), stateIdToIndex(VELOCITY, AXIS_Y))         = drmgr_->config.vel;
+  Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = drmgr_->config.acc;
+  Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = drmgr_->config.acc;
+  return Q_;
 }
 /*//}*/
 

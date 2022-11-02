@@ -1,4 +1,10 @@
 alt_aloam: # namespace of the estimator
+
+  process_noise: # process noise covariance (Q)
+    pos: 1.0 # position state
+    vel: 1.0 # velocity state
+    acc: 1.0 # acceleration state
+
   corrections: [
     "pos_aloam",
     "vel_baro"
