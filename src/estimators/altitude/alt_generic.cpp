@@ -53,8 +53,6 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.loadParam("process_noise/acc", tmp_noise);
   Q_(ACCELERATION, ACCELERATION) = tmp_noise;
 
-  ROS_WARN_STREAM(getName() << " Q: " << Q_);
-
   // | ------- check if all parameters loaded successfully ------ |
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
@@ -67,8 +65,6 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
   drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION);
   drmgr_->update_config(drmgr_->config);
-
-  ROS_WARN_STREAM(getName() << " Q: " << Q_);
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
@@ -203,8 +199,6 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
       // TODO processing, median filter, gating etc.
       doCorrection(z, correction->getR(), correction->getStateId());
-    } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: correction is not valid", ros::this_node::getName().c_str());
     }
   }
 

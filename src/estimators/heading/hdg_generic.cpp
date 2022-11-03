@@ -202,8 +202,6 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
 
       // TODO processing, median filter, gating etc.
       doCorrection(z, correction->getR(), correction->getStateId());
-    } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: correction is not valid", ros::this_node::getName().c_str());
     }
   }
 

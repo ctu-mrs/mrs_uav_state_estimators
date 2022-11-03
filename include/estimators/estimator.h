@@ -62,6 +62,7 @@ public:
   std::string getFrameId(void) const;
   std::string getSmStateString(const SMStates_t &state) const;
   std::string getCurrentSmStateString(void) const;
+  SMStates_t getCurrentSmState() const;
 
   // state machine methods
   bool changeState(SMStates_t new_state);

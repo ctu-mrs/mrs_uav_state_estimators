@@ -1,5 +1,5 @@
 lat_gps: # namespace of the estimator
-  hdg_source_topic: "hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
+  hdg_source_topic: "hdg_mavros/output" # [mrs_uav_state_estimation/EstimatorOutput]
 
   process_noise: # process noise covariance (Q)
     pos: 0.001 # position state
@@ -16,4 +16,6 @@ lat_gps: # namespace of the estimator
     message:
       type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
       topic: "mavros/local_position/odom" # without uav namespace
-      timeout: 0.2 # [s] older messages will be discarded without fusing
+      limit: 
+        delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
+        time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy

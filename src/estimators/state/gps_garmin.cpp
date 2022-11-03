@@ -96,7 +96,13 @@ bool GpsGarmin::start(void) {
 
   if (isInState(READY_STATE)) {
 
-    bool est_lat_gps_start_successful, est_alt_garmin_start_successful;
+    bool est_lat_gps_start_successful, est_alt_garmin_start_successful, est_hdg_mavros_start_successful;
+
+    if (est_hdg_mavros_->isStarted() || est_hdg_mavros_->isRunning()) {
+      est_hdg_mavros_start_successful = true;
+    } else {
+      est_hdg_mavros_start_successful = est_hdg_mavros_->start();
+    }
 
     if (est_lat_gps_->isStarted() || est_lat_gps_->isRunning()) {
       est_lat_gps_start_successful = true;
@@ -111,7 +117,7 @@ bool GpsGarmin::start(void) {
       est_alt_garmin_start_successful = est_alt_garmin_->start();
     }
 
-    if (est_lat_gps_start_successful && est_alt_garmin_start_successful) {
+    if (est_lat_gps_start_successful && est_alt_garmin_start_successful && est_hdg_mavros_start_successful) {
       timer_update_.start();
       changeState(STARTED_STATE);
       return true;

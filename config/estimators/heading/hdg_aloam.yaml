@@ -14,4 +14,6 @@ hdg_aloam: # namespace of the estimator
     message:
       type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
       topic: "slam/odom" # without uav namespace
-      timeout: 1.0 # [s] older messages will be discarded without fusing
+      limit: 
+        delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy
+        time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy

@@ -57,6 +57,12 @@ bool Estimator::isError() const {
 }
 /*//}*/
 
+/*//{ getCurrentSmState() */
+SMStates_t Estimator::getCurrentSmState() const {
+  return current_sm_state_;
+}
+/*//}*/
+
 /*//{ getSmStateString() */
 std::string Estimator::getSmStateString(const SMStates_t& state) const {
   return sm::state_names[state];
