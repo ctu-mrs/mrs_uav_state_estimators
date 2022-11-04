@@ -55,7 +55,10 @@ public:
   StateId_t getStateId();
 
   bool             isHealthy();
-  std::atomic_bool is_healthy_ = false;
+  std::atomic_bool is_healthy_ = true;
+  std::atomic_bool is_delay_ok_ = true;
+  std::atomic_bool is_dt_ok_ = true;
+  std::atomic_bool is_nan_free_ = true;
 
   bool                  getCorrection(measurement_t& measurement);
   bool                  getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement);
@@ -68,6 +71,8 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
+
+  void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
   mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_;
 
@@ -87,14 +92,10 @@ private:
 
   std::unique_ptr<drmgr_t> drmgr_;
 
-  bool   isMsgDelayOk(const ros::Time& last_msg_time);
+  void checkMsgDelay(const ros::Time& msg_time);
   double msg_delay_limit_;
 
-  bool      isTimeSinceLastMsgOk();
   double    time_since_last_msg_limit_;
-  ros::Time last_msg_ros_time_;
-
-  std::atomic_bool is_first_msg_ = true;
 
   void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp);
 };
@@ -145,7 +146,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getNamespacedName();
-  shopts.no_message_timeout = ros::Duration(0.5);
+  shopts.no_message_timeout = ros::Duration(time_since_last_msg_limit_);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
   shopts.queue_size         = 10;
@@ -153,7 +154,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   switch (msg_type_) {
     case MessageType_t::ODOMETRY: {
-      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_);
+      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Correction::timeoutCallback, this);
       break;
     }
     case MessageType_t::POSE_S: {
@@ -167,7 +168,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RANGE: {
-      sh_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_);
+      sh_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::timeoutCallback, this);
       break;
     }
   }
@@ -199,18 +200,12 @@ StateId_t Correction<n_measurements>::getStateId() {
   return state_id_;
 }
 
-/*//{ isReady() */
-/* template <int n_measurements> */
-/* bool Correction<n_measurements>::isReady() { */
-/*   measurement_t measurement; */
-/*   getCorrection(measurement); */
-/*   return isHealthy(); */
-/* } */
-/*//}*/
-
 /*//{ isHealthy() */
 template <int n_measurements>
 bool Correction<n_measurements>::isHealthy() {
+
+  is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_ && is_nan_free_;
+
   return is_healthy_;
 }
 /*//}*/
@@ -230,20 +225,10 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
       }
 
       auto msg = sh_odom_.getMsg();
+      measurement_stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamp);
 
-      if (!isTimeSinceLastMsgOk()) {
-        last_msg_ros_time_ = ros::Time::now();
-        is_healthy_        = false;
-        return false;
-      }
-      last_msg_ros_time_ = ros::Time::now();
-
-      if (!isMsgDelayOk(msg->header.stamp)) {
-        is_healthy_ = false;
-        return false;
-      }
-      if (!getCorrectionFromOdometry(*msg, measurement)) {
-        is_healthy_ = false;
+      if (!is_delay_ok_ || !getCorrectionFromOdometry(*msg, measurement)) {
         return false;
       }
       break;
@@ -266,24 +251,17 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
     }
 
     case MessageType_t::RANGE: {
-      // range correction must be transformed to the untilted frame
-      auto msg = sh_range_.getMsg();
+
+      if (!sh_range_.newMsg()) {
+        return false;
+      }
+
+      auto msg          = sh_range_.getMsg();
       measurement_stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamp);
 
-      if (!isTimeSinceLastMsgOk()) {
-        last_msg_ros_time_ = ros::Time::now();
-        is_healthy_        = false;
-        return false;
-      }
-      last_msg_ros_time_ = ros::Time::now();
-
-      if (!isMsgDelayOk(msg->header.stamp)) {
-        is_healthy_ = false;
-        return false;
-      }
-
-      if (!getCorrectionFromRange(*msg, measurement)) {
-        is_healthy_ = false;
+      // range correction must be transformed to the untilted frame
+      if (!is_delay_ok_ || !getCorrectionFromRange(*msg, measurement)) {
         return false;
       }
       break;
@@ -299,7 +277,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
       for (int i = 0; i < measurement.rows(); i++) {
         if (!std::isfinite(measurement(i))) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getNamespacedName().c_str());
-          is_healthy_ = false;
+          is_nan_free_ = false;
           return false;
         }
       }
@@ -307,8 +285,6 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
 
   publishCorrection(measurement, measurement_stamp);
 
-  is_healthy_   = true;
-  is_first_msg_ = false;
   return true;
 }
 /*//}*/
@@ -414,6 +390,14 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
 }
 /*//}*/
 
+/*//{ timeoutCallback() */
+template <int n_measurements>
+void Correction<n_measurements>::timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs) {
+    is_dt_ok_ = false;
+      ROS_ERROR_STREAM("[" << getNamespacedName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now()-last_msg).toSec() << " seconds (" << n_pubs << " publishers on topic)");
+}
+/*//}*/
+
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
 bool Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement) {
@@ -492,32 +476,14 @@ bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, co
 
 /*//{ isMsgDelayOk() */
 template <int n_measurements>
-bool Correction<n_measurements>::isMsgDelayOk(const ros::Time& msg_time) {
+void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
   const double delay = (ros::Time::now() - msg_time).toSec();
   if (delay > msg_delay_limit_) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getNamespacedName().c_str(), delay);
-    return false;
+    is_delay_ok_ = false;
   } else {
-    return true;
-  }
-}
-/*//}*/
-
-/*//{ isTimeSinceLastMsgOk() */
-template <int n_measurements>
-bool Correction<n_measurements>::isTimeSinceLastMsgOk() {
-
-  if (is_first_msg_) {
-    last_msg_ros_time_ = ros::Time::now();
-  }
-
-  const double dt = (ros::Time::now() - last_msg_ros_time_).toSec();
-  if (dt > time_since_last_msg_limit_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: message not arrived for (%.4f s)", getNamespacedName().c_str(), dt);
-    return false;
-  } else {
-    return true;
+    is_delay_ok_ = true;
   }
 }
 /*//}*/
