@@ -13,9 +13,12 @@
 
 #include <nav_msgs/Odometry.h>
 
+#include <std_srvs/Trigger.h>
+
 #include <mrs_msgs/UavState.h>
 #include <mrs_msgs/OdometryDiag.h>
 #include <mrs_msgs/Float64Stamped.h>
+#include <mrs_msgs/String.h>
 
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/publisher_handler.h>
@@ -47,6 +50,7 @@ public:
     LANDED_STATE,
     ESTIMATOR_SWITCHING_STATE,
     EMERGENCY_STATE,
+    FAILSAFE_STATE,
     ERROR_STATE
 
   } SMState_t;
@@ -69,6 +73,12 @@ public:
   bool isInPublishableState() const {
     std::scoped_lock lock(mtx_state_);
     return current_state_ == READY_FOR_TAKEOFF_STATE || current_state_ == TAKING_OFF_STATE || current_state_ == HOVER_STATE || current_state_ == FLYING_STATE ||
+           current_state_ == LANDING_STATE;
+  }
+
+  bool isInTheAir() const {
+    std::scoped_lock lock(mtx_state_);
+    return current_state_ == TAKING_OFF_STATE || current_state_ == HOVER_STATE || current_state_ == FLYING_STATE ||
            current_state_ == LANDING_STATE;
   }
 
@@ -143,11 +153,12 @@ public:
       }
 
       case ESTIMATOR_SWITCHING_STATE: {
-        if (current_state_ != FLYING_STATE) {
+        if (current_state_ != FLYING_STATE && current_state_ != HOVER_STATE) {
           ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getName().c_str(), getStateAsString(ESTIMATOR_SWITCHING_STATE).c_str(),
                     getStateAsString(FLYING_STATE).c_str(), getStateAsString(HOVER_STATE).c_str());
           return false;
         }
+        pre_switch_state_ = current_state_;
         break;
       }
 
@@ -199,11 +210,18 @@ public:
   }
   /*//}*/
 
+/*//{ changeToPreSwitchState() */
+  void changeToPreSwitchState() {
+    changeState(pre_switch_state_);
+  }
+/*//}*/
+
 private:
   const std::string name_ = "StateMachine";
 
   SMState_t current_state_  = UNINITIALIZED_STATE;
   SMState_t previous_state_ = UNINITIALIZED_STATE;
+  SMState_t pre_switch_state_ = UNINITIALIZED_STATE;
 
   mutable std::mutex mtx_state_;
 
@@ -261,10 +279,17 @@ private:
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   ros::ServiceServer srvs_change_estimator_;
-  ros::ServiceServer srvs_toggle_callbacks_;
+  bool callbackChangeEstimator(mrs_msgs::String::Request& req, mrs_msgs::String::Response& res);
+  int estimator_switch_count_ = 0;
 
+
+  ros::ServiceServer srvs_toggle_callbacks_;
+  bool callbacks_enabled_ = false;
+  bool callbacks_disabled_by_service_ = false;
+
+  bool callFailsafeService();
+  mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvch_failsafe_;
   // TODO service clients
-  /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvch_failsafe_; */
   /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvc_hover_; */
   /* mrs_lib::ServiceClientHandler<mrs_msgs::ReferenceStampedSrv> srvc_reference_; */
   /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvc_ehover_; */
@@ -274,7 +299,7 @@ private:
   std::unique_ptr<pluginlib::ClassLoader<mrs_uav_state_estimation::StateEstimator>> estimator_loader_;  // pluginlib loader of dynamically loaded estimators
   std::vector<std::string>                                                          _estimator_names_;  // list of estimator names
   /* std::map<std::string, EstimatorParams>                               estimator_params_;        // map between estimator names and estimator params */
-  std::vector<boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>> estimator_list_;  // list of estimators, routines are callable from this
+  std::vector<boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>> estimator_list_;  // list of estimators
   std::mutex                                                               mutex_estimator_list_;
   std::vector<std::string>                                                 estimator_names_;
   /* int                                                                      active_estimator_idx_; */
@@ -282,6 +307,9 @@ private:
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> initial_estimator_;
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> active_estimator_;
   std::mutex                                                  mutex_active_estimator_;
+
+  bool switchToHealthyEstimator();
+  void switchToEstimator(const boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>& target_estimator);
 
   nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState &uav_state) const;
 

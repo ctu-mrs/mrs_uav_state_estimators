@@ -8,7 +8,7 @@ namespace mrs_uav_state_estimation
 {
 
 /* initialize() //{*/
-void Aloam::initialize(ros::NodeHandle& nh, const std::shared_ptr<CommonHandlers_t>& ch) {
+void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
 
@@ -18,9 +18,9 @@ void Aloam::initialize(ros::NodeHandle& nh, const std::shared_ptr<CommonHandlers
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                      // TODO: parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Aloam::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                        // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Aloam::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -184,8 +184,6 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    // TODO fill in estimator types
-
     uav_state_.pose.orientation = rotateQuaternionByHeading(sh_mavros_odom_.getMsg()->pose.pose.orientation, est_hdg_aloam_->getState(POSITION));
 
     uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
@@ -196,11 +194,11 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.velocity.linear.x = est_lat_aloam_->getState(VELOCITY, AXIS_X);  // in global frame
     uav_state_.velocity.linear.y = est_lat_aloam_->getState(VELOCITY, AXIS_Y);  // in global frame
-    uav_state_.velocity.linear.z = est_alt_aloam_->getState(VELOCITY);       // in global frame
+    uav_state_.velocity.linear.z = est_alt_aloam_->getState(VELOCITY);          // in global frame
 
     uav_state_.acceleration.linear.x = est_lat_aloam_->getState(ACCELERATION, AXIS_X);  // in global frame
     uav_state_.acceleration.linear.y = est_lat_aloam_->getState(ACCELERATION, AXIS_Y);  // in global frame
-    uav_state_.acceleration.linear.z = est_alt_aloam_->getState(ACCELERATION);       // in global frame
+    uav_state_.acceleration.linear.z = est_alt_aloam_->getState(ACCELERATION);          // in global frame
   }
 
   {
@@ -219,7 +217,7 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
     pose_covariance_.header.stamp  = time_now;
     twist_covariance_.header.stamp = time_now;
 
-    const int n_states                                     = 6; // TODO this should be defined somewhere else
+    const int n_states = 6;  // TODO this should be defined somewhere else
     pose_covariance_.values.resize(n_states * n_states);
     pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_aloam_->getCovariance(POSITION, AXIS_X);
     pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_aloam_->getCovariance(POSITION, AXIS_Y);
@@ -245,31 +243,59 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
     return;
   }
 
-  if (isInState(INITIALIZED_STATE)) {
+  switch (getCurrentSmState()) {
 
-    if (sh_mavros_odom_.hasMsg()) {
-      if (est_lat_aloam_->isReady() && est_alt_aloam_->isReady() && est_hdg_aloam_->isReady()) {
-        changeState(READY_STATE);
-        ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+    case UNINITIALIZED_STATE: {
+      break;
+    }
+    case INITIALIZED_STATE: {
+
+      if (sh_mavros_odom_.hasMsg()) {
+        if (est_lat_aloam_->isReady() && est_alt_aloam_->isReady() && est_hdg_aloam_->isReady()) {
+          changeState(READY_STATE);
+          ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+        } else {
+          ROS_INFO("[%s]: Waiting for subestimators to be ready", getName().c_str());
+          return;
+        }
       } else {
-        ROS_INFO("[%s]: Waiting for subestimators to be ready", getName().c_str());
+        ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
         return;
       }
-    } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
-      return;
+
+      break;
     }
-  }
 
+    case READY_STATE: {
+      break;
+    }
 
-  if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
+    case STARTED_STATE: {
 
-    if (est_lat_aloam_->isRunning() && est_alt_aloam_->isRunning() && est_hdg_aloam_->isRunning()) {
-      ROS_INFO("[%s]: Subestimators converged", getName().c_str());
-      changeState(RUNNING_STATE);
-    } else {
-      return;
+      ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
+
+      if (est_lat_aloam_->isRunning() && est_alt_aloam_->isRunning() && est_hdg_aloam_->isRunning()) {
+        ROS_INFO("[%s]: Subestimators converged", getName().c_str());
+        changeState(RUNNING_STATE);
+      } else {
+        return;
+      }
+      break;
+    }
+
+    case RUNNING_STATE: {
+        if (est_lat_aloam_->isError() || est_alt_aloam_->isError() || est_hdg_aloam_->isError()) {
+          changeState(ERROR_STATE);
+        }
+      break;
+    }
+
+    case STOPPED_STATE: {
+      break;
+    }
+
+    case ERROR_STATE: {
+      break;
     }
   }
 }

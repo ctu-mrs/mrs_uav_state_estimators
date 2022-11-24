@@ -11,7 +11,7 @@ state_estimators: [
 "Aloam"
 ]
 
-initial_estimator: "GpsGarmin" # will be used as the first estimator
+initial_estimator: "Aloam" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

@@ -217,18 +217,73 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     return;
   }
 
-  if (isInState(INITIALIZED_STATE)) {
+  switch (getCurrentSmState()) {
 
-    changeState(READY_STATE);
-    ROS_INFO("[%s]: Ready to start", getName().c_str());
-  }
+    case UNINITIALIZED_STATE: {
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getName().c_str()); 
+      break;
+    }
 
-  if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
+    case READY_STATE: {
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getName().c_str()); 
+      break;
+    }
 
-    if (isConverged()) {
-      ROS_INFO("[%s]: LKF converged", getName().c_str());
-      changeState(RUNNING_STATE);
+    case INITIALIZED_STATE: {
+      // initialize the estimator with current corrections
+      for (auto correction : corrections_) {
+        z_t z;
+        if (correction->getCorrection(z)) {
+          setState(z(AXIS_X), correction->getStateId(), AXIS_X);
+          setState(z(AXIS_Y), correction->getStateId(), AXIS_Y);
+        } else {
+          ROS_INFO("[%s]: Waiting for correction %s", getName().c_str(), correction->getName().c_str());
+          return;
+        }
+      }
+      ROS_INFO("[%s]: Ready to start", getName().c_str());
+      changeState(READY_STATE);
+      break;
+    }
+
+    case STARTED_STATE: {
+      ROS_INFO("[%s]: Waiting for convergence of LKF", getName().c_str());
+      if (isConverged()) {
+        ROS_INFO("[%s]: LKF converged", getName().c_str());
+        changeState(RUNNING_STATE);
+      }
+      break;
+    }
+
+    case RUNNING_STATE: {
+      for (auto correction : corrections_) {
+        if (!correction->isHealthy()) {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getName().c_str(), correction->getNamespacedName().c_str());
+          changeState(ERROR_STATE);
+        }
+      }
+      break;
+    }
+
+    case STOPPED_STATE: {
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getName().c_str()); 
+      break;
+    }
+
+    case ERROR_STATE: {
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getName().c_str()); 
+      bool all_corrections_healthy = true;
+      for (auto correction : corrections_) {
+        if (!correction->isHealthy()) {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getName().c_str(), correction->getNamespacedName().c_str());
+          all_corrections_healthy = false;
+        }
+      }
+      // initialize the estimator again if corrections become healthy
+      if (all_corrections_healthy) {
+        changeState(INITIALIZED_STATE);
+      }
+      break;
     }
   }
 
