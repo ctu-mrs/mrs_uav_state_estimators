@@ -14,6 +14,8 @@ struct CommonFrames_t
   std::string ns_fcu;
   std::string fcu_untilted;
   std::string ns_fcu_untilted;
+  std::string rtk_antenna;
+  std::string ns_rtk_antenna;
 };
 
 struct CommonHandlers_t

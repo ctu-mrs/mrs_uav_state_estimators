@@ -109,10 +109,7 @@ public:
     tf2::Quaternion q;
     tf2::fromMsg(pose_in.orientation, q);
 
-    tf2::Transform tf_out;
-    tf_out.setOrigin(position);
-    tf_out.setRotation(q);
-    tf_out.inverse();
+    tf2::Transform tf_out(q, position);
 
     return tf_out;
   }

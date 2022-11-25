@@ -7,6 +7,9 @@
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/dynamic_reconfigure_mgr.h>
+#include <mrs_lib/gps_conversions.h>
+
+#include <mrs_msgs/RtkGps.h>
 
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
@@ -34,6 +37,7 @@ typedef enum
   POSE_S,
   POSE_WCS,
   RANGE,
+  RTK_GPS,
 } MessageType_t;
 const int n_MessageType_t = 4;
 
@@ -55,22 +59,19 @@ public:
   StateId_t getStateId();
 
   bool             isHealthy();
-  std::atomic_bool is_healthy_ = true;
+  std::atomic_bool is_healthy_  = true;
   std::atomic_bool is_delay_ok_ = true;
-  std::atomic_bool is_dt_ok_ = true;
+  std::atomic_bool is_dt_ok_    = true;
   std::atomic_bool is_nan_free_ = true;
 
-  bool                  getCorrection(measurement_t& measurement);
-  bool                  getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement);
-  bool                  getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement);
-  std::optional<double> getZVelUntilted(const nav_msgs::Odometry& msg);
-  bool                  getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out);
+  bool getCorrection(measurement_t& measurement);
 
 private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
+  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
 
   void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
@@ -92,10 +93,18 @@ private:
 
   std::unique_ptr<drmgr_t> drmgr_;
 
-  void checkMsgDelay(const ros::Time& msg_time);
+  bool                  getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement);
+  bool                  getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement);
+  bool                  getCorrectionFromRtk(const mrs_msgs::RtkGps& msg, measurement_t& measurement);
+  std::optional<double> getZVelUntilted(const nav_msgs::Odometry& msg);
+  bool                  getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out);
+
+  geometry_msgs::Pose transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
+
+  void   checkMsgDelay(const ros::Time& msg_time);
   double msg_delay_limit_;
 
-  double    time_since_last_msg_limit_;
+  double time_since_last_msg_limit_;
 
   void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp);
 };
@@ -171,6 +180,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       sh_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::timeoutCallback, this);
       break;
     }
+    case MessageType_t::RTK_GPS: {
+      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      break;
+    }
   }
 
   // | --------------- initialize publish handlers -------------- |
@@ -224,7 +237,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
         return false;
       }
 
-      auto msg = sh_odom_.getMsg();
+      auto msg          = sh_odom_.getMsg();
       measurement_stamp = msg->header.stamp;
       checkMsgDelay(measurement_stamp);
 
@@ -262,6 +275,22 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
 
       // range correction must be transformed to the untilted frame
       if (!is_delay_ok_ || !getCorrectionFromRange(*msg, measurement)) {
+        return false;
+      }
+      break;
+    }
+
+    case MessageType_t::RTK_GPS: {
+
+      if (!sh_rtk_.newMsg()) {
+        return false;
+      }
+
+      auto msg          = sh_rtk_.getMsg();
+      measurement_stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamp);
+
+      if (!is_delay_ok_ || !getCorrectionFromRtk(*msg, measurement)) {
         return false;
       }
       break;
@@ -390,14 +419,6 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
 }
 /*//}*/
 
-/*//{ timeoutCallback() */
-template <int n_measurements>
-void Correction<n_measurements>::timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs) {
-    is_dt_ok_ = false;
-      ROS_ERROR_STREAM("[" << getNamespacedName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now()-last_msg).toSec() << " seconds (" << n_pubs << " publishers on topic)");
-}
-/*//}*/
-
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
 bool Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement) {
@@ -424,6 +445,95 @@ bool Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::Range
   }
 
   return true;
+}
+/*//}*/
+
+/*//{ getCorrectionFromRtk() */
+template <int n_measurements>
+bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& msg, measurement_t& measurement) {
+
+  geometry_msgs::PoseStamped rtk_pos;
+
+  if (msg.header.frame_id == "gps") {
+
+    if (!std::isfinite(msg.gps.latitude)) {
+      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getNamespacedName().c_str());
+      return false;
+    }
+
+    if (!std::isfinite(msg.gps.longitude)) {
+      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getNamespacedName().c_str());
+      return false;
+    }
+
+    rtk_pos.header = msg.header;
+    mrs_lib::UTM(msg.gps.latitude, msg.gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
+    rtk_pos.pose.position.z  = msg.gps.altitude;
+    rtk_pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
+
+    rtk_pos = transformRtkToFcu(rtk_pos);
+
+  } else if (msg.header.frame_id == "utm") {
+
+    rtk_pos.pose = msg.pose.pose;
+
+  } else {
+
+    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName(), msg.header.frame_id.c_str());
+  }
+
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = rtk_pos.pose.position.x;
+          measurement(1) = rtk_pos.pose.position.y;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
+          /* return {}; */
+          return false;
+        }
+      }
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = rtk_pos.pose.position.z;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
+          return false;
+        }
+      }
+      break;
+    }
+  }
+
+  return true;
+}
+/*//}*/
+
+/*//{ timeoutCallback() */
+template <int n_measurements>
+void Correction<n_measurements>::timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs) {
+  is_dt_ok_ = false;
+  ROS_ERROR_STREAM("[" << getNamespacedName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now() - last_msg).toSec()
+                       << " seconds (" << n_pubs << " publishers on topic)");
 }
 /*//}*/
 
@@ -471,6 +581,50 @@ bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, co
     ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getNamespacedName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
     return false;
   }
+}
+/*//}*/
+
+/*//{ transformRtkToFcu() */
+template <int n_measurements>
+geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const {
+
+  geometry_msgs::PoseStamped pose_tmp = pose_in;
+
+  // inject current orientation into rtk pose
+  auto res1 = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, ros::Time::now());
+  if (res1) {
+    pose_tmp.pose.orientation = res1.value().transform.rotation;
+  } else {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getNamespacedName().c_str(),
+                       ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu);
+    return pose_in.pose;
+  }
+
+  // invert tf
+  tf2::Transform      tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
+  geometry_msgs::PoseStamped utm_in_antenna    = Support::poseFromTf2(tf_utm_to_antenna.inverse());
+  utm_in_antenna.header.stamp           = pose_in.header.stamp;
+  utm_in_antenna.header.frame_id        = ch_->frames.ns_rtk_antenna;
+
+
+  // transform to fcu
+  geometry_msgs::PoseStamped utm_in_fcu;
+  utm_in_fcu.header.frame_id = ch_->frames.ns_fcu;
+  utm_in_fcu.header.stamp    = pose_in.header.stamp;
+  auto res2                   = ch_->transformer->transformSingle(utm_in_antenna, ch_->frames.ns_fcu);
+
+  if (res2) {
+    utm_in_fcu = res2.value();
+  } else {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not using this correction.", getNamespacedName().c_str(), ch_->frames.ns_fcu.c_str());
+    return pose_in.pose;
+  }
+
+  // invert tf
+  tf2::Transform      tf_fcu_to_utm = Support::tf2FromPose(utm_in_fcu.pose);
+  geometry_msgs::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
+
+  return fcu_in_utm;
 }
 /*//}*/
 

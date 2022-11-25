@@ -1,4 +1,6 @@
 GpsGarmin:
   address: "mrs_uav_state_estimation/GpsGarmin"
+Rtk:
+  address: "mrs_uav_state_estimation/Rtk"
 Aloam:
   address: "mrs_uav_state_estimation/Aloam"
