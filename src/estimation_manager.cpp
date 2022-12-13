@@ -27,6 +27,9 @@ void EstimationManager::onInit() {
   param_loader.loadParam("frame_id/fcu_untilted", ch_->frames.fcu_untilted);
   ch_->frames.ns_fcu_untilted = ch_->uav_name + "/" + ch_->frames.fcu_untilted;
 
+  param_loader.loadParam("frame_id/rtk_antenna", ch_->frames.rtk_antenna);
+  ch_->frames.ns_rtk_antenna= ch_->uav_name + "/" + ch_->frames.rtk_antenna;
+
   ch_->transformer = std::make_shared<mrs_lib::Transformer>(nh, getName());
   ch_->transformer->retryLookupNewest(true);
 

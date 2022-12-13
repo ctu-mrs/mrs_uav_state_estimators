@@ -61,7 +61,7 @@ private:
   void waitForEstimationInitialization();
 
   void   getAvgRtkInitZ();
-  bool   got_avg_rtk_init_z_ = false;
+  bool   got_rtk_avg_init_z_ = false;
   double rtk_avg_init_z_     = 0.0;
   int    got_rtk_counter_    = 0;
 

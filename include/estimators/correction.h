@@ -5,6 +5,8 @@
 #include <Eigen/Dense>
 
 #include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/publisher_handler.h>
+#include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/dynamic_reconfigure_mgr.h>
 #include <mrs_lib/gps_conversions.h>
@@ -15,8 +17,10 @@
 #include <nav_msgs/Odometry.h>
 
 #include "types.h"
-#include "mrs_uav_state_estimation/EstimatorCorrection.h"
+#include "support.h"
+#include "common_handlers.h"
 
+#include "mrs_uav_state_estimation/EstimatorCorrection.h"
 #include "mrs_uav_state_estimation/CorrectionConfig.h"
 
 namespace mrs_uav_state_estimation
@@ -39,7 +43,7 @@ typedef enum
   RANGE,
   RTK_GPS,
 } MessageType_t;
-const int n_MessageType_t = 4;
+const int n_MessageType_t = 5;
 
 template <int n_measurements>
 class Correction {
@@ -52,11 +56,11 @@ public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch);
 
-  std::string getName();
-  std::string getNamespacedName();
+  std::string getName() const;
+  std::string getNamespacedName() const;
 
   double    getR();
-  StateId_t getStateId();
+  StateId_t getStateId() const;
 
   bool             isHealthy();
   std::atomic_bool is_healthy_  = true;
@@ -192,12 +196,12 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 /*//}*/
 
 template <int n_measurements>
-std::string Correction<n_measurements>::getName() {
+std::string Correction<n_measurements>::getName() const {
   return name_;
 }
 
 template <int n_measurements>
-std::string Correction<n_measurements>::getNamespacedName() {
+std::string Correction<n_measurements>::getNamespacedName() const {
   return est_name_ + "/" + name_;
 }
 
@@ -209,7 +213,7 @@ double Correction<n_measurements>::getR() {
 }
 
 template <int n_measurements>
-StateId_t Correction<n_measurements>::getStateId() {
+StateId_t Correction<n_measurements>::getStateId() const {
   return state_id_;
 }
 
@@ -283,6 +287,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
     case MessageType_t::RTK_GPS: {
 
       if (!sh_rtk_.newMsg()) {
+        /* ROS_ERROR(" no new rtk msg"); */
         return false;
       }
 
@@ -311,6 +316,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
         }
       }
   }
+  ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1));
 
   publishCorrection(measurement, measurement_stamp);
 
@@ -471,17 +477,17 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
     rtk_pos.pose.position.z  = msg.gps.altitude;
     rtk_pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
 
-    rtk_pos = transformRtkToFcu(rtk_pos);
-
   } else if (msg.header.frame_id == "utm") {
 
     rtk_pos.pose = msg.pose.pose;
 
   } else {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName(), msg.header.frame_id.c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName().c_str(), msg.header.frame_id.c_str());
   }
 
+  // transform the RTK position from antenna to FCU
+  rtk_pos.pose = transformRtkToFcu(rtk_pos);
 
   switch (est_type_) {
 
@@ -520,6 +526,11 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
           return false;
         }
       }
+      break;
+    }
+
+    case EstimatorType_t::HEADING: {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getNamespacedName().c_str());
       break;
     }
   }
@@ -564,6 +575,13 @@ std::optional<double> Correction<n_measurements>::getZVelUntilted(const nav_msgs
 template <int n_measurements>
 bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out) {
 
+  // velocity from mavros is already in global frame
+  if (msg.header.frame_id == "map" && msg.child_frame_id == "base_link") {
+    measurement_out(0) = msg.twist.twist.linear.x; 
+    measurement_out(1) = msg.twist.twist.linear.y; 
+    return true;
+  }
+
   geometry_msgs::Vector3Stamped body_vel;
   body_vel.header   = msg.header;
   body_vel.vector.x = msg.twist.twist.linear.x;
@@ -596,22 +614,27 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
     pose_tmp.pose.orientation = res1.value().transform.rotation;
   } else {
     ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getNamespacedName().c_str(),
-                       ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu);
+                       ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
     return pose_in.pose;
   }
 
+  ROS_INFO("[%s]: debug antenna in rtk_origin: %.2f %.2f %.2f", getNamespacedName().c_str(), pose_tmp.pose.position.x, pose_tmp.pose.position.y, pose_tmp.pose.position.z);
+
   // invert tf
-  tf2::Transform      tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
-  geometry_msgs::PoseStamped utm_in_antenna    = Support::poseFromTf2(tf_utm_to_antenna.inverse());
-  utm_in_antenna.header.stamp           = pose_in.header.stamp;
-  utm_in_antenna.header.frame_id        = ch_->frames.ns_rtk_antenna;
+  tf2::Transform             tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
+  geometry_msgs::PoseStamped utm_in_antenna;
+  utm_in_antenna.pose            = Support::poseFromTf2(tf_utm_to_antenna.inverse());
+  utm_in_antenna.header.stamp    = pose_in.header.stamp;
+  utm_in_antenna.header.frame_id = ch_->frames.ns_rtk_antenna;
+
+  ROS_INFO("[%s]: debug rtk_origin in antenna: %.2f %.2f %.2f", getNamespacedName().c_str(), utm_in_antenna.pose.position.x, utm_in_antenna.pose.position.y, utm_in_antenna.pose.position.z);
 
 
   // transform to fcu
   geometry_msgs::PoseStamped utm_in_fcu;
   utm_in_fcu.header.frame_id = ch_->frames.ns_fcu;
   utm_in_fcu.header.stamp    = pose_in.header.stamp;
-  auto res2                   = ch_->transformer->transformSingle(utm_in_antenna, ch_->frames.ns_fcu);
+  auto res2                  = ch_->transformer->transformSingle(utm_in_antenna, ch_->frames.ns_fcu);
 
   if (res2) {
     utm_in_fcu = res2.value();
@@ -620,9 +643,13 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
     return pose_in.pose;
   }
 
+  ROS_INFO("[%s]: debug rtk_origin in fcu: %.2f %.2f %.2f", getNamespacedName().c_str(), utm_in_fcu.pose.position.x, utm_in_fcu.pose.position.y, utm_in_fcu.pose.position.z);
+
   // invert tf
   tf2::Transform      tf_fcu_to_utm = Support::tf2FromPose(utm_in_fcu.pose);
   geometry_msgs::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
+
+  ROS_INFO("[%s]: debug fcu in rtk_origin: %.2f %.2f %.2f", getNamespacedName().c_str(), fcu_in_utm.position.x, fcu_in_utm.position.y, fcu_in_utm.position.z);
 
   return fcu_in_utm;
 }

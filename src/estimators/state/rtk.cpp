@@ -20,19 +20,19 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   /* coordinate frames origins //{ */
 
   bool is_origin_param_ok = true;
-  param_loader.loadParam("utm_origin_units", utm_origin_units_);
-  if (utm_origin_units_ == 0) {
-    ROS_INFO("[%s]: Loading UTM origin in UTM units.", getName().c_str());
-    is_origin_param_ok &= param_loader.loadParam("utm_origin_x", utm_origin_x_);
-    is_origin_param_ok &= param_loader.loadParam("utm_origin_y", utm_origin_y_);
-  } else {
-    double lat, lon;
-    ROS_INFO("[%s]: Loading UTM origin in LatLon units.", getName().c_str());
-    is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
-    is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
-    ROS_INFO("[%s]: Converted to UTM x: %f, y: %f.", getName().c_str(), utm_origin_x_, utm_origin_y_);
-    mrs_lib::UTM(lat, lon, &utm_origin_x_, &utm_origin_y_);
-  }
+  /* param_loader.loadParam("utm_origin_units", utm_origin_units_); */
+  /* if (utm_origin_units_ == 0) { */
+  /*   ROS_INFO("[%s]: Loading UTM origin in UTM units.", getName().c_str()); */
+  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_x", utm_origin_x_); */
+  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_y", utm_origin_y_); */
+  /* } else { */
+  /*   double lat, lon; */
+  /*   ROS_INFO("[%s]: Loading UTM origin in LatLon units.", getName().c_str()); */
+  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat); */
+  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon); */
+  /*   ROS_INFO("[%s]: Converted to UTM x: %f, y: %f.", getName().c_str(), utm_origin_x_, utm_origin_y_); */
+  /*   mrs_lib::UTM(lat, lon, &utm_origin_x_, &utm_origin_y_); */
+  /* } */
 
   if (!is_origin_param_ok) {
     ROS_ERROR("[%s]: Could not load all mandatory parameters from world file. Please check your world file.", getName().c_str());
@@ -212,8 +212,10 @@ void Rtk::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
 
-    uav_state_.pose.position.x = est_lat_rtk_->getState(POSITION, AXIS_X) - _utm_origin_x_;
-    uav_state_.pose.position.y = est_lat_rtk_->getState(POSITION, AXIS_Y) - _utm_origin_y_;
+    /* uav_state_.pose.position.x = est_lat_rtk_->getState(POSITION, AXIS_X) - utm_origin_x_; */
+    /* uav_state_.pose.position.y = est_lat_rtk_->getState(POSITION, AXIS_Y) - utm_origin_y_; */
+    uav_state_.pose.position.x = est_lat_rtk_->getState(POSITION, AXIS_X);
+    uav_state_.pose.position.y = est_lat_rtk_->getState(POSITION, AXIS_Y);
     uav_state_.pose.position.z = est_alt_rtk_->getState(POSITION) - rtk_avg_init_z_;
 
     uav_state_.velocity.linear.x = est_lat_rtk_->getState(VELOCITY, AXIS_X);  // in global frame
@@ -271,7 +273,7 @@ void Rtk::timerCheckHealth(const ros::TimerEvent &event) {
 
     if (sh_mavros_odom_.hasMsg()) {
       if (est_lat_rtk_->isReady() && est_alt_rtk_->isReady()) {
-        if (got_avg_init_rtk_z_) {
+        if (got_rtk_avg_init_z_) {
           changeState(READY_STATE);
         } else {
           getAvgRtkInitZ();
@@ -350,7 +352,7 @@ void Rtk::getAvgRtkInitZ() {
 
   double rtk_z = est_alt_rtk_->getState(POSITION);
 
-  if (!got_avg_rtk_init_z_) {
+  if (!got_rtk_avg_init_z_) {
 
     double rtk_avg = rtk_avg_init_z_ / got_rtk_counter_;
 
@@ -362,7 +364,7 @@ void Rtk::getAvgRtkInitZ() {
         return;
       }
 
-      rtk_avg_init_z += rtk_z;
+      rtk_avg_init_z_ += rtk_z;
       got_rtk_counter_++;
       rtk_avg = rtk_avg_init_z_ / got_rtk_counter_;
       ROS_INFO("[%s]: RTK ASL altitude sample #%d: %.2f; avg: %.2f", getName().c_str(), got_rtk_counter_, rtk_z, rtk_avg);
@@ -371,7 +373,7 @@ void Rtk::getAvgRtkInitZ() {
     } else {
 
       rtk_avg_init_z_     = rtk_avg;
-      got_avg_rtk_init_z_ = true;
+      got_rtk_avg_init_z_ = true;
       ROS_INFO("[%s]: RTK ASL altitude avg: %f", getName().c_str(), rtk_avg);
     }
   }

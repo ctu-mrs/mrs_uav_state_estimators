@@ -64,6 +64,9 @@
     </node>
 <!--//}-->
 
+    <!-- RTK antenna to FCU TF (TODO: move to sensors.launch) -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="fcu_to_rtk_antenna" args="0.0 0.0 0.20 0 0 0 $(arg UAV_NAME)/$(arg fcu_frame_id) $(arg UAV_NAME)/rtk_antenna" />
+
   </group>
 
 </launch>
