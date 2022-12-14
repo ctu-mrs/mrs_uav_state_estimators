@@ -83,7 +83,7 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
-  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx);
+  void doCorrection(const z_t &z, const double R, const StateId_t &state_id);
 
   bool isConverged();
 

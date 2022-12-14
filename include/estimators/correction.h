@@ -316,7 +316,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
         }
       }
   }
-  ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1));
+  /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
 
   publishCorrection(measurement, measurement_stamp);
 
@@ -618,17 +618,12 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
     return pose_in.pose;
   }
 
-  ROS_INFO("[%s]: debug antenna in rtk_origin: %.2f %.2f %.2f", getNamespacedName().c_str(), pose_tmp.pose.position.x, pose_tmp.pose.position.y, pose_tmp.pose.position.z);
-
   // invert tf
   tf2::Transform             tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
   geometry_msgs::PoseStamped utm_in_antenna;
   utm_in_antenna.pose            = Support::poseFromTf2(tf_utm_to_antenna.inverse());
   utm_in_antenna.header.stamp    = pose_in.header.stamp;
   utm_in_antenna.header.frame_id = ch_->frames.ns_rtk_antenna;
-
-  ROS_INFO("[%s]: debug rtk_origin in antenna: %.2f %.2f %.2f", getNamespacedName().c_str(), utm_in_antenna.pose.position.x, utm_in_antenna.pose.position.y, utm_in_antenna.pose.position.z);
-
 
   // transform to fcu
   geometry_msgs::PoseStamped utm_in_fcu;
@@ -643,13 +638,9 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
     return pose_in.pose;
   }
 
-  ROS_INFO("[%s]: debug rtk_origin in fcu: %.2f %.2f %.2f", getNamespacedName().c_str(), utm_in_fcu.pose.position.x, utm_in_fcu.pose.position.y, utm_in_fcu.pose.position.z);
-
   // invert tf
   tf2::Transform      tf_fcu_to_utm = Support::tf2FromPose(utm_in_fcu.pose);
   geometry_msgs::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
-
-  ROS_INFO("[%s]: debug fcu in rtk_origin: %.2f %.2f %.2f", getNamespacedName().c_str(), fcu_in_utm.position.x, fcu_in_utm.position.y, fcu_in_utm.position.z);
 
   return fcu_in_utm;
 }

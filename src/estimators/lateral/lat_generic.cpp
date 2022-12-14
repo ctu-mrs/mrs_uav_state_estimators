@@ -318,8 +318,9 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ doCorrection() */
-void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx) {
+void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &state_id) {
 
+  if (state_id == POSITION) {
   {
     std::scoped_lock lock(mtx_innovation_);
 
@@ -333,14 +334,15 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getName().c_str(), innovation_(1));
     }
   }
+  }
 
   try {
     // Apply the correction step
     {
       std::scoped_lock lock(mutex_lkf_);
       H_                    = H_t::Zero();
-      H_(AXIS_X, H_idx)     = 1;
-      H_(AXIS_Y, H_idx + 1) = 1;
+      H_(AXIS_X, state_id*2)     = 1;
+      H_(AXIS_Y, state_id*2 + 1) = 1;
       lkf_->H               = H_;
       sc_                   = lkf_->correct(sc_, z, R_t::Ones() * R);
     }
