@@ -44,13 +44,13 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
-  est_lat_gps_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_);
+  est_lat_gps_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName());
   est_lat_gps_->initialize(nh, ch_);
 
-  est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_);
+  est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
   est_alt_garmin_->initialize(nh, ch_);
 
-  est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_);
+  est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
   est_hdg_mavros_->initialize(nh, ch_);
 
   // | ------------------ initialize published messages ------------------ |

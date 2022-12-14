@@ -9,7 +9,7 @@
        <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
         <range top="9.310276" left="1590.194567" bottom="9.279515" right="1617.198167"/>
         <limitY/>
-        <curve color="#05c100" name="/uav0/estimation_manager/uav_state_out/pose/position/x"/>
+        <curve color="#05c100" name="/uav0/estimation_manager/uav_state/pose/position/x"/>
         <curve color="#05c100" name="/uav0/estimation_manager/odom_main/pose/pose/position/x"/>
         <curve color="#0400ff" name="/uav0/mavros/local_position/odom/pose/pose/position/x"/>
        </plot>
@@ -27,7 +27,7 @@
        <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
         <range top="-2.982983" left="1590.194567" bottom="-3.019970" right="1617.198167"/>
         <limitY/>
-        <curve color="#00c300" name="/uav0/estimation_manager/uav_state_out/pose/position/y"/>
+        <curve color="#00c300" name="/uav0/estimation_manager/uav_state/pose/position/y"/>
         <curve color="#00b009" name="/uav0/estimation_manager/odom_main/pose/pose/position/y"/>
         <curve color="#0005ff" name="/uav0/mavros/local_position/odom/pose/pose/position/y"/>
        </plot>
@@ -45,7 +45,7 @@
        <plot style="Lines" flip_x="false" mode="TimeSeries" flip_y="false">
         <range top="0.025327" left="1590.194567" bottom="-0.095635" right="1617.198167"/>
         <limitY/>
-        <curve color="#03ba22" name="/uav0/estimation_manager/uav_state_out/pose/position/z"/>
+        <curve color="#03ba22" name="/uav0/estimation_manager/uav_state/pose/position/z"/>
         <curve color="#00bd0e" name="/uav0/estimation_manager/odom_main/pose/pose/position/z"/>
         <curve color="#0c00ff" name="/uav0/mavros/local_position/odom/pose/pose/position/z"/>
        </plot>
@@ -72,7 +72,7 @@
         <curve color="#00c20a" name="/uav0/estimation_manager/odom_main/twist/twist/linear/x"/>
         <curve color="#000eff" name="/uav0/mavros/local_position/odom/twist/twist/linear/x"/>
         <curve color="#1f77b4" name="/uav0/odometry/odom_main/twist/twist/linear/x"/>
-        <curve color="#ff7f0e" name="/uav0/estimation_manager/uav_state_out/velocity/linear/x"/>
+        <curve color="#ff7f0e" name="/uav0/estimation_manager/uav_state/velocity/linear/x"/>
        </plot>
       </DockArea>
       <DockArea name="...">
@@ -91,7 +91,7 @@
         <curve color="#00b601" name="/uav0/estimation_manager/odom_main/twist/twist/linear/y"/>
         <curve color="#0404ed" name="/uav0/mavros/local_position/odom/twist/twist/linear/y"/>
         <curve color="#d62728" name="/uav0/odometry/odom_main/twist/twist/linear/y"/>
-        <curve color="#f14cc1" name="/uav0/estimation_manager/uav_state_out/velocity/linear/y"/>
+        <curve color="#f14cc1" name="/uav0/estimation_manager/uav_state/velocity/linear/y"/>
        </plot>
       </DockArea>
       <DockArea name="...">
@@ -110,7 +110,7 @@
         <curve color="#00ad07" name="/uav0/estimation_manager/odom_main/twist/twist/linear/z"/>
         <curve color="#0e1bff" name="/uav0/mavros/local_position/odom/twist/twist/linear/z"/>
         <curve color="#1ac938" name="/uav0/odometry/odom_main/twist/twist/linear/z"/>
-        <curve color="#9467bd" name="/uav0/estimation_manager/uav_state_out/velocity/linear/z"/>
+        <curve color="#9467bd" name="/uav0/estimation_manager/uav_state/velocity/linear/z"/>
        </plot>
       </DockArea>
       <DockArea name="...">

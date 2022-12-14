@@ -32,7 +32,7 @@ namespace mrs_uav_state_estimation
 
 namespace aloam
 {
-const std::string name     = "Aloam";
+const std::string name     = "aloam";
 const std::string frame_id = "aloam_origin";
 }  // namespace aloam
 

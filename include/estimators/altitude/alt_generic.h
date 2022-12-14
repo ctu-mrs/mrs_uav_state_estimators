@@ -51,6 +51,8 @@ class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
   using statecov_t = lkf_t::statecov_t;
 
 private:
+  std::string parent_state_est_name_;
+
   double                 dt_;
   double                 input_coeff_, default_input_coeff_;
   A_t                    A_;
@@ -66,11 +68,11 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
-  std::vector<std::string> correction_names_;
+  std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<alt_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
-  std::atomic<bool> is_input_ready_ = false;
+  std::atomic<bool>                                    is_input_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -80,15 +82,16 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
-  void doCorrection(const z_t& z, const double R, const StateId_t& H_idx);
+  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx);
 
   bool isConverged();
 
-  Q_t getQ();
+  Q_t                getQ();
   mutable std::mutex mtx_Q_;
 
 public:
-  AltGeneric(const std::string name, const std::string ns_frame_id) : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id){};
+  AltGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
+      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name){};
 
   ~AltGeneric(void) {
   }
@@ -116,14 +119,16 @@ public:
   virtual double getInnovation(const int &state_idx) const override;
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
-  virtual void setDt(const double& dt);
-  virtual void setInputCoeff(const double& input_coeff);
-  
+  virtual void setDt(const double &dt);
+  virtual void setInputCoeff(const double &input_coeff);
+
   virtual void generateA();
   virtual void generateB();
 
   void timeoutOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
   void timeoutRange(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
+
+  std::string getNamespacedName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

@@ -29,7 +29,7 @@ namespace mrs_uav_state_estimation
 
 namespace gps_garmin
 {
-const std::string name     = "GpsGarmin";
+const std::string name     = "gps_garmin";
 const std::string frame_id = "gps_garmin_origin";
 }  // namespace gps_garmin
 

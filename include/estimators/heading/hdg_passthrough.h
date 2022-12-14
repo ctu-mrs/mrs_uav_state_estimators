@@ -12,7 +12,7 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
 
-#include "estimators/heading/hdg_generic.h"
+#include "estimators/heading/heading_estimator.h"
 
 //}
 
@@ -26,10 +26,12 @@ const int n_states = 2;
 
 using namespace mrs_lib;
 
-class HdgPassthrough : public HeadingEstimator<hdg_generic::n_states> {
+class HdgPassthrough : public HeadingEstimator<hdg_passthrough::n_states> {
 
 
 private:
+  std::string parent_state_est_name_;
+
   states_t           hdg_state_;
   mutable std::mutex mtx_hdg_state_;
 
@@ -52,7 +54,7 @@ private:
   void       timerCheckHealth(const ros::TimerEvent &event);
 
 public:
-  HdgPassthrough(const std::string name, const std::string ns_frame_id) : HeadingEstimator<hdg_generic::n_states>(name, ns_frame_id){};
+  HdgPassthrough(const std::string& name, const std::string& ns_frame_id, const std::string& parent_state_est_name) : HeadingEstimator<hdg_passthrough::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name){};
 
   ~HdgPassthrough(void) {
   }
@@ -79,6 +81,8 @@ public:
 
   virtual double getInnovation(const int &state_idx) const override;
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
+
+  std::string getNamespacedName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

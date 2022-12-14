@@ -41,6 +41,7 @@
       <!-- Publishers -->
       <remap from="~profiler" to="profiler" />
       <remap from="~odom_main_out" to="~odom_main" />
+      <remap from="~uav_state_out" to="~uav_state" />
 
     </node>
 <!--//}-->

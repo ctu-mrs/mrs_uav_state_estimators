@@ -50,6 +50,7 @@ class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
   using statecov_t = lkf_t::statecov_t;
 
 private:
+  std::string parent_state_est_name_;
 
   double                 dt_;
   double                 input_coeff_;
@@ -71,7 +72,7 @@ private:
   std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
-  std::atomic<bool> is_input_ready_ = false;
+  std::atomic<bool>                                    is_input_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -85,11 +86,12 @@ private:
 
   bool isConverged();
 
-  Q_t getQ();
+  Q_t                getQ();
   mutable std::mutex mtx_Q_;
 
 public:
-  HdgGeneric(const std::string name, const std::string ns_frame_id) : HeadingEstimator<hdg_generic::n_states>(name, ns_frame_id){};
+  HdgGeneric(const std::string& name, const std::string& ns_frame_id, const std::string &parent_state_est_name)
+      : HeadingEstimator<hdg_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name){};
 
   ~HdgGeneric(void) {
   }
@@ -122,6 +124,8 @@ public:
 
   virtual void generateA();
   virtual void generateB();
+
+  std::string getNamespacedName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

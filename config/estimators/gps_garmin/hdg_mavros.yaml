@@ -1,0 +1,5 @@
+# passthrough estimator - no estimation on its own
+gps_garmin: # namespace of the state estimator
+  hdg_mavros: # namespace of the heading estimator
+    message:
+      topic: "mavros/local_position/odom" # without uav namespace

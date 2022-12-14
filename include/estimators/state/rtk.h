@@ -29,7 +29,7 @@ namespace mrs_uav_state_estimation
 
 namespace rtk
 {
-const std::string name     = "Rtk";
+const std::string name     = "rtk";
 const std::string frame_id = "rtk_origin";
 }  // namespace rtk
 

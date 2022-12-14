@@ -8,12 +8,12 @@ frame_id:
 
 # loaded state estimator plugins
 state_estimators: [
-"GpsGarmin",
-"Rtk",
-"Aloam"
+"gps_garmin",
+"rtk",
+"aloam"
 ]
 
-initial_estimator: "Rtk" # will be used as the first estimator
+initial_estimator: "rtk" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

@@ -67,6 +67,7 @@ public:
   std::atomic_bool is_delay_ok_ = true;
   std::atomic_bool is_dt_ok_    = true;
   std::atomic_bool is_nan_free_ = true;
+  std::atomic_bool got_first_msg_ = false;
 
   bool getCorrection(measurement_t& measurement);
 
@@ -191,7 +192,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | --------------- initialize publish handlers -------------- |
-  ph_correction_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/correction/" + getName(), 1);
+  ph_correction_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName(), 1);
 }
 /*//}*/
 
@@ -220,6 +221,18 @@ StateId_t Correction<n_measurements>::getStateId() const {
 /*//{ isHealthy() */
 template <int n_measurements>
 bool Correction<n_measurements>::isHealthy() {
+
+  if (!is_dt_ok_) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: dt not ok", getNamespacedName().c_str());
+  }
+
+  if (!is_delay_ok_) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getNamespacedName().c_str());
+  }
+
+  if (!is_nan_free_) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: nan detected", getNamespacedName().c_str());
+  }
 
   is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_ && is_nan_free_;
 
@@ -318,6 +331,7 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
   }
   /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
 
+  got_first_msg_ = true;
   publishCorrection(measurement, measurement_stamp);
 
   return true;
@@ -542,7 +556,9 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
 /*//{ timeoutCallback() */
 template <int n_measurements>
 void Correction<n_measurements>::timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs) {
-  is_dt_ok_ = false;
+  if (got_first_msg_) {
+    is_dt_ok_ = false;
+  }
   ROS_ERROR_STREAM("[" << getNamespacedName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now() - last_msg).toSec()
                        << " seconds (" << n_pubs << " publishers on topic)");
 }

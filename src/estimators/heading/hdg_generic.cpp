@@ -31,16 +31,16 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/heading/" + getName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
-  mrs_lib::ParamLoader param_loader(nh, getName());
-  param_loader.setPrefix(getName() + "/");
+  mrs_lib::ParamLoader param_loader(nh, getNamespacedName());
+  param_loader.setPrefix(getNamespacedName() + "/");
 
   // | --------------- corrections initialization --------------- |
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_));
+    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -53,12 +53,12 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | ------- check if all parameters loaded successfully ------ |
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
     ros::shutdown();
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_                   = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getName()), getName());
+  drmgr_                   = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getNamespacedName());
   drmgr_->config.pos = Q_(POSITION, POSITION);
   drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
 
@@ -80,7 +80,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getName();
+  shopts.node_name          = getNamespacedName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -90,15 +90,15 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getName().c_str(), VERSION);
+    ROS_INFO("[%s]: Estimator initialized, version %s", getNamespacedName().c_str(), VERSION);
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator could not be initialized", getNamespacedName().c_str());
   }
 }
 /*//}*/
@@ -112,7 +112,7 @@ bool HdgGeneric::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getName().c_str());
+    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getNamespacedName().c_str());
     return false;
   }
 }
@@ -135,7 +135,7 @@ bool HdgGeneric::pause(void) {
 bool HdgGeneric::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getName().c_str());
+    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getNamespacedName().c_str());
     return false;
   }
 
@@ -150,7 +150,7 @@ bool HdgGeneric::reset(void) {
   // Instantiate the LKF itself
   lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
 
-  ROS_INFO("[%s]: Estimator reset", getName().c_str());
+  ROS_INFO("[%s]: Estimator reset", getNamespacedName().c_str());
 
   return true;
 }
@@ -193,7 +193,7 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
-    ROS_ERROR("[%s]: LKF prediction failed: %s", getName().c_str(), e.what());
+    ROS_ERROR("[%s]: LKF prediction failed: %s", getNamespacedName().c_str(), e.what());
   }
 
   for (auto correction : corrections_) {
@@ -220,12 +220,12 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getName().c_str()); 
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getNamespacedName().c_str()); 
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getName().c_str()); 
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getNamespacedName().c_str()); 
       break;
     }
 
@@ -237,19 +237,19 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           setState(z(AXIS_X), correction->getStateId(), AXIS_X);
           setState(z(AXIS_Y), correction->getStateId(), AXIS_Y);
         } else {
-          ROS_INFO("[%s]: Waiting for correction %s", getName().c_str(), correction->getName().c_str());
+          ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
-      ROS_INFO("[%s]: Ready to start", getName().c_str());
+      ROS_INFO("[%s]: Ready to start", getNamespacedName().c_str());
       changeState(READY_STATE);
       break;
     }
 
     case STARTED_STATE: {
-      ROS_INFO("[%s]: Waiting for convergence of LKF", getName().c_str());
+      ROS_INFO("[%s]: Waiting for convergence of LKF", getNamespacedName().c_str());
       if (isConverged()) {
-        ROS_INFO("[%s]: LKF converged", getName().c_str());
+        ROS_INFO("[%s]: LKF converged", getNamespacedName().c_str());
         changeState(RUNNING_STATE);
       }
       break;
@@ -258,7 +258,7 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getName().c_str(), correction->getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -266,16 +266,16 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
 
     case STOPPED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getName().c_str()); 
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getNamespacedName().c_str()); 
       break;
     }
 
     case ERROR_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getName().c_str()); 
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getNamespacedName().c_str()); 
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getName().c_str(), correction->getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -293,7 +293,7 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getName().c_str(), (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getNamespacedName().c_str(), (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
@@ -308,7 +308,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     innovation_(0) = z(0) - getState(POSITION);
 
     if (innovation_(0) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getName().c_str(), innovation_(0));
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getNamespacedName().c_str(), innovation_(0));
     }
   }
 
@@ -324,7 +324,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
-    ROS_ERROR("[%s]: LKF correction failed: %s", getName().c_str(), e.what());
+    ROS_ERROR("[%s]: LKF correction failed: %s", getNamespacedName().c_str(), e.what());
   }
 }
 /*//}*/
@@ -458,6 +458,12 @@ HdgGeneric::Q_t HdgGeneric::getQ() {
   Q_(VELOCITY, VELOCITY)         = drmgr_->config.vel;
   return Q_;
 }
+/*//}*/
+
+/*//{ getNamespacedName() */
+  std::string HdgGeneric::getNamespacedName() const {
+    return parent_state_est_name_ + "/" + getName();
+  }
 /*//}*/
 
 };  // namespace mrs_uav_state_estimation

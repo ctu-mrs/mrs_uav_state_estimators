@@ -26,14 +26,14 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   // clang-format on
 
   // | --------------- corrections initialization --------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/heading/" + getName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
-  mrs_lib::ParamLoader param_loader(nh, getName());
-  param_loader.setPrefix(getName() + "/");
+  mrs_lib::ParamLoader param_loader(nh, getNamespacedName());
+  param_loader.setPrefix(getNamespacedName() + "/");
   param_loader.loadParam("message/topic", odom_topic_);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
     ros::shutdown();
   }
 
@@ -47,7 +47,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getName();
+  shopts.node_name          = getNamespacedName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -57,15 +57,15 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "/" + ch_->uav_name + "/" + odom_topic_);
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getName().c_str(), VERSION);
+    ROS_INFO("[%s]: Estimator initialized, version %s", getNamespacedName().c_str(), VERSION);
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator could not be initialized", getNamespacedName().c_str());
   }
 }
 /*//}*/
@@ -79,7 +79,7 @@ bool HdgPassthrough::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getName().c_str());
+    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getNamespacedName().c_str());
     return false;
   }
 }
@@ -102,13 +102,13 @@ bool HdgPassthrough::pause(void) {
 bool HdgPassthrough::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getName().c_str());
+    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getNamespacedName().c_str());
     return false;
   }
 
   changeState(STOPPED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getName().c_str());
+  ROS_INFO("[%s]: Estimator reset", getNamespacedName().c_str());
 
   return true;
 }
@@ -129,7 +129,7 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
   if (res) {
     hdg_rate = res.value();
   } else {
-    ROS_ERROR("[%s]: could not get heading rate", getName().c_str());
+    ROS_ERROR("[%s]: could not get heading rate", getNamespacedName().c_str());
   }
 
   {
@@ -139,10 +139,10 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
     innovation_(1) = hdg_rate - getState(VELOCITY);
 
     if (innovation_(0) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getName().c_str(), innovation_(0));
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getNamespacedName().c_str(), innovation_(0));
     }
     if (innovation_(1) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg_rate: %.2f", getName().c_str(), innovation_(1));
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg_rate: %.2f", getNamespacedName().c_str(), innovation_(1));
     }
   }
 
@@ -164,12 +164,12 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(INITIALIZED_STATE)) {
 
     changeState(READY_STATE);
-    ROS_INFO("[%s]: Ready to start", getName().c_str());
+    ROS_INFO("[%s]: Ready to start", getNamespacedName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
 
-    ROS_INFO("[%s]: Estimator Running", getName().c_str());
+    ROS_INFO("[%s]: Estimator Running", getNamespacedName().c_str());
     changeState(RUNNING_STATE);
   }
 
@@ -252,6 +252,12 @@ double HdgPassthrough::getInnovation(const int &state_idx) const {
 double HdgPassthrough::getInnovation(const int &state_id_in, const int &axis_in) const {
   return getInnovation(stateIdToIndex(state_id_in, 0));
 }
+/*//}*/
+
+/*//{ getNamespacedName() */
+  std::string HdgPassthrough::getNamespacedName() const {
+    return parent_state_est_name_ + "/" + getName();
+  }
 /*//}*/
 
 };  // namespace mrs_uav_state_estimation
