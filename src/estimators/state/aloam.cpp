@@ -38,6 +38,7 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
+  ph_odom_             = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 1);
   ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
@@ -202,6 +203,11 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
   }
 
   {
+    std::scoped_lock lock(mtx_uav_state_, mtx_odom_);
+    odom_ = Support::uavStateToOdom(uav_state_, ch_->transformer);
+  }
+
+  {
     std::scoped_lock lock(mtx_innovation_);
 
     innovation_.header.stamp = time_now;
@@ -230,6 +236,7 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
   }
 
   publishUavState();
+  publishOdom();
   publishCovariance();
   publishInnovation();
   publishDiagnostics();

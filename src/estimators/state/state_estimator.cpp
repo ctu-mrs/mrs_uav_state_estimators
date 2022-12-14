@@ -10,6 +10,14 @@ void StateEstimator::publishUavState() const {
 }
 /*//}*/
 
+/*//{ publishOdom() */
+void StateEstimator::publishOdom() const {
+
+  std::scoped_lock lock(mtx_odom_);
+  ph_odom_.publish(odom_);
+}
+/*//}*/
+
 /*//{ publishCovariance() */
 void StateEstimator::publishCovariance() const {
   std::scoped_lock lock(mtx_covariance_);

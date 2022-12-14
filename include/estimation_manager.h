@@ -311,8 +311,6 @@ private:
   bool switchToHealthyEstimator();
   void switchToEstimator(const boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>& target_estimator);
 
-  nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState &uav_state) const;
-
 public:
   EstimationManager();
 

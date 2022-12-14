@@ -160,7 +160,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     ph_uav_state_.publish(uav_state);
 
-    nav_msgs::Odometry odom_main = uavStateToOdom(uav_state);
+    nav_msgs::Odometry odom_main = Support::uavStateToOdom(uav_state, ch_->transformer);
 
     const std::vector<double> pose_covariance = active_estimator_->getPoseCovariance();
     for (size_t i = 0; i < pose_covariance.size(); i++) {
@@ -330,22 +330,6 @@ bool EstimationManager::callFailsafeService() {
 /*//{ getName() */
 std::string EstimationManager::getName() const {
   return nodelet_name_;
-}
-/*//}*/
-
-/*//{ uavStateToOdom() */
-nav_msgs::Odometry EstimationManager::uavStateToOdom(const mrs_msgs::UavState& uav_state) const {
-  nav_msgs::Odometry odom;
-  odom.header              = uav_state.header;
-  odom.child_frame_id      = uav_state.child_frame_id;
-  odom.pose.pose           = uav_state.pose;
-  odom.twist.twist.angular = uav_state.velocity.angular;
-
-  tf2::Quaternion q;
-  tf2::fromMsg(odom.pose.pose.orientation, q);
-  odom.twist.twist.linear = Support::rotateTwist(uav_state.velocity.linear, q.inverse(), ch_->transformer);
-
-  return odom;
 }
 /*//}*/
 

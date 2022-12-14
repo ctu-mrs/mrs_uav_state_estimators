@@ -30,6 +30,7 @@
       <param name="frame_id/fcu_untilted" value="$(arg fcu_untilted_frame_id)" />
 
       <rosparam file="$(find mrs_uav_state_estimation)/config/transform_manager.yaml" command="load" />
+      <rosparam file="$(find mrs_uav_state_estimation)/config/estimation_manager.yaml" command="load" />
 
       <!-- Subscribers -->
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />

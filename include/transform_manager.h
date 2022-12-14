@@ -36,10 +36,11 @@ public:
     ROS_INFO("[%s]: initializing", getName().c_str());
 
     mrs_lib::ParamLoader param_loader(nh_, getName());
-    std::string          uav_name, ns;
+    std::string          uav_name, topic, ns;
     param_loader.loadParam("uav_name", uav_name);
+    param_loader.loadParam(getName() + "/topic", topic);
     param_loader.loadParam(getName() + "/namespace", ns);
-    const std::string topic = "/" + uav_name + "/" + ns + "/" + getName();
+    const std::string full_topic = "/" + uav_name + "/" + ns + "/" + topic;
     param_loader.loadParam(getName() + "/inverted", inverted_);
     param_loader.loadParam(getName() + "/republish_in_frames", republish_in_frames_);
 
@@ -53,7 +54,7 @@ public:
     shopts.queue_size         = 10;
     shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-    sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, topic, &TfSource::callbackTfSource, this);
+    sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic, &TfSource::callbackTfSource, this);
 
     if (!param_loader.loadedSuccessfully()) {
       ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
@@ -160,7 +161,7 @@ private:
 
   bool publish_fcu_untilted_tf_;
 
-  std::vector<std::string>               tf_source_names_;
+  std::vector<std::string>               tf_source_names_, estimator_names_;
   std::vector<std::unique_ptr<TfSource>> tf_sources_;
 
   ros::NodeHandle nh_;

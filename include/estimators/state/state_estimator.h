@@ -13,6 +13,7 @@
 #include <mrs_msgs/Float64ArrayStamped.h>
 
 #include "estimators/estimator.h"
+#include "support.h"
 
 //}
 
@@ -30,6 +31,9 @@ protected:
   mrs_msgs::UavState uav_state_;
   mutable std::mutex mtx_uav_state_;
 
+  nav_msgs::Odometry odom_;
+  mutable std::mutex mtx_odom_;
+
   nav_msgs::Odometry innovation_;
   mutable std::mutex mtx_innovation_;
 
@@ -38,6 +42,7 @@ protected:
 
 protected:
   mutable mrs_lib::PublisherHandler<mrs_msgs::UavState>            ph_uav_state_;
+  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_odom_;
   mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_pose_covariance_, ph_twist_covariance_;
   mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_innovation_;
 
@@ -57,6 +62,7 @@ public:
 
   // implemented methods
   void publishUavState() const;
+  void publishOdom() const;
   void publishCovariance() const;
   void publishInnovation() const;
   geometry_msgs::Quaternion rotateQuaternionByHeading(const geometry_msgs::Quaternion& q, const double hdg) const;

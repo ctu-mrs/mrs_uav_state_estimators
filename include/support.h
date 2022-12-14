@@ -12,6 +12,10 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PointStamped.h>
 
+#include <nav_msgs/Odometry.h>
+
+#include <mrs_msgs/UavState.h>
+
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 
@@ -189,6 +193,21 @@ public:
   }
   /*//}*/
 
+/*//{ uavStateToOdom() */
+static nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState& uav_state, const std::shared_ptr<mrs_lib::Transformer>& transformer) {
+  nav_msgs::Odometry odom;
+  odom.header              = uav_state.header;
+  odom.child_frame_id      = uav_state.child_frame_id;
+  odom.pose.pose           = uav_state.pose;
+  odom.twist.twist.angular = uav_state.velocity.angular;
+
+  tf2::Quaternion q;
+  tf2::fromMsg(odom.pose.pose.orientation, q);
+  odom.twist.twist.linear = Support::rotateTwist(uav_state.velocity.linear, q.inverse(), transformer);
+
+  return odom;
+}
+/*//}*/
 private:
   Support(){};
 };

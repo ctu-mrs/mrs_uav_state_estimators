@@ -47,6 +47,14 @@ void TransformManager::onInit() {
     ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
     tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_));
   }
+
+  // additionally publish tf of all available estimators
+  param_loader.loadParam("/" + uav_name_ + "/estimation_manager/state_estimators", estimator_names_);
+  for (int i = 0; i < int(estimator_names_.size()); i++) {
+    const std::string estimator_name = estimator_names_[i];
+    ROS_INFO("[%s]: loading tf source of estimator: %s", getName().c_str(), estimator_name.c_str());
+    tf_sources_.push_back(std::make_unique<TfSource>(estimator_name, nh_, broadcaster_));
+  }
 /*//}*/
 
 /*//{ initialize subscribers */
