@@ -28,7 +28,31 @@ void TransformManager::onInit() {
 
   param_loader.loadParam("uav_name", uav_name_);
 
-/*//{ load fcu_untilted parameters */
+    bool is_origin_param_ok = true;
+    param_loader.loadParam("utm_origin_units", utm_origin_units_);
+    if (utm_origin_units_ == 0) {
+      ROS_INFO("[Odometry]: Loading UTM origin in UTM units.");
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_x", utm_origin_x_);
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_y", utm_origin_y_);
+    } else {
+      double lat, lon;
+      ROS_INFO("[Odometry]: Loading UTM origin in LatLon units.");
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
+      ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", utm_origin_x_, utm_origin_y_);
+      mrs_lib::UTM(lat, lon, &utm_origin_x_, &utm_origin_y_);
+    }
+
+    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_origin_local", init_gps_origin_local_); */
+    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_x", init_gps_offset_x_); */
+    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_y", init_gps_offset_y_); */
+
+    if (!is_origin_param_ok) {
+      ROS_ERROR("[Odometry]: Could not load all mandatory parameters from world file. Please check your world file.");
+      ros::shutdown();
+    }
+
+  /*//{ load fcu_untilted parameters */
   std::string fcu_frame_id;
   param_loader.loadParam("fcu_untilted_tf/parent", fcu_frame_id);
   ns_fcu_frame_id_ = uav_name_ + "/" + fcu_frame_id;
@@ -38,9 +62,9 @@ void TransformManager::onInit() {
   ns_fcu_untilted_frame_id_ = uav_name_ + "/" + fcu_untilted_frame_id;
 
   param_loader.loadParam("fcu_untilted_tf/enabled", publish_fcu_untilted_tf_);
-/*//}*/
+  /*//}*/
 
-/*//{ initialize tf sources */
+  /*//{ initialize tf sources */
   param_loader.loadParam("tf_sources", tf_source_names_);
   for (int i = 0; i < int(tf_source_names_.size()); i++) {
     const std::string tf_source_name = tf_source_names_[i];
@@ -55,9 +79,9 @@ void TransformManager::onInit() {
     ROS_INFO("[%s]: loading tf source of estimator: %s", getName().c_str(), estimator_name.c_str());
     tf_sources_.push_back(std::make_unique<TfSource>(estimator_name, nh_, broadcaster_));
   }
-/*//}*/
+  /*//}*/
 
-/*//{ initialize subscribers */
+  /*//{ initialize subscribers */
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
@@ -69,7 +93,9 @@ void TransformManager::onInit() {
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in", &TransformManager::callbackMavrosOdom, this);
-/*//}*/
+
+  sh_mavros_utm_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, "mavros_utm_in", &TransformManager::callbackMavrosUtm, this);
+  /*//}*/
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
@@ -87,6 +113,43 @@ void TransformManager::callbackMavrosOdom(mrs_lib::SubscribeHandler<nav_msgs::Od
 
   if (publish_fcu_untilted_tf_) {
     publishFcuUntiltedTf(msg);
+  }
+}
+/*//}*/
+
+/*//{ callbackMavrosUtm() */
+void TransformManager::callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp) {
+
+  if (!got_mavros_utm_offset_) {
+
+    sensor_msgs::NavSatFixConstPtr msg = wrp.getMsg();
+
+    double out_x;
+    double out_y;
+
+    mrs_lib::UTM(msg->latitude, msg->longitude, &out_x, &out_y);
+
+    if (!std::isfinite(out_x)) {
+      ROS_ERROR_THROTTLE(1.0, "[Odometry]: NaN detected in UTM variable \"out_x\"!!!");
+      return;
+    }
+
+    if (!std::isfinite(out_y)) {
+      ROS_ERROR_THROTTLE(1.0, "[Odometry]: NaN detected in UTM variable \"out_y\"!!!");
+      return;
+    }
+
+    geometry_msgs::Point init_utm;
+    init_utm.x = out_x;
+    init_utm.y = out_y;
+    init_utm.z = msg->altitude;
+
+    ROS_INFO("[%s]: init_utm position calculated as: x: %.2f, y: %.2f, z: %.2f", getName().c_str(), init_utm.x, init_utm.y, init_utm.z);
+
+    for (size_t i=0; i<tf_sources_.size(); i++) {
+      tf_sources_[i]->setInitUtm(init_utm); 
+    }
+    got_mavros_utm_offset_ = true;
   }
 }
 /*//}*/

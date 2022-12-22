@@ -12,9 +12,13 @@
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 #include <mrs_lib/transform_broadcaster.h>
+#include <mrs_lib/gps_conversions.h>
 
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
+
+#include <sensor_msgs/NavSatFix.h>
 
 #include <nav_msgs/Odometry.h>
 
@@ -35,16 +39,29 @@ public:
 
     ROS_INFO("[%s]: initializing", getName().c_str());
 
+    /*//{ load parameters */
     mrs_lib::ParamLoader param_loader(nh_, getName());
     std::string          uav_name, topic, ns;
     param_loader.loadParam("uav_name", uav_name);
     param_loader.loadParam(getName() + "/topic", topic);
     param_loader.loadParam(getName() + "/namespace", ns);
-    const std::string full_topic = "/" + uav_name + "/" + ns + "/" + topic;
-    param_loader.loadParam(getName() + "/inverted", inverted_);
+    full_topic_ = "/" + uav_name + "/" + ns + "/" + topic;
+    param_loader.loadParam(getName() + "/inverted", is_inverted_);
     param_loader.loadParam(getName() + "/republish_in_frames", republish_in_frames_);
 
-    // | --------------- subscribers initialization --------------- |
+    /* coordinate frames origins //{ */
+    param_loader.loadParam(getName() + "/utm_based", is_utm_based_);
+
+    if (!param_loader.loadedSuccessfully()) {
+      ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+      ros::shutdown();
+    }
+
+    //}
+
+    /*//}*/
+
+    /*//{ initialize subscribers */
     mrs_lib::SubscribeHandlerOptions shopts;
     shopts.nh                 = nh_;
     shopts.node_name          = getName();
@@ -54,12 +71,8 @@ public:
     shopts.queue_size         = 10;
     shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-    sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic, &TfSource::callbackTfSource, this);
-
-    if (!param_loader.loadedSuccessfully()) {
-      ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
-      ros::shutdown();
-    }
+    sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic_, &TfSource::callbackTfSource, this);
+    /*//}*/
 
     is_initialized_ = true;
     ROS_INFO("[%s]: initialized", getName().c_str());
@@ -72,19 +85,42 @@ public:
   }
   /*//}*/
 
+  /*//{ setInitUtm() */
+  void setInitUtm(const geometry_msgs::Point& init_utm) {
+
+    if (is_utm_based_ && !is_init_utm_set_) {
+      init_utm_        = init_utm;
+      is_init_utm_set_ = true;
+    }
+  }
+  /*//}*/
+
 private:
   const std::string name_;
 
   ros::NodeHandle nh_;
 
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
-  bool                                           inverted_;
+  tf2_ros::StaticTransformBroadcaster            static_broadcaster_;
 
-  std::atomic_bool is_initialized_ = false;
+  bool is_inverted_;
+
+  bool                 is_utm_based_;
+  bool                 is_init_utm_set_ = false;
+  geometry_msgs::Point init_utm_;
+
+  std::string full_topic_;
+
+  std::atomic_bool is_initialized_               = false;
+  std::atomic_bool is_local_static_tf_published_ = false;
+  std::atomic_bool is_utm_static_tf_published_   = false;
 
   std::vector<std::string> republish_in_frames_;
 
+
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_tf_source_;
+  nav_msgs::OdometryConstPtr                    first_msg_;
+
   /*//{ callbackTfSource()*/
   void callbackTfSource(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
 
@@ -93,7 +129,16 @@ private:
     }
 
     nav_msgs::OdometryConstPtr msg = wrp.getMsg();
+    first_msg_                     = msg;
     publishTfFromOdom(msg);
+
+    if (!is_local_static_tf_published_) {
+      publishLocalTf(msg->header.frame_id);
+    }
+
+    if (is_utm_based_ && is_init_utm_set_ && !is_utm_static_tf_published_) {
+      publishUtmTf(msg->header.frame_id);
+    }
   }
   /*//}*/
 
@@ -104,7 +149,7 @@ private:
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp = odom->header.stamp;
 
-    if (inverted_) {
+    if (is_inverted_) {
 
       const tf2::Transform      tf       = Support::tf2FromPose(odom->pose.pose);
       const tf2::Transform      tf_inv   = tf.inverse();
@@ -133,10 +178,73 @@ private:
       ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
                         tf_msg.child_frame_id.c_str());
     }
-    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on odometry: %s", getName().c_str(),
-                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), getName().c_str());
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on topic: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                  tf_msg.child_frame_id.c_str(), full_topic_.c_str());
   }
   /*//}*/
+
+  /* publishLocalTf() //{*/
+  void publishLocalTf(const std::string& frame_id) {
+
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp = ros::Time::now();
+
+    tf_msg.header.frame_id       = frame_id;
+    tf_msg.child_frame_id        = frame_id.substr(0, frame_id.find("_origin")) + "_local_origin";
+    tf_msg.transform.translation = Support::pointToVector3(first_msg_->pose.pose.position);
+    tf_msg.transform.rotation    = first_msg_->pose.pose.orientation;
+
+    if (Support::noNans(tf_msg)) {
+      try {
+        static_broadcaster_.sendTransform(tf_msg);
+      }
+      catch (...) {
+        ROS_ERROR("exception caught ");
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                        tf_msg.child_frame_id.c_str());
+    }
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+    is_local_static_tf_published_ = true;
+  }
+  /*//}*/
+
+  /* publishUtmTf() //{*/
+  void publishUtmTf(const std::string& frame_id) {
+
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp = ros::Time::now();
+
+    tf_msg.header.frame_id         = frame_id;
+    tf_msg.child_frame_id          = frame_id.substr(0, frame_id.find("_origin")) + "_utm_origin";
+    tf_msg.transform.translation.x = init_utm_.x;
+    tf_msg.transform.translation.y = init_utm_.y;
+    tf_msg.transform.rotation.x    = 0;
+    tf_msg.transform.rotation.y    = 0;
+    tf_msg.transform.rotation.z    = 0;
+    tf_msg.transform.rotation.w    = 1;
+
+    if (Support::noNans(tf_msg)) {
+      try {
+        static_broadcaster_.sendTransform(tf_msg);
+      }
+      catch (...) {
+        ROS_ERROR("exception caught ");
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                        tf_msg.child_frame_id.c_str());
+    }
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+    is_utm_static_tf_published_ = true;
+  }
+  /*//}*/
+
 };
 
 /*//}*/
@@ -161,6 +269,9 @@ private:
 
   bool publish_fcu_untilted_tf_;
 
+  int    utm_origin_units_;
+  double utm_origin_x_, utm_origin_y_;
+
   std::vector<std::string>               tf_source_names_, estimator_names_;
   std::vector<std::unique_ptr<TfSource>> tf_sources_;
 
@@ -168,6 +279,11 @@ private:
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   void                                          callbackMavrosOdom(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+
+  mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_mavros_utm_;
+  void                                              callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp);
+  std::atomic<bool>                                 got_mavros_utm_offset_ = false;
+  double                                            init_utm_x_, init_utm_y_, init_utm_z_;
 
   mrs_lib::Transformer                           transformer_;
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
