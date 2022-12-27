@@ -82,7 +82,6 @@ void TransformManager::onInit() {
   /*//}*/
 
   /*//{ initialize subscribers */
-  // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
   shopts.node_name          = getName();

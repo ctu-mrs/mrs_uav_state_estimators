@@ -51,13 +51,25 @@ public:
 
     /* coordinate frames origins //{ */
     param_loader.loadParam(getName() + "/utm_based", is_utm_based_);
+    if (is_utm_based_) {
+      param_loader.loadParam(getName() + "/in_utm", is_in_utm_);
+    }
+
+    // set initial UTM coordinates to zero for tf sources already in UTF frame
+    if (is_in_utm_) {
+      geometry_msgs::Point origin_pt;
+      origin_pt.x = 0;
+      origin_pt.y = 0;
+      origin_pt.z = 0;
+      setInitUtm(origin_pt);
+    }
+
+    //}
 
     if (!param_loader.loadedSuccessfully()) {
       ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
       ros::shutdown();
     }
-
-    //}
 
     /*//}*/
 
@@ -106,6 +118,7 @@ private:
   bool is_inverted_;
 
   bool                 is_utm_based_;
+  bool                 is_in_utm_       = false;
   bool                 is_init_utm_set_ = false;
   geometry_msgs::Point init_utm_;
 
@@ -221,8 +234,9 @@ private:
 
     tf_msg.header.frame_id         = frame_id;
     tf_msg.child_frame_id          = frame_id.substr(0, frame_id.find("_origin")) + "_utm_origin";
-    tf_msg.transform.translation.x = init_utm_.x;
-    tf_msg.transform.translation.y = init_utm_.y;
+    tf_msg.transform.translation.x = -init_utm_.x;  // minus because inverse tf tree
+    tf_msg.transform.translation.y = -init_utm_.y;  // minus because inverse tf tree
+    tf_msg.transform.translation.z = 0;
     tf_msg.transform.rotation.x    = 0;
     tf_msg.transform.rotation.y    = 0;
     tf_msg.transform.rotation.z    = 0;
@@ -244,7 +258,6 @@ private:
     is_utm_static_tf_published_ = true;
   }
   /*//}*/
-
 };
 
 /*//}*/
