@@ -6,6 +6,12 @@ local_origin_tf:
   # child: "local_origin"
   child: "local_origin_dummy"
 
+stable_origin_tf:
+  enabled: true # stable_origin tf should be published by default unless some other node already publishes it
+  parent: "fcu" # fcu should be the parent if using the default inverted mrs tf tree convention with fcu as the root of the tf tree
+  # child: "stable_origin"
+  child: "stable_origin_dummy"
+
 fcu_untilted_tf:
   enabled: true # fcu_untilted tf should be published by default unless some other node already publishes it
   parent: "fcu" # fcu should be the parent if using the default inverted mrs tf tree convention with fcu as the root of the tf tree

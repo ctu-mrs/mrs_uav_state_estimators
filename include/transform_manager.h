@@ -340,6 +340,10 @@ private:
   std::string ns_local_origin_child_frame_id_;
   bool publish_local_origin_tf_;
 
+  std::string ns_stable_origin_parent_frame_id_;
+  std::string ns_stable_origin_child_frame_id_;
+  bool publish_stable_origin_tf_;
+
   int    world_origin_units_;
   geometry_msgs::Point world_origin_;
 

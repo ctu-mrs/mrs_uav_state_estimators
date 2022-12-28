@@ -72,6 +72,18 @@ void TransformManager::onInit() {
   param_loader.loadParam("local_origin_tf/enabled", publish_local_origin_tf_);
   /*//}*/
 
+  /*//{ load stable_origin parameters */
+  std::string stable_origin_parent_frame_id;
+  param_loader.loadParam("stable_origin_tf/parent", stable_origin_parent_frame_id);
+  ns_stable_origin_parent_frame_id_ = uav_name_ + "/" + stable_origin_parent_frame_id;
+
+  std::string stable_origin_child_frame_id;
+  param_loader.loadParam("stable_origin_tf/child", stable_origin_child_frame_id);
+  ns_stable_origin_child_frame_id_ = uav_name_ + "/" + stable_origin_child_frame_id;
+
+  param_loader.loadParam("stable_origin_tf/enabled", publish_stable_origin_tf_);
+  /*//}*/
+
   /*//{ load fcu_untilted parameters */
   std::string fcu_frame_id;
   param_loader.loadParam("fcu_untilted_tf/parent", fcu_frame_id);
@@ -134,16 +146,57 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
   // obtain first frame_id
   mrs_msgs::UavStateConstPtr msg = wrp.getMsg();
   if (!is_first_frame_id_set_) {
-    first_frame_id_  =       msg->header.frame_id.substr(0, msg->header.frame_id.find("_origin")) + "_local_origin";
+    first_frame_id_  =       msg->header.frame_id;
     is_first_frame_id_set_ = true;
   }
 
   if (publish_local_origin_tf_) {
-
+/*//{ publish local_origin tf*/
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp    = msg->header.stamp;
     tf_msg.header.frame_id = ns_local_origin_parent_frame_id_;
     tf_msg.child_frame_id  = ns_local_origin_child_frame_id_;
+
+    // transform pose to first frame_id
+    geometry_msgs::PoseStamped pose;
+    pose.header = msg->header;
+    pose.pose   = msg->pose;
+
+    auto res = transformer_.transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
+
+    if (res) {
+      const tf2::Transform      tf       = Support::tf2FromPose(res->pose);
+      const tf2::Transform      tf_inv   = tf.inverse();
+      const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
+      tf_msg.transform.translation       = Support::pointToVector3(pose_inv.position);
+      tf_msg.transform.rotation          = pose_inv.orientation;
+
+      if (Support::noNans(tf_msg)) {
+        try {
+          broadcaster_->sendTransform(tf_msg);
+        }
+        catch (...) {
+          ROS_ERROR("exception caught ");
+        }
+      } else {
+        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                          tf_msg.child_frame_id.c_str());
+      }
+      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                    tf_msg.child_frame_id.c_str());
+    } else {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getName().c_str(), first_frame_id_.c_str());
+      return;
+    }
+/*//}*/
+  }
+
+  if (publish_stable_origin_tf_) {
+/*//{ publish stable_origin tf*/
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp    = msg->header.stamp;
+    tf_msg.header.frame_id = ns_stable_origin_parent_frame_id_;
+    tf_msg.child_frame_id  = ns_stable_origin_child_frame_id_;
 
     // transform pose to first frame_id
     geometry_msgs::PoseStamped pose;
@@ -173,10 +226,12 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
       ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
                     tf_msg.child_frame_id.c_str());
     } else {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getName().c_str(), first_frame_id_.c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing stable_origin transform.", getName().c_str(), first_frame_id_.c_str());
       return;
     }
+/*//}*/
   }
+
 }
 /*//}*/
 
