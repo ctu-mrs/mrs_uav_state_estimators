@@ -14,6 +14,8 @@
 #include <mrs_lib/transform_broadcaster.h>
 #include <mrs_lib/gps_conversions.h>
 
+#include <mrs_msgs/UavState.h>
+
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -329,10 +331,14 @@ private:
 
   std::string version_;
   std::string uav_name_;
+
   std::string ns_fcu_frame_id_;
   std::string ns_fcu_untilted_frame_id_;
-
   bool publish_fcu_untilted_tf_;
+
+  std::string ns_local_origin_parent_frame_id_;
+  std::string ns_local_origin_child_frame_id_;
+  bool publish_local_origin_tf_;
 
   int    world_origin_units_;
   geometry_msgs::Point world_origin_;
@@ -341,6 +347,11 @@ private:
   std::vector<std::unique_ptr<TfSource>> tf_sources_;
 
   ros::NodeHandle nh_;
+
+  mrs_lib::SubscribeHandler<mrs_msgs::UavState> sh_uav_state_;
+  void                                          callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavState>& wrp);
+  std::string first_frame_id_;
+  bool is_first_frame_id_set_ = false;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   void                                          callbackMavrosOdom(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);

@@ -68,6 +68,7 @@
       <rosparam file="$(find mrs_uav_state_estimation)/config/transform_manager.yaml" command="load" />
 
       <!-- Subscribers -->
+      <remap from="~uav_state_in" to="estimation_manager/uav_state" />
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
       <remap from="~mavros_utm_in" to="mavros/global_position/global" />
 

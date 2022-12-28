@@ -14,6 +14,9 @@ void TransformManager::onInit() {
 
   broadcaster_ = std::make_shared<mrs_lib::TransformBroadcaster>();
 
+  transformer_ = mrs_lib::Transformer(nh_, getName());
+  transformer_.retryLookupNewest(true);
+
   mrs_lib::ParamLoader param_loader(nh_, getName());
 
   /*//{ check version */
@@ -28,34 +31,46 @@ void TransformManager::onInit() {
 
   param_loader.loadParam("uav_name", uav_name_);
 
-    bool is_origin_param_ok = true;
-    double world_origin_x, world_origin_y;
-    param_loader.loadParam("utm_origin_units", world_origin_units_);
-    if (world_origin_units_ == 0) {
-      ROS_INFO("[Odometry]: Loading world origin in UTM units.");
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_x", world_origin_x);
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_y", world_origin_y);
-    } else {
-      double lat, lon;
-      ROS_INFO("[Odometry]: Loading world origin in LatLon units.");
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
-      mrs_lib::UTM(lat, lon, &world_origin_x, &world_origin_y);
-      ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", world_origin_x, world_origin_y);
-    }
+  bool   is_origin_param_ok = true;
+  double world_origin_x, world_origin_y;
+  param_loader.loadParam("utm_origin_units", world_origin_units_);
+  if (world_origin_units_ == 0) {
+    ROS_INFO("[Odometry]: Loading world origin in UTM units.");
+    is_origin_param_ok &= param_loader.loadParam("utm_origin_x", world_origin_x);
+    is_origin_param_ok &= param_loader.loadParam("utm_origin_y", world_origin_y);
+  } else {
+    double lat, lon;
+    ROS_INFO("[Odometry]: Loading world origin in LatLon units.");
+    is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
+    is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
+    mrs_lib::UTM(lat, lon, &world_origin_x, &world_origin_y);
+    ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", world_origin_x, world_origin_y);
+  }
 
-    world_origin_.x = world_origin_x;
-    world_origin_.y = world_origin_y;
-    world_origin_.z = 0;
+  world_origin_.x = world_origin_x;
+  world_origin_.y = world_origin_y;
+  world_origin_.z = 0;
 
-    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_origin_local", init_gps_origin_local_); */
-    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_x", init_gps_offset_x_); */
-    /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_y", init_gps_offset_y_); */
+  /*     is_origin_param_ok &= param_loader.loadParam("init_gps_origin_local", init_gps_origin_local_); */
+  /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_x", init_gps_offset_x_); */
+  /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_y", init_gps_offset_y_); */
 
-    if (!is_origin_param_ok) {
-      ROS_ERROR("[Odometry]: Could not load all mandatory parameters from world file. Please check your world file.");
-      ros::shutdown();
-    }
+  if (!is_origin_param_ok) {
+    ROS_ERROR("[Odometry]: Could not load all mandatory parameters from world file. Please check your world file.");
+    ros::shutdown();
+  }
+
+  /*//{ load local_origin parameters */
+  std::string local_origin_parent_frame_id;
+  param_loader.loadParam("local_origin_tf/parent", local_origin_parent_frame_id);
+  ns_local_origin_parent_frame_id_ = uav_name_ + "/" + local_origin_parent_frame_id;
+
+  std::string local_origin_child_frame_id;
+  param_loader.loadParam("local_origin_tf/child", local_origin_child_frame_id);
+  ns_local_origin_child_frame_id_ = uav_name_ + "/" + local_origin_child_frame_id;
+
+  param_loader.loadParam("local_origin_tf/enabled", publish_local_origin_tf_);
+  /*//}*/
 
   /*//{ load fcu_untilted parameters */
   std::string fcu_frame_id;
@@ -78,12 +93,12 @@ void TransformManager::onInit() {
   }
 
   // additionally publish tf of all available estimators
-  param_loader.loadParam("/" + uav_name_ + "/estimation_manager/state_estimators", estimator_names_);
-  for (int i = 0; i < int(estimator_names_.size()); i++) {
-    const std::string estimator_name = estimator_names_[i];
-    ROS_INFO("[%s]: loading tf source of estimator: %s", getName().c_str(), estimator_name.c_str());
-    tf_sources_.push_back(std::make_unique<TfSource>(estimator_name, nh_, broadcaster_));
-  }
+  /* param_loader.loadParam("/" + uav_name_ + "/estimation_manager/state_estimators", estimator_names_); */
+  /* for (int i = 0; i < int(estimator_names_.size()); i++) { */
+  /*   const std::string estimator_name = estimator_names_[i]; */
+  /*   ROS_INFO("[%s]: loading tf source of estimator: %s", getName().c_str(), estimator_name.c_str()); */
+  /*   tf_sources_.push_back(std::make_unique<TfSource>(estimator_name, nh_, broadcaster_)); */
+  /* } */
   /*//}*/
 
   /*//{ initialize subscribers */
@@ -96,6 +111,8 @@ void TransformManager::onInit() {
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
+  sh_uav_state_ = mrs_lib::SubscribeHandler<mrs_msgs::UavState>(shopts, "uav_state_in", &TransformManager::callbackUavState, this);
+
   sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in", &TransformManager::callbackMavrosOdom, this);
 
   sh_mavros_utm_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, "mavros_utm_in", &TransformManager::callbackMavrosUtm, this);
@@ -107,6 +124,59 @@ void TransformManager::onInit() {
   }
 
   ROS_INFO("[%s]: initialized", getName().c_str());
+}
+/*//}*/
+
+/*//{ callbackUavState() */
+
+void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavState>& wrp) {
+
+  // obtain first frame_id
+  mrs_msgs::UavStateConstPtr msg = wrp.getMsg();
+  if (!is_first_frame_id_set_) {
+    first_frame_id_  =       msg->header.frame_id.substr(0, msg->header.frame_id.find("_origin")) + "_local_origin";
+    is_first_frame_id_set_ = true;
+  }
+
+  if (publish_local_origin_tf_) {
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp    = msg->header.stamp;
+    tf_msg.header.frame_id = ns_local_origin_parent_frame_id_;
+    tf_msg.child_frame_id  = ns_local_origin_child_frame_id_;
+
+    // transform pose to first frame_id
+    geometry_msgs::PoseStamped pose;
+    pose.header = msg->header;
+    pose.pose   = msg->pose;
+
+    auto res = transformer_.transformSingle(pose, first_frame_id_);
+
+    if (res) {
+      const tf2::Transform      tf       = Support::tf2FromPose(res->pose);
+      const tf2::Transform      tf_inv   = tf.inverse();
+      const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
+      tf_msg.transform.translation       = Support::pointToVector3(pose_inv.position);
+      tf_msg.transform.rotation          = pose_inv.orientation;
+
+      if (Support::noNans(tf_msg)) {
+        try {
+          broadcaster_->sendTransform(tf_msg);
+        }
+        catch (...) {
+          ROS_ERROR("exception caught ");
+        }
+      } else {
+        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                          tf_msg.child_frame_id.c_str());
+      }
+      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                    tf_msg.child_frame_id.c_str());
+    } else {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getName().c_str(), first_frame_id_.c_str());
+      return;
+    }
+  }
 }
 /*//}*/
 
@@ -150,9 +220,9 @@ void TransformManager::callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::
 
     ROS_INFO("[%s]: utm_origin position calculated as: x: %.2f, y: %.2f, z: %.2f", getName().c_str(), utm_origin.x, utm_origin.y, utm_origin.z);
 
-    for (size_t i=0; i<tf_sources_.size(); i++) {
-      tf_sources_[i]->setUtmOrigin(utm_origin); 
-      tf_sources_[i]->setWorldOrigin(world_origin_); 
+    for (size_t i = 0; i < tf_sources_.size(); i++) {
+      tf_sources_[i]->setUtmOrigin(utm_origin);
+      tf_sources_[i]->setWorldOrigin(world_origin_);
     }
     got_mavros_utm_offset_ = true;
   }
