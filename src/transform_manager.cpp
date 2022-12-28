@@ -29,19 +29,24 @@ void TransformManager::onInit() {
   param_loader.loadParam("uav_name", uav_name_);
 
     bool is_origin_param_ok = true;
-    param_loader.loadParam("utm_origin_units", utm_origin_units_);
-    if (utm_origin_units_ == 0) {
-      ROS_INFO("[Odometry]: Loading UTM origin in UTM units.");
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_x", utm_origin_x_);
-      is_origin_param_ok &= param_loader.loadParam("utm_origin_y", utm_origin_y_);
+    double world_origin_x, world_origin_y;
+    param_loader.loadParam("utm_origin_units", world_origin_units_);
+    if (world_origin_units_ == 0) {
+      ROS_INFO("[Odometry]: Loading world origin in UTM units.");
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_x", world_origin_x);
+      is_origin_param_ok &= param_loader.loadParam("utm_origin_y", world_origin_y);
     } else {
       double lat, lon;
-      ROS_INFO("[Odometry]: Loading UTM origin in LatLon units.");
+      ROS_INFO("[Odometry]: Loading world origin in LatLon units.");
       is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
       is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
-      ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", utm_origin_x_, utm_origin_y_);
-      mrs_lib::UTM(lat, lon, &utm_origin_x_, &utm_origin_y_);
+      mrs_lib::UTM(lat, lon, &world_origin_x, &world_origin_y);
+      ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", world_origin_x, world_origin_y);
     }
+
+    world_origin_.x = world_origin_x;
+    world_origin_.y = world_origin_y;
+    world_origin_.z = 0;
 
     /*     is_origin_param_ok &= param_loader.loadParam("init_gps_origin_local", init_gps_origin_local_); */
     /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_x", init_gps_offset_x_); */
@@ -138,15 +143,16 @@ void TransformManager::callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::
       return;
     }
 
-    geometry_msgs::Point init_utm;
-    init_utm.x = out_x;
-    init_utm.y = out_y;
-    init_utm.z = msg->altitude;
+    geometry_msgs::Point utm_origin;
+    utm_origin.x = out_x;
+    utm_origin.y = out_y;
+    utm_origin.z = msg->altitude;
 
-    ROS_INFO("[%s]: init_utm position calculated as: x: %.2f, y: %.2f, z: %.2f", getName().c_str(), init_utm.x, init_utm.y, init_utm.z);
+    ROS_INFO("[%s]: utm_origin position calculated as: x: %.2f, y: %.2f, z: %.2f", getName().c_str(), utm_origin.x, utm_origin.y, utm_origin.z);
 
     for (size_t i=0; i<tf_sources_.size(); i++) {
-      tf_sources_[i]->setInitUtm(init_utm); 
+      tf_sources_[i]->setUtmOrigin(utm_origin); 
+      tf_sources_[i]->setWorldOrigin(world_origin_); 
     }
     got_mavros_utm_offset_ = true;
   }

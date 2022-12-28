@@ -61,7 +61,7 @@ public:
       origin_pt.x = 0;
       origin_pt.y = 0;
       origin_pt.z = 0;
-      setInitUtm(origin_pt);
+      setUtmOrigin(origin_pt);
     }
 
     //}
@@ -97,12 +97,22 @@ public:
   }
   /*//}*/
 
-  /*//{ setInitUtm() */
-  void setInitUtm(const geometry_msgs::Point& init_utm) {
+  /*//{ setUtmOrigin() */
+  void setUtmOrigin(const geometry_msgs::Point& pt) {
 
-    if (is_utm_based_ && !is_init_utm_set_) {
-      init_utm_        = init_utm;
-      is_init_utm_set_ = true;
+    if (is_utm_based_ && !is_utm_origin_set_) {
+      utm_origin_        = pt;
+      is_utm_origin_set_ = true;
+    }
+  }
+  /*//}*/
+
+  /*//{ setWorldOrigin() */
+  void setWorldOrigin(const geometry_msgs::Point& pt) {
+
+    if (is_utm_based_ && !is_world_origin_set_) {
+      world_origin_        = pt;
+      is_world_origin_set_ = true;
     }
   }
   /*//}*/
@@ -119,14 +129,19 @@ private:
 
   bool                 is_utm_based_;
   bool                 is_in_utm_       = false;
-  bool                 is_init_utm_set_ = false;
-  geometry_msgs::Point init_utm_;
+
+  bool                 is_utm_origin_set_ = false;
+  geometry_msgs::Point utm_origin_;
+
+  bool                 is_world_origin_set_ = false;
+  geometry_msgs::Point world_origin_;
 
   std::string full_topic_;
 
   std::atomic_bool is_initialized_               = false;
   std::atomic_bool is_local_static_tf_published_ = false;
   std::atomic_bool is_utm_static_tf_published_   = false;
+  std::atomic_bool is_world_static_tf_published_   = false;
 
   std::vector<std::string> republish_in_frames_;
 
@@ -149,8 +164,11 @@ private:
       publishLocalTf(msg->header.frame_id);
     }
 
-    if (is_utm_based_ && is_init_utm_set_ && !is_utm_static_tf_published_) {
+    if (is_utm_based_ && is_utm_origin_set_ && !is_utm_static_tf_published_) {
       publishUtmTf(msg->header.frame_id);
+    }
+    if (is_utm_based_ && is_world_origin_set_ && !is_world_static_tf_published_) {
+      publishWorldTf(msg->header.frame_id);
     }
   }
   /*//}*/
@@ -234,9 +252,9 @@ private:
 
     tf_msg.header.frame_id         = frame_id;
     tf_msg.child_frame_id          = frame_id.substr(0, frame_id.find("_origin")) + "_utm_origin";
-    tf_msg.transform.translation.x = -init_utm_.x;  // minus because inverse tf tree
-    tf_msg.transform.translation.y = -init_utm_.y;  // minus because inverse tf tree
-    tf_msg.transform.translation.z = 0;
+    tf_msg.transform.translation.x = -utm_origin_.x;  // minus because inverse tf tree
+    tf_msg.transform.translation.y = -utm_origin_.y;  // minus because inverse tf tree
+    tf_msg.transform.translation.z = -utm_origin_.z;  // minus because inverse tf tree
     tf_msg.transform.rotation.x    = 0;
     tf_msg.transform.rotation.y    = 0;
     tf_msg.transform.rotation.z    = 0;
@@ -256,6 +274,40 @@ private:
     ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
                   tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
     is_utm_static_tf_published_ = true;
+  }
+  /*//}*/
+
+  /* publishWorldTf() //{*/
+  void publishWorldTf(const std::string& frame_id) {
+
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp = ros::Time::now();
+
+    tf_msg.header.frame_id         = frame_id;
+    tf_msg.child_frame_id          = frame_id.substr(0, frame_id.find("_origin")) + "_world_origin";
+    tf_msg.transform.translation.x = -(utm_origin_.x - world_origin_.x);  // minus because inverse tf tree
+    tf_msg.transform.translation.y = -(utm_origin_.y - world_origin_.y);  // minus because inverse tf tree
+    tf_msg.transform.translation.z = -(utm_origin_.z);  // minus because inverse tf tree
+    tf_msg.transform.rotation.x    = 0;
+    tf_msg.transform.rotation.y    = 0;
+    tf_msg.transform.rotation.z    = 0;
+    tf_msg.transform.rotation.w    = 1;
+
+    if (Support::noNans(tf_msg)) {
+      try {
+        static_broadcaster_.sendTransform(tf_msg);
+      }
+      catch (...) {
+        ROS_ERROR("exception caught ");
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                        tf_msg.child_frame_id.c_str());
+    }
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+    is_world_static_tf_published_ = true;
   }
   /*//}*/
 };
@@ -282,8 +334,8 @@ private:
 
   bool publish_fcu_untilted_tf_;
 
-  int    utm_origin_units_;
-  double utm_origin_x_, utm_origin_y_;
+  int    world_origin_units_;
+  geometry_msgs::Point world_origin_;
 
   std::vector<std::string>               tf_source_names_, estimator_names_;
   std::vector<std::unique_ptr<TfSource>> tf_sources_;
@@ -296,7 +348,6 @@ private:
   mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_mavros_utm_;
   void                                              callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp);
   std::atomic<bool>                                 got_mavros_utm_offset_ = false;
-  double                                            init_utm_x_, init_utm_y_, init_utm_z_;
 
   mrs_lib::Transformer                           transformer_;
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
