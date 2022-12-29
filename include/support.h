@@ -185,29 +185,76 @@ public:
 
   /*//{ loadParamFile() */
   static void loadParamFile(const std::string& file_path, const std::string& ns = "") {
-      std::string command = "rosparam load " + file_path + " " + ns;
-      int         result  = std::system(command.c_str());
-      if (result != 0) {
-        ROS_ERROR_STREAM("Could not set config file " << file_path << " to the parameter server.");
-      }
+    std::string command = "rosparam load " + file_path + " " + ns;
+    int         result  = std::system(command.c_str());
+    if (result != 0) {
+      ROS_ERROR_STREAM("Could not set config file " << file_path << " to the parameter server.");
+    }
   }
   /*//}*/
 
-/*//{ uavStateToOdom() */
-static nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState& uav_state, const std::shared_ptr<mrs_lib::Transformer>& transformer) {
-  nav_msgs::Odometry odom;
-  odom.header              = uav_state.header;
-  odom.child_frame_id      = uav_state.child_frame_id;
-  odom.pose.pose           = uav_state.pose;
-  odom.twist.twist.angular = uav_state.velocity.angular;
+  /*//{ uavStateToOdom() */
+  static nav_msgs::Odometry uavStateToOdom(const mrs_msgs::UavState& uav_state, const std::shared_ptr<mrs_lib::Transformer>& transformer) {
+    nav_msgs::Odometry odom;
+    odom.header              = uav_state.header;
+    odom.child_frame_id      = uav_state.child_frame_id;
+    odom.pose.pose           = uav_state.pose;
+    odom.twist.twist.angular = uav_state.velocity.angular;
 
-  tf2::Quaternion q;
-  tf2::fromMsg(odom.pose.pose.orientation, q);
-  odom.twist.twist.linear = Support::rotateTwist(uav_state.velocity.linear, q.inverse(), transformer);
+    tf2::Quaternion q;
+    tf2::fromMsg(odom.pose.pose.orientation, q);
+    odom.twist.twist.linear = Support::rotateTwist(uav_state.velocity.linear, q.inverse(), transformer);
 
-  return odom;
-}
-/*//}*/
+    return odom;
+  }
+  /*//}*/
+
+  /*//{ getPoseDiff() */
+  static geometry_msgs::Pose getPoseDiff(const geometry_msgs::Pose& p1, const geometry_msgs::Pose& p2) {
+
+    tf2::Vector3 v1, v2;
+    tf2::fromMsg(p1.position, v1);
+    tf2::fromMsg(p2.position, v2);
+    const tf2::Vector3 v3 = v1 - v2;
+
+    tf2::Quaternion q1, q2;
+    tf2::fromMsg(p1.orientation, q1);
+    tf2::fromMsg(p2.orientation, q2);
+    tf2::Quaternion q3 = q2 * q1.inverse();
+    q3.normalize();
+
+    geometry_msgs::Pose pose_diff;
+    tf2::toMsg(v3, pose_diff.position);
+    pose_diff.orientation = tf2::toMsg(q3);
+
+    return pose_diff;
+  }
+  /*//}*/
+
+  /*//{ applyPoseDiff() */
+  static geometry_msgs::Pose applyPoseDiff(const geometry_msgs::Pose& pose_in, const geometry_msgs::Pose& pose_diff) {
+
+    tf2::Vector3    pos_in;
+    tf2::Quaternion q_in;
+    tf2::fromMsg(pose_in.position, pos_in);
+    tf2::fromMsg(pose_in.orientation, q_in);
+
+    tf2::Vector3    pos_diff;
+    tf2::Quaternion q_diff;
+    tf2::fromMsg(pose_diff.position, pos_diff);
+    tf2::fromMsg(pose_diff.orientation, q_diff);
+
+    const tf2::Vector3    pos_out = tf2::quatRotate(q_diff.inverse(), (pos_in - pos_diff));
+    const tf2::Quaternion q_out   = q_diff.inverse() * q_in;
+
+    geometry_msgs::Pose pose_out;
+    tf2::toMsg(pos_out, pose_out.position);
+    pose_out.orientation = tf2::toMsg(q_out);
+
+    return pose_out;
+  }
+
+  //}
 private:
   Support(){};
 };

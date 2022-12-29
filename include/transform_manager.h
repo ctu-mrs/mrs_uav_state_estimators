@@ -344,6 +344,12 @@ private:
   std::string ns_stable_origin_child_frame_id_;
   bool publish_stable_origin_tf_;
 
+  std::string ns_fixed_origin_parent_frame_id_;
+  std::string ns_fixed_origin_child_frame_id_;
+  bool publish_fixed_origin_tf_;
+  geometry_msgs::Pose pose_fixed_;
+  geometry_msgs::Pose pose_fixed_diff_;
+
   int    world_origin_units_;
   geometry_msgs::Point world_origin_;
 
@@ -355,6 +361,7 @@ private:
   mrs_lib::SubscribeHandler<mrs_msgs::UavState> sh_uav_state_;
   void                                          callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavState>& wrp);
   std::string first_frame_id_;
+  std::string last_frame_id_;
   bool is_first_frame_id_set_ = false;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;

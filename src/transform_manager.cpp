@@ -84,6 +84,18 @@ void TransformManager::onInit() {
   param_loader.loadParam("stable_origin_tf/enabled", publish_stable_origin_tf_);
   /*//}*/
 
+  /*//{ load fixed_origin parameters */
+  std::string fixed_origin_parent_frame_id;
+  param_loader.loadParam("fixed_origin_tf/parent", fixed_origin_parent_frame_id);
+  ns_fixed_origin_parent_frame_id_ = uav_name_ + "/" + fixed_origin_parent_frame_id;
+
+  std::string fixed_origin_child_frame_id;
+  param_loader.loadParam("fixed_origin_tf/child", fixed_origin_child_frame_id);
+  ns_fixed_origin_child_frame_id_ = uav_name_ + "/" + fixed_origin_child_frame_id;
+
+  param_loader.loadParam("fixed_origin_tf/enabled", publish_fixed_origin_tf_);
+  /*//}*/
+
   /*//{ load fcu_untilted parameters */
   std::string fcu_frame_id;
   param_loader.loadParam("fcu_untilted_tf/parent", fcu_frame_id);
@@ -146,12 +158,15 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
   // obtain first frame_id
   mrs_msgs::UavStateConstPtr msg = wrp.getMsg();
   if (!is_first_frame_id_set_) {
-    first_frame_id_  =       msg->header.frame_id;
+    first_frame_id_        = msg->header.frame_id;
+    last_frame_id_         = msg->header.frame_id;
+    pose_fixed_ = msg->pose;
+    pose_fixed_diff_.orientation.w = 1;
     is_first_frame_id_set_ = true;
   }
 
   if (publish_local_origin_tf_) {
-/*//{ publish local_origin tf*/
+    /*//{ publish local_origin tf*/
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp    = msg->header.stamp;
     tf_msg.header.frame_id = ns_local_origin_parent_frame_id_;
@@ -188,11 +203,11 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
       ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getName().c_str(), first_frame_id_.c_str());
       return;
     }
-/*//}*/
+    /*//}*/
   }
 
   if (publish_stable_origin_tf_) {
-/*//{ publish stable_origin tf*/
+    /*//{ publish stable_origin tf*/
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp    = msg->header.stamp;
     tf_msg.header.frame_id = ns_stable_origin_parent_frame_id_;
@@ -229,9 +244,47 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
       ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing stable_origin transform.", getName().c_str(), first_frame_id_.c_str());
       return;
     }
-/*//}*/
+    /*//}*/
   }
 
+  if (publish_fixed_origin_tf_) {
+    /*//{ publish fixed_origin tf*/
+    if (msg->header.frame_id != last_frame_id_) {
+      ROS_WARN("[%s]: Detected estimator change from %s to %s. Updating offset for fixed origin.", getName().c_str(), last_frame_id_.c_str(),
+               msg->header.frame_id.c_str());
+
+      last_frame_id_ = msg->header.frame_id;
+      pose_fixed_diff_ = Support::getPoseDiff(msg->pose, pose_fixed_);
+    }
+
+    pose_fixed_ = Support::applyPoseDiff(msg->pose, pose_fixed_diff_);
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp    = msg->header.stamp;
+    tf_msg.header.frame_id = ns_fixed_origin_parent_frame_id_;
+    tf_msg.child_frame_id  = ns_fixed_origin_child_frame_id_;
+
+    const tf2::Transform      tf       = Support::tf2FromPose(pose_fixed_);
+    const tf2::Transform      tf_inv   = tf.inverse();
+    const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
+    tf_msg.transform.translation       = Support::pointToVector3(pose_inv.position);
+    tf_msg.transform.rotation          = pose_inv.orientation;
+
+    if (Support::noNans(tf_msg)) {
+      try {
+        broadcaster_->sendTransform(tf_msg);
+      }
+      catch (...) {
+        ROS_ERROR("exception caught ");
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                        tf_msg.child_frame_id.c_str());
+    }
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                  tf_msg.child_frame_id.c_str());
+    /*//}*/
+  }
 }
 /*//}*/
 
