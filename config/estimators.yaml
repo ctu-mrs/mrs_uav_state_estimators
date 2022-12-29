@@ -4,3 +4,5 @@ rtk:
   address: "mrs_uav_state_estimation/Rtk"
 aloam:
   address: "mrs_uav_state_estimation/Aloam"
+ground_truth:
+  address: "mrs_uav_state_estimation/GroundTruth"

@@ -10,7 +10,8 @@ frame_id:
 state_estimators: [
 "gps_garmin",
 "rtk",
-"aloam"
+"aloam",
+"ground_truth"
 ]
 
 initial_estimator: "rtk" # will be used as the first estimator

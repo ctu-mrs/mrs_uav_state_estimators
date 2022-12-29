@@ -15,3 +15,9 @@
     <description>Aloam state estimator</description>
   </class>
 </library>
+
+<library path="lib/libGroundTruth">
+  <class name="mrs_uav_state_estimation/GroundTruth" type="mrs_uav_state_estimation::GroundTruth" base_class_type="mrs_uav_state_estimation::StateEstimator">
+    <description>GroundTruth state estimator</description>
+  </class>
+</library>
