@@ -14,7 +14,6 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO load parameters
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getName());
@@ -166,8 +165,6 @@ void GroundTruth::timerUpdate(const ros::TimerEvent &event) {
     std::scoped_lock lock(mtx_uav_state_);
 
     uav_state_.header.stamp = time_now;
-
-    // TODO fill in estimator types
 
     uav_state_.pose.position    = msg->pose.pose.position;
     uav_state_.pose.orientation = msg->pose.pose.orientation;

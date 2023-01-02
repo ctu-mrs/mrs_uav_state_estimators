@@ -11,10 +11,11 @@ state_estimators: [
 "gps_garmin",
 "rtk",
 "aloam",
-"ground_truth"
+"ground_truth",
+"dummy"
 ]
 
-initial_estimator: "rtk" # will be used as the first estimator
+initial_estimator: "dummy" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

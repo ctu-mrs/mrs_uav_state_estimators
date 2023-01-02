@@ -6,3 +6,5 @@ aloam:
   address: "mrs_uav_state_estimation/Aloam"
 ground_truth:
   address: "mrs_uav_state_estimation/GroundTruth"
+dummy:
+  address: "mrs_uav_state_estimation/Dummy"

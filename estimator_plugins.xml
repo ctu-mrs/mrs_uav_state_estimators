@@ -21,3 +21,9 @@
     <description>GroundTruth state estimator</description>
   </class>
 </library>
+
+<library path="lib/libDummy">
+  <class name="mrs_uav_state_estimation/Dummy" type="mrs_uav_state_estimation::Dummy" base_class_type="mrs_uav_state_estimation::StateEstimator">
+    <description>Dummy state estimator</description>
+  </class>
+</library>

@@ -183,8 +183,6 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    // TODO fill in estimator types
-
     uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
 
     uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;

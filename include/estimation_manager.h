@@ -49,6 +49,7 @@ public:
     LANDING_STATE,
     LANDED_STATE,
     ESTIMATOR_SWITCHING_STATE,
+    DUMMY_STATE,
     EMERGENCY_STATE,
     FAILSAFE_STATE,
     ERROR_STATE
@@ -73,7 +74,7 @@ public:
   bool isInPublishableState() const {
     std::scoped_lock lock(mtx_state_);
     return current_state_ == READY_FOR_TAKEOFF_STATE || current_state_ == TAKING_OFF_STATE || current_state_ == HOVER_STATE || current_state_ == FLYING_STATE ||
-           current_state_ == LANDING_STATE;
+           current_state_ == LANDING_STATE || current_state_ == DUMMY_STATE;
   }
 
   bool isInTheAir() const {
@@ -180,6 +181,13 @@ public:
         break;
       }
 
+      case DUMMY_STATE: {
+        if (current_state_ != INITIALIZED_STATE) {
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(DUMMY_STATE).c_str(), getStateAsString(INITIALIZED_STATE).c_str());
+          return false;
+        }
+        break;
+      }
       case EMERGENCY_STATE: {
         ROS_WARN("[%s]: transition to %s", getName().c_str(), getStateAsString(EMERGENCY_STATE).c_str());
         break;
@@ -240,7 +248,9 @@ private:
   "LANDING_STATE",
   "LANDED_STATE",
   "ESTIMATOR_SWITCHING_STATE",
+  "DUMMY_STATE",
   "EMERGENCY_STATE",
+  "FAILSAFE_STATE",
   "ERROR_STATE"
   };
   // clang-format on

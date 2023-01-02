@@ -215,7 +215,11 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
     std::scoped_lock lock(mutex_active_estimator_);
     ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
     active_estimator_ = initial_estimator_;
-    sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+    if (active_estimator_->getName() == "dummy") {
+      sm_.changeState(StateMachine::DUMMY_STATE);
+    } else {
+      sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+    }
   }
 
   // active estimator is in faulty state, we need to switch to healthy estimator
@@ -257,6 +261,15 @@ bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, 
     res.message = ("Service callbacks are disabled");
     ROS_WARN("[%s]: Ignoring service call. Callbacks are disabled.", getName().c_str());
     return true;
+  }
+
+  if (req.value == "dummy" || req.value == "ground_truth") {
+    res.success = false;
+    std::stringstream ss;
+    ss << "Switching to " << req.value << " estimator is not allowed.";
+    res.message = ss.str();
+    ROS_WARN("[%s]: Switching to %s estimator is not allowed.", getName().c_str(), req.value.c_str());
+    return true; 
   }
 
   bool                                                        target_estimator_found = false;
