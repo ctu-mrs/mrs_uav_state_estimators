@@ -30,6 +30,7 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 ###################################
 
 add_message_files(DIRECTORY msg FILES
+  Diagnostics.msg
   EstimatorDiagnostics.msg
   EstimatorOutput.msg
   EstimatorCorrection.msg

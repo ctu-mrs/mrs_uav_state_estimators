@@ -28,7 +28,7 @@ void EstimationManager::onInit() {
   ch_->frames.ns_fcu_untilted = ch_->uav_name + "/" + ch_->frames.fcu_untilted;
 
   param_loader.loadParam("frame_id/rtk_antenna", ch_->frames.rtk_antenna);
-  ch_->frames.ns_rtk_antenna= ch_->uav_name + "/" + ch_->frames.rtk_antenna;
+  ch_->frames.ns_rtk_antenna = ch_->uav_name + "/" + ch_->frames.rtk_antenna;
 
   ch_->transformer = std::make_shared<mrs_lib::Transformer>(nh, getName());
   ch_->transformer->retryLookupNewest(true);
@@ -110,8 +110,9 @@ void EstimationManager::onInit() {
   /*//}*/
 
   /*//{ initialize publishers */
-  ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, "uav_state_out", 1);
-  ph_odom_main_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
+  ph_uav_state_   = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, "uav_state_out", 1);
+  ph_odom_main_   = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics>(nh, "diagnostics_out", 1);
   /*//}*/
 
   /*//{ initialize timers */
@@ -148,6 +149,22 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
   if (!sm_.isInitialized()) {
     return;
+  }
+
+  if (!sm_.isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
+    mrs_uav_state_estimation::Diagnostics diagnostics;
+    diagnostics.header.stamp                = ros::Time::now();
+    diagnostics.current_sm_state            = sm_.getCurrentStateString();
+    diagnostics.running_state_estimators    = estimator_names_;
+    diagnostics.switchable_state_estimators = switchable_estimator_names_;
+    if (active_estimator_ && active_estimator_->isInitialized()) {
+      diagnostics.header.frame_id         = active_estimator_->getFrameId();
+      diagnostics.current_state_estimator = active_estimator_->getName();
+    } else {
+      diagnostics.header.frame_id         = "NONE";
+      diagnostics.current_state_estimator = "NONE";
+    }
+    ph_diagnostics_.publish(diagnostics);
   }
 
   if (sm_.isInPublishableState()) {
@@ -187,7 +204,8 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
     return;
   }
 
-  /*//{ start ready estimators */
+  /*//{ start ready estimators, check switchable estimators */
+  switchable_estimator_names_.clear();
   for (auto estimator : estimator_list_) {
 
     if (estimator->isReady()) {
@@ -198,6 +216,10 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
       catch (std::runtime_error& ex) {
         ROS_ERROR("[%s]: exception caught during estimator starting: '%s'", getName().c_str(), ex.what());
       }
+    }
+
+    if (estimator->isRunning() && estimator->getName() != "dummy" && estimator->getName() != "ground_truth") {
+      switchable_estimator_names_.push_back(estimator->getName());
     }
   }
 
@@ -269,7 +291,7 @@ bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, 
     ss << "Switching to " << req.value << " estimator is not allowed.";
     res.message = ss.str();
     ROS_WARN("[%s]: Switching to %s estimator is not allowed.", getName().c_str(), req.value.c_str());
-    return true; 
+    return true;
   }
 
   bool                                                        target_estimator_found = false;

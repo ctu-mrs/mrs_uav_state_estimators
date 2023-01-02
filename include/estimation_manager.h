@@ -16,7 +16,6 @@
 #include <std_srvs/Trigger.h>
 
 #include <mrs_msgs/UavState.h>
-#include <mrs_msgs/OdometryDiag.h>
 #include <mrs_msgs/Float64Stamped.h>
 #include <mrs_msgs/String.h>
 
@@ -24,6 +23,8 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_client_handler.h>
 #include <mrs_lib/transformer.h>
+
+#include <mrs_uav_state_estimation/Diagnostics.h>
 
 #include "estimators/state/state_estimator.h"
 #include "support.h"
@@ -268,7 +269,7 @@ private:
 
   StateMachine sm_;
 
-  mrs_lib::PublisherHandler<mrs_msgs::OdometryDiag> ph_diagnostics_;
+  mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics> ph_diagnostics_;
   mrs_lib::PublisherHandler<mrs_msgs::UavState>     ph_uav_state_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_main_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_slow_;  // use topic throttler instead?
@@ -307,11 +308,11 @@ private:
 
   // | ------------- dynamic loading of estimators ------------- |
   std::unique_ptr<pluginlib::ClassLoader<mrs_uav_state_estimation::StateEstimator>> estimator_loader_;  // pluginlib loader of dynamically loaded estimators
-  std::vector<std::string>                                                          _estimator_names_;  // list of estimator names
+  std::vector<std::string>                                                          estimator_names_;  // list of estimator names
   /* std::map<std::string, EstimatorParams>                               estimator_params_;        // map between estimator names and estimator params */
   std::vector<boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>> estimator_list_;  // list of estimators
   std::mutex                                                               mutex_estimator_list_;
-  std::vector<std::string>                                                 estimator_names_;
+  std::vector<std::string>                                                 switchable_estimator_names_;
   /* int                                                                      active_estimator_idx_; */
   std::string                                                 initial_estimator_name_ = "UNDEFINED_INITIAL_ESTIMATOR";
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> initial_estimator_;
