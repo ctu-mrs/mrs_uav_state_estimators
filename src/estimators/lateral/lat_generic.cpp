@@ -38,6 +38,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
+  param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
 
   // | --------------- corrections initialization --------------- |
   param_loader.loadParam("corrections", correction_names_);

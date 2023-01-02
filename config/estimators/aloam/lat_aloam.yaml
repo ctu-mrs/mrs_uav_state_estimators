@@ -3,6 +3,8 @@ aloam: # namespace of the state estimator
 
     hdg_source_topic: "aloam/hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
 
+    max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
+
     process_noise: # process noise covariance (Q)
       pos: 0.001 # position state
       vel: 1.0 # velocity state

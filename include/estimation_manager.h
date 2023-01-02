@@ -270,6 +270,7 @@ private:
   StateMachine sm_;
 
   mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics> ph_diagnostics_;
+  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_max_flight_altitude_agl_;
   mrs_lib::PublisherHandler<mrs_msgs::UavState>     ph_uav_state_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_main_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_slow_;  // use topic throttler instead?
@@ -277,7 +278,6 @@ private:
 
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_asml_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_agl_;
-  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_max_altitude_agl_;
 
   mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped> ph_orientation_;
 
@@ -318,6 +318,8 @@ private:
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> initial_estimator_;
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> active_estimator_;
   std::mutex                                                  mutex_active_estimator_;
+
+  double max_safety_area_altitude_;
 
   bool switchToHealthyEstimator();
   void switchToEstimator(const boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>& target_estimator);

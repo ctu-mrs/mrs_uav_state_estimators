@@ -15,7 +15,7 @@ state_estimators: [
 "dummy"
 ]
 
-initial_estimator: "dummy" # will be used as the first estimator
+initial_estimator: "ground_truth" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

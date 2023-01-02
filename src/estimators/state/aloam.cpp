@@ -45,14 +45,21 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
+  std::vector<double> max_altitudes;
+
   est_lat_aloam_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName());
   est_lat_aloam_->initialize(nh, ch_);
+  max_altitudes.push_back(est_lat_aloam_->getMaxFlightAltitudeAgl());
 
   est_alt_aloam_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
   est_alt_aloam_->initialize(nh, ch_);
+  max_altitudes.push_back(est_alt_aloam_->getMaxFlightAltitudeAgl());
 
   est_hdg_aloam_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName());
   est_hdg_aloam_->initialize(nh, ch_);
+  max_altitudes.push_back(est_hdg_aloam_->getMaxFlightAltitudeAgl());
+
+  max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
   // | ------------------ initialize published messages ------------------ |
   uav_state_.header.frame_id = ns_frame_id_;

@@ -38,20 +38,28 @@
       <param name="uav_name" value="$(arg UAV_NAME)" />
       <param name="fcu_frame_id" value="fcu" />
 
+      <rosparam file="$(arg world_file)" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimation_manager.yaml" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimators.yaml" command="load" />
 
-<!--//{ subscribers-->
+<!--//{ Subscribers-->
       <!-- common -->
       <remap from="~attitude_command_in" to="control_manager/attitude_cmd" />
       <remap from="~mavros_odom_in" to="mavros/local_position/odom" />
 
 <!--//}-->
 
-      <!-- Publishers -->
+<!--//{ Publishers -->
       <remap from="~profiler" to="profiler" />
       <remap from="~odom_main_out" to="~odom_main" />
       <remap from="~uav_state_out" to="~uav_state" />
+      <remap from="~diagnostics_out" to="~diagnostics" />
+      <remap from="~max_flight_altitude_agl_out" to="~max_flight_altitude_agl" />
+<!--//}-->
+
+<!--//{ Service servers -->
+      <remap from="~change_estimator_in" to="change_estimator" />
+<!--//}-->
 
     </node>
 <!--//}-->

@@ -1,6 +1,8 @@
 gps_garmin: # namespace of the state estimator
   alt_garmin: # namespace of the altitude estimator
 
+    max_flight_altitude_agl: 10.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
+
     process_noise: # process noise covariance (Q)
       pos: 1.0 # position state
       vel: 1.0 # velocity state

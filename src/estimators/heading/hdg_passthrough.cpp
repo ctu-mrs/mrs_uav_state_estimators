@@ -23,13 +23,15 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
     hdg_covariance_ = covariance_t::Zero();
   }
 
-  // clang-format on
-
-  // | --------------- corrections initialization --------------- |
+  // | --------------- param loader initialization --------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getNamespacedName());
   param_loader.setPrefix(getNamespacedName() + "/");
+
+  // | --------------------- load parameters -------------------- |
+  param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
+
   param_loader.loadParam("message/topic", odom_topic_);
 
   if (!param_loader.loadedSuccessfully()) {

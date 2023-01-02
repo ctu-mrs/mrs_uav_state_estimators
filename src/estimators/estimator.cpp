@@ -93,6 +93,12 @@ std::string Estimator::getFrameId(void) const {
 }
 /*//}*/
 
+/*//{ getMaxFlightAltitudeAgl() */
+double Estimator::getMaxFlightAltitudeAgl(void) const {
+  return max_flight_altitude_agl_;
+}
+/*//}*/
+
 /*//{ publishDiagnostics() */
 void Estimator::publishDiagnostics() const {
 
@@ -178,6 +184,7 @@ std::optional<double> Estimator::getHeadingRate(const nav_msgs::Odometry::ConstP
   return getHeadingRate(odom_msg->pose.pose.orientation, att_rate);
 }
 /*//}*/
+
 
 /*//}*/
 

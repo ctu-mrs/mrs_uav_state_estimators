@@ -19,6 +19,16 @@ void EstimationManager::onInit() {
 
   mrs_lib::ParamLoader param_loader(nh, getName());
 
+  // load maximum flight altitude from safety area
+  bool use_safety_area;
+  param_loader.loadParam("safety_area/use_safety_area", use_safety_area);
+  if (use_safety_area) {
+    param_loader.loadParam("safety_area/max_height", max_safety_area_altitude_);
+  } else {
+    ROS_WARN("[%s]: NOT USING SAFETY AREA!!!", getName().c_str());
+    max_safety_area_altitude_ = 100;
+  }
+
   // load common parameters into the common handlers structure
   param_loader.loadParam("uav_name", ch_->uav_name);
   param_loader.loadParam("frame_id/fcu", ch_->frames.fcu);
@@ -110,9 +120,10 @@ void EstimationManager::onInit() {
   /*//}*/
 
   /*//{ initialize publishers */
-  ph_uav_state_   = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, "uav_state_out", 1);
-  ph_odom_main_   = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics>(nh, "diagnostics_out", 1);
+  ph_uav_state_               = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, "uav_state_out", 1);
+  ph_odom_main_               = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
+  ph_diagnostics_             = mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics>(nh, "diagnostics_out", 1);
+  ph_max_flight_altitude_agl_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "max_flight_altitude_agl_out", 1);
   /*//}*/
 
   /*//{ initialize timers */
@@ -152,18 +163,33 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
   }
 
   if (!sm_.isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
+
+    double max_flight_altitude_agl = max_safety_area_altitude_;
+    if (active_estimator_ && active_estimator_->isInitialized()) {
+      max_flight_altitude_agl = std::min(max_flight_altitude_agl, active_estimator_->getMaxFlightAltitudeAgl());
+    }
+
+    // publish diagnostics
+    mrs_msgs::Float64Stamped max_altitude_msg;
+    max_altitude_msg.header.stamp = ros::Time::now();
+    max_altitude_msg.value        = max_flight_altitude_agl;
+
     mrs_uav_state_estimation::Diagnostics diagnostics;
     diagnostics.header.stamp                = ros::Time::now();
     diagnostics.current_sm_state            = sm_.getCurrentStateString();
     diagnostics.running_state_estimators    = estimator_names_;
     diagnostics.switchable_state_estimators = switchable_estimator_names_;
+    diagnostics.max_flight_altitude_agl     = max_flight_altitude_agl;
     if (active_estimator_ && active_estimator_->isInitialized()) {
+      max_altitude_msg.header.frame_id    = active_estimator_->getFrameId();
       diagnostics.header.frame_id         = active_estimator_->getFrameId();
       diagnostics.current_state_estimator = active_estimator_->getName();
     } else {
+      max_altitude_msg.header.frame_id    = "NONE";
       diagnostics.header.frame_id         = "NONE";
       diagnostics.current_state_estimator = "NONE";
     }
+    ph_max_flight_altitude_agl_.publish(max_altitude_msg);
     ph_diagnostics_.publish(diagnostics);
   }
 
