@@ -1,5 +1,7 @@
 gps_garmin:
   address: "mrs_uav_state_estimation/GpsGarmin"
+gps_baro:
+  address: "mrs_uav_state_estimation/GpsBaro"
 rtk:
   address: "mrs_uav_state_estimation/Rtk"
 aloam:

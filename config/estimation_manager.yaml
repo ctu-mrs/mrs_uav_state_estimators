@@ -9,13 +9,14 @@ frame_id:
 # loaded state estimator plugins
 state_estimators: [
 "gps_garmin",
+"gps_baro",
 "rtk",
 "aloam",
 "ground_truth",
 "dummy"
 ]
 
-initial_estimator: "ground_truth" # will be used as the first estimator
+initial_estimator: "gps_baro" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

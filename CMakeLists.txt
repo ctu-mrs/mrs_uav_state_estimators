@@ -50,7 +50,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Aloam GpsGarmin Rtk GroundTruth Dummy EstimationManager TransformManager
+  LIBRARIES Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy EstimationManager TransformManager
   CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime
   DEPENDS Eigen
   )
@@ -72,6 +72,7 @@ set(src_files
   src/estimators/estimator.cpp 
   src/estimators/state/state_estimator.cpp 
   src/estimators/state/gps_garmin.cpp 
+  src/estimators/state/gps_baro.cpp 
   src/estimators/state/aloam.cpp 
   src/estimators/state/rtk.cpp 
   src/estimators/state/ground_truth.cpp 
@@ -97,6 +98,19 @@ target_link_libraries(GpsGarmin
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
+
+add_library(GpsBaro 
+  ${src_files}
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(GpsBaro
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(GpsBaro ${PROJECT_NAME}_gencfg)
 
 add_library(Aloam 
   ${src_files}

@@ -4,6 +4,12 @@
   </class>
 </library>
 
+<library path="lib/libGpsBaro">
+  <class name="mrs_uav_state_estimation/GpsBaro" type="mrs_uav_state_estimation::GpsBaro" base_class_type="mrs_uav_state_estimation::StateEstimator">
+    <description>GpsBaro state estimator</description>
+  </class>
+</library>
+
 <library path="lib/libRtk">
   <class name="mrs_uav_state_estimation/Rtk" type="mrs_uav_state_estimation::Rtk" base_class_type="mrs_uav_state_estimation::StateEstimator">
     <description>Rtk state estimator</description>
