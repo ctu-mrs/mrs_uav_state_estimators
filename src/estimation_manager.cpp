@@ -83,6 +83,11 @@ void EstimationManager::onInit() {
     }
   }
 
+  // initialize standalone height estimator
+  est_alt_agl_ = std::make_unique<AltGeneric>(est_alt_agl_name_, "agl_origin", Support::toSnakeCase(getName()));
+  est_alt_agl_->initialize(nh, ch_);
+  est_alt_agl_->setInputCoeff(0.0); // no input, just corrections
+
   ROS_INFO("[%s]: estimators were loaded", getName().c_str());
   /*//}*/
 
@@ -124,6 +129,7 @@ void EstimationManager::onInit() {
   ph_odom_main_               = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
   ph_diagnostics_             = mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics>(nh, "diagnostics_out", 1);
   ph_max_flight_altitude_agl_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "max_flight_altitude_agl_out", 1);
+  ph_altitude_agl_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "altitude_agl_out", 1);
   /*//}*/
 
   /*//{ initialize timers */
@@ -217,6 +223,12 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     ph_odom_main_.publish(odom_main);
 
+    mrs_msgs::Float64Stamped alt_agl_msg;
+    alt_agl_msg.header.stamp = ros::Time::now();
+    alt_agl_msg.header.frame_id = est_alt_agl_->getFrameId();
+    alt_agl_msg.value = est_alt_agl_->getState(POSITION);
+    ph_altitude_agl_.publish(alt_agl_msg);
+
   } else {
     ROS_WARN_THROTTLE(1.0, "[%s]: not publishing uav state in %s", getName().c_str(), sm_.getCurrentStateString().c_str());
   }
@@ -247,6 +259,10 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
     if (estimator->isRunning() && estimator->getName() != "dummy" && estimator->getName() != "ground_truth") {
       switchable_estimator_names_.push_back(estimator->getName());
     }
+  }
+
+  if (est_alt_agl_->isReady()) {
+    est_alt_agl_->start();
   }
 
   /*//}*/

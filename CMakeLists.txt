@@ -164,6 +164,7 @@ add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
 # add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
 add_library(EstimationManager 
   src/estimation_manager.cpp
+  src/estimators/altitude/alt_generic.cpp
   )
 
 ## Specify libraries to link a library or executable target against

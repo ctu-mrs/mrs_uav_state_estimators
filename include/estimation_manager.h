@@ -27,6 +27,7 @@
 #include <mrs_uav_state_estimation/Diagnostics.h>
 
 #include "estimators/state/state_estimator.h"
+#include "estimators/altitude/alt_generic.h"
 #include "support.h"
 #include "common_handlers.h"
 
@@ -276,7 +277,7 @@ private:
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_slow_;  // use topic throttler instead?
   mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_main_innovation_;
 
-  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_asml_;
+  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_amsl_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_agl_;
 
   mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped> ph_orientation_;
@@ -318,6 +319,9 @@ private:
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> initial_estimator_;
   boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> active_estimator_;
   std::mutex                                                  mutex_active_estimator_;
+
+  std::unique_ptr<AltGeneric> est_alt_agl_;
+  const std::string est_alt_agl_name_ = "est_alt_agl";
 
   double max_safety_area_altitude_;
 

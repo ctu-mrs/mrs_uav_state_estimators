@@ -55,6 +55,7 @@
       <remap from="~uav_state_out" to="~uav_state" />
       <remap from="~diagnostics_out" to="~diagnostics" />
       <remap from="~max_flight_altitude_agl_out" to="~max_flight_altitude_agl" />
+      <remap from="~altitude_agl_out" to="~altitude_agl" />
 <!--//}-->
 
 <!--//{ Service servers -->
