@@ -14,8 +14,8 @@ void TransformManager::onInit() {
 
   broadcaster_ = std::make_shared<mrs_lib::TransformBroadcaster>();
 
-  transformer_ = mrs_lib::Transformer(nh_, getName());
-  transformer_.retryLookupNewest(true);
+  transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, getName());
+  transformer_->retryLookupNewest(true);
 
   mrs_lib::ParamLoader param_loader(nh_, getName());
 
@@ -113,7 +113,7 @@ void TransformManager::onInit() {
   for (int i = 0; i < int(tf_source_names_.size()); i++) {
     const std::string tf_source_name = tf_source_names_[i];
     ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
-    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_));
+    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_, transformer_));
   }
 
   // additionally publish tf of all available estimators
@@ -177,7 +177,7 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     pose.header = msg->header;
     pose.pose   = msg->pose;
 
-    auto res = transformer_.transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
+    auto res = transformer_->transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
 
     if (res) {
       const tf2::Transform      tf       = Support::tf2FromPose(res->pose);
@@ -218,7 +218,7 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     pose.header = msg->header;
     pose.pose   = msg->pose;
 
-    auto res = transformer_.transformSingle(pose, first_frame_id_);
+    auto res = transformer_->transformSingle(pose, first_frame_id_);
 
     if (res) {
       const tf2::Transform      tf       = Support::tf2FromPose(res->pose);

@@ -9,6 +9,7 @@
 
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 #include <mrs_lib/transform_broadcaster.h>
@@ -36,18 +37,19 @@ class TfSource {
 
 public:
   /*//{ constructor */
-  TfSource(const std::string& name, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster>& broadcaster)
-      : name_(name), nh_(nh), broadcaster_(broadcaster) {
+  TfSource(const std::string& name, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster>& broadcaster,
+           const std::shared_ptr<mrs_lib::Transformer>& transformer)
+      : name_(name), nh_(nh), broadcaster_(broadcaster), transformer_(transformer) {
 
     ROS_INFO("[%s]: initializing", getName().c_str());
 
     /*//{ load parameters */
     mrs_lib::ParamLoader param_loader(nh_, getName());
-    std::string          uav_name, topic, ns;
-    param_loader.loadParam("uav_name", uav_name);
+    std::string          topic, ns;
+    param_loader.loadParam("uav_name", uav_name_);
     param_loader.loadParam(getName() + "/topic", topic);
     param_loader.loadParam(getName() + "/namespace", ns);
-    full_topic_ = "/" + uav_name + "/" + ns + "/" + topic;
+    full_topic_ = "/" + uav_name_ + "/" + ns + "/" + topic;
     param_loader.loadParam(getName() + "/inverted", is_inverted_);
     param_loader.loadParam(getName() + "/republish_in_frames", republish_in_frames_);
 
@@ -88,6 +90,12 @@ public:
     sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic_, &TfSource::callbackTfSource, this);
     /*//}*/
 
+    transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, getName());
+    transformer_->retryLookupNewest(true);
+
+    for (auto frame_id : republish_in_frames_) {
+      republishers_.push_back(std::make_pair(frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, full_topic_ + "/" + frame_id.substr(0, frame_id.find("_origin")))));
+    }
     is_initialized_ = true;
     ROS_INFO("[%s]: initialized", getName().c_str());
   }
@@ -126,11 +134,12 @@ private:
 
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
   tf2_ros::StaticTransformBroadcaster            static_broadcaster_;
+  std::shared_ptr<mrs_lib::Transformer>          transformer_;
 
   bool is_inverted_;
 
-  bool                 is_utm_based_;
-  bool                 is_in_utm_       = false;
+  bool is_utm_based_;
+  bool is_in_utm_ = false;
 
   bool                 is_utm_origin_set_ = false;
   geometry_msgs::Point utm_origin_;
@@ -138,15 +147,18 @@ private:
   bool                 is_world_origin_set_ = false;
   geometry_msgs::Point world_origin_;
 
+  std::string uav_name_;
+
   std::string full_topic_;
 
   std::atomic_bool is_initialized_               = false;
   std::atomic_bool is_local_static_tf_published_ = false;
   std::atomic_bool is_utm_static_tf_published_   = false;
-  std::atomic_bool is_world_static_tf_published_   = false;
+  std::atomic_bool is_world_static_tf_published_ = false;
 
   std::vector<std::string> republish_in_frames_;
 
+  std::vector<std::pair<std::string, mrs_lib::PublisherHandler<nav_msgs::Odometry>>> republishers_;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_tf_source_;
   nav_msgs::OdometryConstPtr                    first_msg_;
@@ -169,8 +181,13 @@ private:
     if (is_utm_based_ && is_utm_origin_set_ && !is_utm_static_tf_published_) {
       publishUtmTf(msg->header.frame_id);
     }
+
     if (is_utm_based_ && is_world_origin_set_ && !is_world_static_tf_published_) {
       publishWorldTf(msg->header.frame_id);
+    }
+
+    for (auto republisher : republishers_) {
+      republishInFrame(msg, uav_name_ + "/" + republisher.first, republisher.second);
     }
   }
   /*//}*/
@@ -290,7 +307,7 @@ private:
     tf_msg.child_frame_id          = frame_id.substr(0, frame_id.find("_origin")) + "_world_origin";
     tf_msg.transform.translation.x = -(utm_origin_.x - world_origin_.x);  // minus because inverse tf tree
     tf_msg.transform.translation.y = -(utm_origin_.y - world_origin_.y);  // minus because inverse tf tree
-    tf_msg.transform.translation.z = -(utm_origin_.z);  // minus because inverse tf tree
+    tf_msg.transform.translation.z = -(utm_origin_.z);                    // minus because inverse tf tree
     tf_msg.transform.rotation.x    = 0;
     tf_msg.transform.rotation.y    = 0;
     tf_msg.transform.rotation.z    = 0;
@@ -311,6 +328,28 @@ private:
                   tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
     is_world_static_tf_published_ = true;
   }
+  /*//}*/
+
+  /* republishInFrame() //{*/
+  void republishInFrame(const nav_msgs::OdometryConstPtr& msg, const std::string& frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>& ph) {
+
+    nav_msgs::Odometry msg_out = *msg;
+    msg_out.header.frame_id    = frame_id;
+
+    geometry_msgs::PoseStamped pose;
+    pose.header = msg->header;
+    pose.pose   = msg->pose.pose;
+
+    auto res = transformer_->transformSingle(pose, frame_id);
+    if (res) {
+      msg_out.pose.pose = res->pose;
+      ph.publish(msg_out);
+    } else {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not republishing odom in this frame.", getName().c_str(), frame_id.c_str());
+      return;
+    }
+  }
+
   /*//}*/
 };
 
@@ -334,23 +373,23 @@ private:
 
   std::string ns_fcu_frame_id_;
   std::string ns_fcu_untilted_frame_id_;
-  bool publish_fcu_untilted_tf_;
+  bool        publish_fcu_untilted_tf_;
 
   std::string ns_local_origin_parent_frame_id_;
   std::string ns_local_origin_child_frame_id_;
-  bool publish_local_origin_tf_;
+  bool        publish_local_origin_tf_;
 
   std::string ns_stable_origin_parent_frame_id_;
   std::string ns_stable_origin_child_frame_id_;
-  bool publish_stable_origin_tf_;
+  bool        publish_stable_origin_tf_;
 
-  std::string ns_fixed_origin_parent_frame_id_;
-  std::string ns_fixed_origin_child_frame_id_;
-  bool publish_fixed_origin_tf_;
+  std::string         ns_fixed_origin_parent_frame_id_;
+  std::string         ns_fixed_origin_child_frame_id_;
+  bool                publish_fixed_origin_tf_;
   geometry_msgs::Pose pose_fixed_;
   geometry_msgs::Pose pose_fixed_diff_;
 
-  int    world_origin_units_;
+  int                  world_origin_units_;
   geometry_msgs::Point world_origin_;
 
   std::vector<std::string>               tf_source_names_, estimator_names_;
@@ -360,9 +399,9 @@ private:
 
   mrs_lib::SubscribeHandler<mrs_msgs::UavState> sh_uav_state_;
   void                                          callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavState>& wrp);
-  std::string first_frame_id_;
-  std::string last_frame_id_;
-  bool is_first_frame_id_set_ = false;
+  std::string                                   first_frame_id_;
+  std::string                                   last_frame_id_;
+  bool                                          is_first_frame_id_set_ = false;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   void                                          callbackMavrosOdom(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
@@ -371,7 +410,7 @@ private:
   void                                              callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp);
   std::atomic<bool>                                 got_mavros_utm_offset_ = false;
 
-  mrs_lib::Transformer                           transformer_;
+  std::shared_ptr<mrs_lib::Transformer>          transformer_;
   std::shared_ptr<mrs_lib::TransformBroadcaster> broadcaster_;
 
   void publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& msg);
