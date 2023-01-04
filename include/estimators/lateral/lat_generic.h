@@ -8,6 +8,7 @@
 #include <nav_msgs/Odometry.h>
 
 #include <mrs_lib/lkf.h>
+#include <mrs_lib/repredictor.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
@@ -49,6 +50,8 @@ class LatGeneric : public LateralEstimator<lat_generic::n_states> {
   using R_t        = lkf_t::R_t;
   using statecov_t = lkf_t::statecov_t;
 
+  typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
+
 private:
   std::string parent_state_est_name_;
 
@@ -59,13 +62,18 @@ private:
   H_t                    H_;
   Q_t                    Q_;
   statecov_t             sc_;
-  std::unique_ptr<lkf_t> lkf_;
+  std::shared_ptr<lkf_t> lkf_;
+  std::unique_ptr<rep_lkf_t> lkf_rep_;
+  std::vector<std::shared_ptr<lkf_t>> models_;
   mutable std::mutex     mutex_lkf_;
 
   std::unique_ptr<drmgr_t> drmgr_;
 
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
+
+  bool is_repredictor_enabled_;
+  int rep_buffer_size_ = 200;
 
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
@@ -85,7 +93,7 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
-  void doCorrection(const z_t &z, const double R, const StateId_t &state_id);
+  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time& meas_stamp);
 
   bool isConverged();
 

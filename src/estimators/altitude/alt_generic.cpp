@@ -38,12 +38,17 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
+  param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
+  if (is_repredictor_enabled_) {
+    param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
+  }
 
   // | --------------- corrections initialization --------------- |
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
+    corrections_.push_back(
+        std::make_shared<Correction<alt_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -75,7 +80,19 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   const statecov_t sc0({x0, P0});
   sc_ = sc0;
 
-  lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
+  lkf_ = std::make_shared<lkf_t>(A_, B_, H_);
+  if (is_repredictor_enabled_) {
+
+    for (int i = 0; i < alt_generic::n_states; i++) {
+      H_t H = H_t::Zero();
+      H(i)  = 1;
+      models_.push_back(std::make_shared<lkf_t>(A_, B_, H));
+    }
+
+    const u_t       u0 = u_t::Zero();
+    const ros::Time t0 = ros::Time::now();
+    lkf_rep_           = std::make_unique<Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+  }
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
@@ -155,7 +172,13 @@ bool AltGeneric::reset(void) {
   sc_ = sc0;
 
   // Instantiate the LKF itself
-  lkf_ = std::make_unique<lkf_t>(A_, B_, H_);
+  lkf_ = std::make_shared<lkf_t>(A_, B_, H_);
+  if (is_repredictor_enabled_) {
+
+    const u_t       u0 = u_t::Zero();
+    const ros::Time t0 = ros::Time(0);
+    lkf_rep_           = std::make_unique<Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+  }
 
   ROS_INFO("[%s]: Estimator reset", getNamespacedName().c_str());
 
@@ -172,12 +195,16 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   // prediction step
-  u_t u;
+  u_t       u;
+  ros::Time input_stamp;
   if (is_input_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), 0);  // we don't care about heading
+    mrs_msgs::AttitudeCommandConstPtr msg            = sh_attitude_command_.getMsg();
+    const tf2::Vector3                des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
+    input_stamp                                      = msg->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
+    input_stamp = ros::Time::now();
     setInputCoeff(0);
     u = u_t::Zero();
   }
@@ -186,8 +213,11 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   try {
     // Apply the prediction step
-    {
-      std::scoped_lock lock(mutex_lkf_);
+    std::scoped_lock lock(mutex_lkf_);
+    if (is_repredictor_enabled_) {
+      lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
+      /* sc_ = lkf_rep_->predictTo(ros::Time::now()); */
+    } else {
       sc_ = lkf_->predict(sc_, u, getQ(), dt_);
     }
   }
@@ -197,11 +227,12 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   for (auto correction : corrections_) {
-    z_t z;
-    if (correction->getCorrection(z)) {
+    z_t       z;
+    ros::Time stamp;
+    if (correction->getCorrection(z, stamp)) {
 
       // TODO processing, median filter, gating etc.
-      doCorrection(z, correction->getR(), correction->getStateId());
+      doCorrection(z, correction->getR(), correction->getStateId(), stamp);
     }
   }
 
@@ -233,8 +264,9 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
       // initialize the estimator with current corrections
       for (auto correction : corrections_) {
-        z_t z;
-        if (correction->getCorrection(z)) {
+        z_t       z;
+        ros::Time stamp;
+        if (correction->getCorrection(z, stamp)) {
           setState(z(0), correction->getStateId());
         } else {
           ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
@@ -294,14 +326,15 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getNamespacedName().c_str(), (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getNamespacedName().c_str(),
+             (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
 /*//}*/
 
 /*//{ doCorrection() */
-void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx) {
+void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
   {
     std::scoped_lock lock(mtx_innovation_);
@@ -320,7 +353,13 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       H_        = H_t::Zero();
       H_(H_idx) = 1;
       lkf_->H   = H_;
-      sc_       = lkf_->correct(sc_, z, R_t::Ones() * R);
+      if (is_repredictor_enabled_) {
+
+        lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[H_idx]);
+        sc_ = lkf_rep_->predictTo(ros::Time::now());
+      } else {
+        sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
+      }
     }
   }
   catch (const std::exception &e) {
@@ -419,6 +458,8 @@ double AltGeneric::getInnovation(const int &state_id_in, const int &axis_in) con
 void AltGeneric::setDt(const double &dt) {
   dt_ = dt;
   generateA();
+  std::scoped_lock lock(mutex_lkf_);
+  lkf_->A = A_;
 }
 /*//}*/
 
@@ -427,6 +468,9 @@ void AltGeneric::setInputCoeff(const double &input_coeff) {
   input_coeff_ = input_coeff;
   generateA();
   generateB();
+  std::scoped_lock lock(mutex_lkf_);
+  lkf_->A = A_;
+  lkf_->B = B_;
 }
 /*//}*/
 
@@ -465,9 +509,9 @@ AltGeneric::Q_t AltGeneric::getQ() {
 /*//}*/
 
 /*//{ getNamespacedName() */
-  std::string AltGeneric::getNamespacedName() const {
-    return parent_state_est_name_ + "/" + getName();
-  }
+std::string AltGeneric::getNamespacedName() const {
+  return parent_state_est_name_ + "/" + getName();
+}
 /*//}*/
 
 };  // namespace mrs_uav_state_estimation

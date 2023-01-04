@@ -4,6 +4,9 @@ estimation_manager: # namespace
 
     max_flight_altitude_agl: 10.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
 
+    repredictor: # repredictor for correct fusion of delayed measurements
+      enabled: false
+
     process_noise: # process noise covariance (Q)
       pos: 1.0 # position state
       vel: 1.0 # velocity state

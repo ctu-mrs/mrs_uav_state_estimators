@@ -69,7 +69,7 @@ public:
   std::atomic_bool is_nan_free_ = true;
   std::atomic_bool got_first_msg_ = false;
 
-  bool getCorrection(measurement_t& measurement);
+  bool getCorrection(measurement_t& measurement, ros::Time& stamp);
 
 private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
@@ -242,9 +242,7 @@ bool Correction<n_measurements>::isHealthy() {
 
 /*//{ getCorrection() */
 template <int n_measurements>
-bool Correction<n_measurements>::getCorrection(measurement_t& measurement) {
-
-  ros::Time measurement_stamp;
+bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
 
   switch (msg_type_) {
 

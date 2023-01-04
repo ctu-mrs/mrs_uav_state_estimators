@@ -5,6 +5,9 @@ rtk: # namespace of the state estimator
 
     hdg_source_topic: "rtk/hdg_mavros/output" # [mrs_uav_state_estimation/EstimatorOutput]
 
+    repredictor: # repredictor for correct fusion of delayed measurements
+      enabled: false
+
     process_noise: # process noise covariance (Q)
       pos: 0.001 # position state
       vel: 1.0 # velocity state
