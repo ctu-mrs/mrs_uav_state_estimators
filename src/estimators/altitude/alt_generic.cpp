@@ -114,6 +114,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
 
   // | ---------------- publishers initialization --------------- |
+  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
   ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
   ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
@@ -236,6 +237,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
   }
 
+  publishInput(u);
   publishOutput();
   publishDiagnostics();
 }

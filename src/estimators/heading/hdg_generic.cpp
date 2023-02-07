@@ -110,6 +110,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
 
   // | ---------------- publishers initialization --------------- |
+  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
   ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
   ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
@@ -216,7 +217,7 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   try {
     // Apply the prediction step
-      std::scoped_lock lock(mutex_lkf_);
+    std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
       lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
       sc_ = lkf_rep_->predictTo(ros::Time::now());
@@ -239,6 +240,7 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
   }
 
+  publishInput(u);
   publishOutput();
   publishDiagnostics();
 }
@@ -336,7 +338,7 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ doCorrection() */
-void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time& meas_stamp) {
+void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
   {
     std::scoped_lock lock(mtx_innovation_);

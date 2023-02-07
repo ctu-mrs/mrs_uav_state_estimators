@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
   dynamic_reconfigure
   message_generation
+  message_runtime
   )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
@@ -51,7 +52,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy EstimationManager TransformManager
-  CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime
+  CATKIN_DEPENDS roscpp sensor_msgs std_msgs tf2_geometry_msgs geometry_msgs mrs_lib mrs_msgs message_runtime message_generation
   DEPENDS Eigen
   )
 
@@ -97,8 +98,7 @@ target_link_libraries(GpsGarmin
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
-
+add_dependencies(GpsGarmin ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 add_library(GpsBaro 
   ${src_files}
   )
@@ -110,7 +110,7 @@ target_link_libraries(GpsBaro
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsBaro ${PROJECT_NAME}_gencfg)
+add_dependencies(GpsBaro  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 add_library(Aloam 
   ${src_files}
@@ -122,7 +122,7 @@ target_link_libraries(Aloam
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
+add_dependencies(Aloam  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 add_library(Rtk 
   ${src_files}
@@ -134,7 +134,7 @@ target_link_libraries(Rtk
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Rtk ${PROJECT_NAME}_gencfg)
+add_dependencies(Rtk  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 add_library(GroundTruth 
   ${src_files}
@@ -146,7 +146,7 @@ target_link_libraries(GroundTruth
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GroundTruth ${PROJECT_NAME}_gencfg)
+add_dependencies(GroundTruth  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 add_library(Dummy 
   ${src_files}
@@ -158,7 +158,7 @@ target_link_libraries(Dummy
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
+add_dependencies(Dummy  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 ## Declare a C++ executable
 # add_library(EstimationTesting src/estimators/estimator.cpp src/estimators/altitude/garmin.cpp src/estimators/lateral/gps.cpp src/estimators_testing.cpp )
@@ -172,6 +172,8 @@ target_link_libraries(EstimationManager
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
+
+add_dependencies(EstimationManager  ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
 
 ## Declare a C++ executable
 add_library(TransformManager 

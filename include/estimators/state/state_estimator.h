@@ -40,6 +40,8 @@ protected:
   mrs_msgs::Float64ArrayStamped pose_covariance_, twist_covariance_;
   mutable std::mutex            mtx_covariance_;
 
+  bool is_override_frame_id_ = false;
+
 protected:
   mutable mrs_lib::PublisherHandler<mrs_msgs::UavState>            ph_uav_state_;
   mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_odom_;

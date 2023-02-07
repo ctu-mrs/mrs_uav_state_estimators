@@ -12,10 +12,16 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
 
   ch_ = ch;
 
-  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
-
   // TODO load parameters
+  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
   mrs_lib::ParamLoader param_loader(nh, getName());
+  param_loader.setPrefix(getName() + "/");
+  param_loader.loadParam("override_frame_id/enabled", is_override_frame_id_);
+  if (is_override_frame_id_) {
+    param_loader.loadParam("override_frame_id/frame_id", frame_id_);
+  }
+
+  ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                      // TODO: parametrize

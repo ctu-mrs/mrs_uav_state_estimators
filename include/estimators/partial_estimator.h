@@ -7,7 +7,10 @@
 
 #include <Eigen/Dense>
 
-#include <mrs_uav_state_estimation/EstimatorOutput.h>
+#include <mrs_msgs/Float64Stamped.h>
+#include <mrs_msgs/Float64ArrayStamped.h>
+
+#include "mrs_uav_state_estimation/EstimatorOutput.h"
 
 #include "estimators/estimator.h"
 
@@ -25,6 +28,7 @@ public:
 
 protected:
   mutable mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput> ph_output_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_input_;
 
 private:
   static const int _n_axes_   = n_axes;
@@ -64,6 +68,8 @@ public:
 
   int stateIdToIndex(const int &state_id_in, const int &axis_in) const;
 
+  template <typename u_t>
+  void publishInput(const u_t& u) const;
   void publishOutput() const;
 };
 
@@ -119,6 +125,21 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
   msg.covariance      = getCovarianceAsVector();
 
   ph_output_.publish(msg);
+}
+/*//}*/
+
+/*//{ publishInput() */
+template <int n_states, int n_axes>
+template <typename u_t>
+void PartialEstimator<n_states, n_axes>::publishInput(const u_t& u) const {
+
+  mrs_msgs::Float64ArrayStamped msg;
+  msg.header.stamp    = ros::Time::now();
+  for (int i = 0; i < u.rows(); i++) {
+    msg.values.push_back(u(i));
+  }
+
+  ph_input_.publish(msg);
 }
 /*//}*/
 

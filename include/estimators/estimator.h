@@ -15,7 +15,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 
-#include <mrs_uav_state_estimation/EstimatorDiagnostics.h>
+#include "mrs_uav_state_estimation/EstimatorDiagnostics.h"
 
 #include "types.h"
 #include "support.h"
@@ -33,8 +33,8 @@ protected:
 
   const std::string type_;
   const std::string name_;
-  const std::string frame_id_;
 
+  std::string frame_id_; // cannot be constant - must remain overridable by loaded parameter
   std::string ns_frame_id_;
 
   std::shared_ptr<CommonHandlers_t> ch_;

@@ -121,6 +121,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
       shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
+  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
   ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
   ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
@@ -243,6 +244,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
   }
 
+  publishInput(u);
   publishOutput();
   publishDiagnostics();
 }
