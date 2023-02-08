@@ -14,7 +14,7 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO load parameters
+  // TODO(petrlmat) load parameters
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   /* coordinate frames origins //{ */
@@ -42,9 +42,9 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   //}
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                    // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                    // TODO(petrlmat): parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Rtk::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                      // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                      // TODO(petrlmat): parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Rtk::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -214,7 +214,7 @@ void Rtk::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    // TODO fill in estimator types
+    // TODO(petrlmat) fill in estimator types
 
     uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
 
@@ -256,7 +256,7 @@ void Rtk::timerUpdate(const ros::TimerEvent &event) {
     pose_covariance_.header.stamp  = time_now;
     twist_covariance_.header.stamp = time_now;
 
-    const int n_states = 6;  // TODO this should be defined somewhere else
+    const int n_states = 6;  // TODO(petrlmat) this should be defined somewhere else
     pose_covariance_.values.resize(n_states * n_states);
     pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_rtk_->getCovariance(POSITION, AXIS_X);
     pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_rtk_->getCovariance(POSITION, AXIS_Y);
@@ -320,7 +320,7 @@ void Rtk::timerCheckHealth(const ros::TimerEvent &event) {
 /*//{ isConverged() */
 bool Rtk::isConverged() {
 
-  // TODO: check convergence by rate of change of determinant
+  // TODO(petrlmat): check convergence by rate of change of determinant
   // most likely not used in top-level estimator
 
   return true;

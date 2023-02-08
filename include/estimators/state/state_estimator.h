@@ -1,5 +1,5 @@
-#ifndef STATEESTIMATOR_H
-#define STATEESTIMATOR_H
+#ifndef ESTIMATORS_STATE_STATE_ESTIMATOR_H
+#define ESTIMATORS_STATE_STATE_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -22,7 +22,7 @@ namespace mrs_uav_state_estimation
 
 namespace state
 {
-const std::string type = "STATE";
+const char type[] = "STATE";
 }
 
 class StateEstimator : public Estimator {
@@ -49,7 +49,7 @@ protected:
   mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_innovation_;
 
 public:
-  StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id){};
+  StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id){}
 
   virtual ~StateEstimator(void) {
   }
@@ -73,4 +73,4 @@ public:
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif // ESTIMATORS_STATE_STATE_ESTIMATOR_H

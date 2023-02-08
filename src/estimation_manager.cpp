@@ -1,5 +1,5 @@
 #define VERSION "0.0.0.1"
-#include "estimation_manager.h"
+#include "include/estimation_manager.h"
 
 namespace mrs_uav_state_estimation
 {
@@ -59,7 +59,7 @@ void EstimationManager::onInit() {
   estimator_loader_ = std::make_unique<pluginlib::ClassLoader<mrs_uav_state_estimation::StateEstimator>>("mrs_uav_state_estimation",
                                                                                                          "mrs_uav_state_estimation::StateEstimator");
 
-  for (int i = 0; i < int(estimator_names_.size()); i++) {
+  for (size_t i = 0; i < estimator_names_.size(); i++) {
 
     const std::string estimator_name = estimator_names_[i];
 

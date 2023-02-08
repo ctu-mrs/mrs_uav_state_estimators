@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CORRECTION_H
-#define CORRECTION_H
+#ifndef ESTIMATORS_CORRECTION_H
+#define ESTIMATORS_CORRECTION_H
 
 #include <Eigen/Dense>
 
@@ -717,7 +717,7 @@ auto Correction<n_measurements>::createProcessorFromName(const std::string& name
     ROS_ERROR("[%s]: requested invalid processor %s", getNamespacedName().c_str(), name.c_str());
     ros::shutdown();
   }
-
+  return std::shared_ptr<ProcMedianFilter<n_measurements>>(nullptr);
 }
 /*//}*/
 
@@ -756,4 +756,4 @@ void Correction<n_measurements>::publishCorrection(const measurement_t& measurem
 
 }  // namespace mrs_uav_state_estimation
 
-#endif // CORRECTION_H
+#endif // ESTIMATORS_CORRECTION_H

@@ -1,5 +1,5 @@
-#ifndef RTK_H
-#define RTK_H
+#ifndef ESTIMATORS_STATE_RTK_H
+#define ESTIMATORS_STATE_RTK_H
 
 /* includes //{ */
 
@@ -17,6 +17,11 @@
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 
+#include <limits>
+#include <algorithm>
+#include <vector>
+#include <memory>
+
 #include "estimators/state/state_estimator.h"
 #include "estimators/lateral/lat_generic.h"
 #include "estimators/altitude/alt_generic.h"
@@ -29,8 +34,8 @@ namespace mrs_uav_state_estimation
 
 namespace rtk
 {
-const std::string name     = "rtk";
-const std::string frame_id = "rtk_origin";
+const char name[]     = "rtk";
+const char frame_id[] = "rtk_origin";
 }  // namespace rtk
 
 class Rtk : public StateEstimator {
@@ -65,26 +70,27 @@ private:
   double rtk_avg_init_z_     = 0.0;
   int    got_rtk_counter_    = 0;
 
-  int utm_origin_units_;
+  int    utm_origin_units_;
   double utm_origin_x_, utm_origin_y_;
 
 public:
-  Rtk() : StateEstimator(rtk::name, rtk::frame_id){};
+  Rtk() : StateEstimator(rtk::name, rtk::frame_id) {
+  }
 
   ~Rtk(void) {
   }
 
-  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
-  virtual bool start(void) override;
-  virtual bool pause(void) override;
-  virtual bool reset(void) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  bool start(void) override;
+  bool pause(void) override;
+  bool reset(void) override;
 
-  virtual mrs_msgs::UavState  getUavState() const override;
-  virtual std::vector<double> getPoseCovariance() const override;
-  virtual std::vector<double> getTwistCovariance() const override;
+  mrs_msgs::UavState  getUavState() const override;
+  std::vector<double> getPoseCovariance() const override;
+  std::vector<double> getTwistCovariance() const override;
 
-  virtual bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif // ESTIMATORS_STATE_RTK_H

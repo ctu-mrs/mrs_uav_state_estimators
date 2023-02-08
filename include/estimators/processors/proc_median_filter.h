@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PROC_MEDIAN_FILTER_H
-#define PROC_MEDIAN_FILTER_H
+#ifndef ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H
+#define ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H
 
 #include "estimators/processors/processor.h"
 
@@ -21,7 +21,7 @@ public:
 public:
   ProcMedianFilter(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
-  virtual bool process(measurement_t& measurement) override;
+  bool process(measurement_t& measurement) override;
 
 private:
   std::vector<mrs_lib::MedianFilter> vec_mf_;
@@ -68,9 +68,10 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
       std::stringstream ss_measurement_string;
       ss_measurement_string << measurement(i);
       ss_measurement_string << " ";
-    ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, size: %d, max_diff: %.2f).", Processor<n_measurements>::correction_name_.c_str(), i, 
-                      ss_measurement_string.str().c_str(), vec_mf_[i].median(), buffer_size_, max_diff_);
-    ok_flag = false;
+      ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, size: %d, max_diff: %.2f).",
+                        Processor<n_measurements>::correction_name_.c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), buffer_size_,
+                        max_diff_);
+      ok_flag = false;
     }
   }
 
@@ -80,4 +81,4 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 
 }  // namespace mrs_uav_state_estimation
 
-#endif // PROC_MEDIAN_FILTER_H
+#endif  // ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H

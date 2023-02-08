@@ -1,5 +1,5 @@
-#ifndef ALTGENERIC_H
-#define ALTGENERIC_H
+#ifndef ESTIMATORS_ALTITUDE_ALT_GENERIC_H
+#define ESTIMATORS_ALTITUDE_ALT_GENERIC_H
 
 /* includes //{ */
 
@@ -33,13 +33,11 @@ const int n_measurements = 1;
 
 }  // namespace alt_generic
 
-using namespace mrs_lib;
-
 class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
 
   typedef mrs_lib::DynamicReconfigureMgr<AltitudeEstimatorConfig> drmgr_t;
 
-  using lkf_t      = LKF<alt_generic::n_states, alt_generic::n_inputs, alt_generic::n_measurements>;
+  using lkf_t      = mrs_lib::LKF<alt_generic::n_states, alt_generic::n_inputs, alt_generic::n_measurements>;
   using A_t        = lkf_t::A_t;
   using B_t        = lkf_t::B_t;
   using H_t        = lkf_t::H_t;
@@ -56,17 +54,17 @@ class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
 private:
   std::string parent_state_est_name_;
 
-  double                 dt_;
-  double                 input_coeff_, default_input_coeff_;
-  A_t                    A_;
-  B_t                    B_;
-  H_t                    H_;
-  Q_t                    Q_;
-  statecov_t             sc_;
-  std::shared_ptr<lkf_t> lkf_;
-  std::unique_ptr<rep_lkf_t> lkf_rep_;
+  double                              dt_;
+  double                              input_coeff_, default_input_coeff_;
+  A_t                                 A_;
+  B_t                                 B_;
+  H_t                                 H_;
+  Q_t                                 Q_;
+  statecov_t                          sc_;
+  std::shared_ptr<lkf_t>              lkf_;
+  std::unique_ptr<rep_lkf_t>          lkf_rep_;
   std::vector<std::shared_ptr<lkf_t>> models_;
-  mutable std::mutex     mutex_lkf_;
+  mutable std::mutex                  mutex_lkf_;
 
   std::unique_ptr<drmgr_t> drmgr_;
 
@@ -74,7 +72,7 @@ private:
   mutable std::mutex mtx_innovation_;
 
   bool is_repredictor_enabled_;
-  int rep_buffer_size_ = 200;
+  int  rep_buffer_size_ = 200;
 
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<alt_generic::n_measurements>>> corrections_;
@@ -90,7 +88,7 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
-  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time& meas_stamp);
+  void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp);
 
   bool isConverged();
 
@@ -99,39 +97,40 @@ private:
 
 public:
   AltGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
-      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name){};
+      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name) {
+  }
 
   ~AltGeneric(void) {
   }
 
-  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
-  virtual bool start(void) override;
-  virtual bool pause(void) override;
-  virtual bool reset(void) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  bool start(void) override;
+  bool pause(void) override;
+  bool reset(void) override;
 
-  virtual double getState(const int &state_idx_in) const override;
-  virtual double getState(const int &state_id_in, const int &axis_in) const override;
+  double getState(const int &state_idx_in) const override;
+  double getState(const int &state_id_in, const int &axis_in) const override;
 
-  virtual void setState(const double &state_in, const int &state_idx_in) override;
-  virtual void setState(const double &state_in, const int &state_id_in, const int &axis_in) override;
+  void setState(const double &state_in, const int &state_idx_in) override;
+  void setState(const double &state_in, const int &state_id_in, const int &axis_in) override;
 
-  virtual states_t getStates(void) const override;
-  virtual void     setStates(const states_t &states_in) override;
+  states_t getStates(void) const override;
+  void     setStates(const states_t &states_in) override;
 
-  virtual double getCovariance(const int &state_idx_in) const override;
-  virtual double getCovariance(const int &state_id_in, const int &axis_in) const override;
+  double getCovariance(const int &state_idx_in) const override;
+  double getCovariance(const int &state_id_in, const int &axis_in) const override;
 
-  virtual covariance_t getCovarianceMatrix(void) const override;
-  virtual void         setCovarianceMatrix(const covariance_t &cov_in) override;
+  covariance_t getCovarianceMatrix(void) const override;
+  void         setCovarianceMatrix(const covariance_t &cov_in) override;
 
-  virtual double getInnovation(const int &state_idx) const override;
-  virtual double getInnovation(const int &state_id_in, const int &axis_in) const override;
+  double getInnovation(const int &state_idx) const override;
+  double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
-  virtual void setDt(const double &dt);
-  virtual void setInputCoeff(const double &input_coeff);
+  void setDt(const double &dt);
+  void setInputCoeff(const double &input_coeff);
 
-  virtual void generateA();
-  virtual void generateB();
+  void generateA();
+  void generateB();
 
   void timeoutOdom(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
   void timeoutRange(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
@@ -140,4 +139,4 @@ public:
 };
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_ALTITUDE_ALT_GENERIC_H

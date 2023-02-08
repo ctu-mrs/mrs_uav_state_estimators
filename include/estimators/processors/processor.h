@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PROCESSOR_H
-#define PROCESSOR_H
+#ifndef ESTIMATORS_PROCESSORS_PROCESSOR_H
+#define ESTIMATORS_PROCESSORS_PROCESSOR_H
 
 namespace mrs_uav_state_estimation
 {
@@ -19,7 +19,8 @@ public:
 
 protected:
   Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch)
-      : correction_name_(correction_name), name_(name), ch_(ch){};  // protected constructor to prevent instantiation
+      : correction_name_(correction_name), name_(name), ch_(ch) {
+  }  // protected constructor to prevent instantiation
 
   const std::string correction_name_;
   const std::string name_;
@@ -51,4 +52,4 @@ std::string Processor<n_measurements>::getNamespacedName() const {
 
 }  // namespace mrs_uav_state_estimation
 
-#endif // PROCESSOR_H
+#endif  // ESTIMATORS_PROCESSORS_PROCESSOR_H

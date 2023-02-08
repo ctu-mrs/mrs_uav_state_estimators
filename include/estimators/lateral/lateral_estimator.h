@@ -1,5 +1,5 @@
-#ifndef LATERALESTIMATOR_H_
-#define LATERALESTIMATOR_H_
+#ifndef ESTIMATORS_LATERAL_LATERAL_ESTIMATOR_H
+#define ESTIMATORS_LATERAL_LATERAL_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -12,17 +12,18 @@ namespace mrs_uav_state_estimation
 
 namespace lateral
 {
-const std::string type = "LATERAL";
-const int n_axes = 2;
-}
+const char type[] = "LATERAL";
+const int  n_axes = 2;
+}  // namespace lateral
 
 template <int n_states>
 class LateralEstimator : public PartialEstimator<n_states, lateral::n_axes> {
 
-public:
-  LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, lateral::n_axes>(lateral::type, name, frame_id){};
+protected:
+  LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, lateral::n_axes>(lateral::type, name, frame_id) {
+  }
 
-  virtual ~LateralEstimator(void) {
+  ~LateralEstimator(void) {
   }
 
 private:
@@ -30,9 +31,8 @@ private:
   static const int _n_states_ = n_states;
   static const int _n_inputs_;
   static const int _n_measurements_;
-
 };
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_LATERAL_LATERAL_ESTIMATOR_H

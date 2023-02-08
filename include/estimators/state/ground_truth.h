@@ -1,5 +1,5 @@
-#ifndef GROUNDTRUTH_H
-#define GROUNDTRUTH_H
+#ifndef ESTIMATORS_STATE_GROUND_TRUTH_H
+#define ESTIMATORS_STATE_GROUND_TRUTH_H
 
 /* includes //{ */
 
@@ -29,8 +29,8 @@ namespace mrs_uav_state_estimation
 
 namespace ground_truth
 {
-const std::string name     = "ground_truth";
-const std::string frame_id = "ground_truth_origin";
+const char name[]     = "ground_truth";
+const char frame_id[] = "ground_truth_origin";
 }  // namespace ground_truth
 
 class GroundTruth : public StateEstimator {
@@ -64,22 +64,23 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id){};
+  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id) {
+  }
 
   ~GroundTruth(void) {
   }
 
-  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
-  virtual bool start(void) override;
-  virtual bool pause(void) override;
-  virtual bool reset(void) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  bool start(void) override;
+  bool pause(void) override;
+  bool reset(void) override;
 
-  virtual mrs_msgs::UavState  getUavState() const override;
-  virtual std::vector<double> getPoseCovariance() const override;
-  virtual std::vector<double> getTwistCovariance() const override;
+  mrs_msgs::UavState  getUavState() const override;
+  std::vector<double> getPoseCovariance() const override;
+  std::vector<double> getTwistCovariance() const override;
 
-  virtual bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_STATE_GROUND_TRUTH_H

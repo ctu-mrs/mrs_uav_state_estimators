@@ -30,4 +30,4 @@ struct CommonHandlers_t
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // COMMON_HANDLERS_H

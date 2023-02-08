@@ -62,4 +62,4 @@ namespace sm
 }  // namespace sm
 
 }  // namespace mrs_uav_state_estimation
-#endif
+#endif // TYPES_H

@@ -1,4 +1,5 @@
 #define VERSION "0.0.0.1"
+
 #include "transform_manager.h"
 
 namespace mrs_uav_state_estimation
@@ -110,7 +111,7 @@ void TransformManager::onInit() {
 
   /*//{ initialize tf sources */
   param_loader.loadParam("tf_sources", tf_source_names_);
-  for (int i = 0; i < int(tf_source_names_.size()); i++) {
+  for (size_t i = 0; i < tf_source_names_.size(); i++) {
     const std::string tf_source_name = tf_source_names_[i];
     ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
     tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_, transformer_));
@@ -357,7 +358,7 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
   const tf2::Quaternion q_inv = q.inverse();
 
   geometry_msgs::TransformStamped tf;
-  tf.header.stamp            = msg->header.stamp;  // TODO ros::Time::now()?
+  tf.header.stamp            = msg->header.stamp;  // TODO(petrlmat) ros::Time::now()?
   tf.header.frame_id         = ns_fcu_frame_id_;
   tf.child_frame_id          = ns_fcu_untilted_frame_id_;
   tf.transform.translation.x = 0.0;

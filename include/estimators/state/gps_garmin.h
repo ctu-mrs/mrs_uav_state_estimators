@@ -1,5 +1,5 @@
-#ifndef GPSGARMIN_H
-#define GPSGARMIN_H
+#ifndef ESTIMATORS_STATE_GPS_GARMIN_H
+#define ESTIMATORS_STATE_GPS_GARMIN_H
 
 /* includes //{ */
 
@@ -29,21 +29,21 @@ namespace mrs_uav_state_estimation
 
 namespace gps_garmin
 {
-const std::string name     = "gps_garmin";
-const std::string frame_id = "gps_garmin_origin";
+const char name[]     = "gps_garmin";
+const char frame_id[] = "gps_garmin_origin";
 }  // namespace gps_garmin
 
 class GpsGarmin : public StateEstimator {
 
 private:
-  std::unique_ptr<LatGeneric>    est_lat_gps_;
-  const std::string est_lat_name_ = "lat_gps";
+  std::unique_ptr<LatGeneric> est_lat_gps_;
+  const std::string           est_lat_name_ = "lat_gps";
 
   std::unique_ptr<AltGeneric> est_alt_garmin_;
-  const std::string est_alt_name_ = "alt_garmin";
+  const std::string           est_alt_name_ = "alt_garmin";
 
   std::unique_ptr<HdgPassthrough> est_hdg_mavros_;
-  const std::string est_hdg_name_ = "hdg_mavros";
+  const std::string               est_hdg_name_ = "hdg_mavros";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;
@@ -61,22 +61,23 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GpsGarmin() : StateEstimator(gps_garmin::name, gps_garmin::frame_id){};
+  GpsGarmin() : StateEstimator(gps_garmin::name, gps_garmin::frame_id) {
+  }
 
   ~GpsGarmin(void) {
   }
 
-  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
-  virtual bool start(void) override;
-  virtual bool pause(void) override;
-  virtual bool reset(void) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  bool start(void) override;
+  bool pause(void) override;
+  bool reset(void) override;
 
-  virtual mrs_msgs::UavState  getUavState() const override;
-  virtual std::vector<double> getPoseCovariance() const override;
-  virtual std::vector<double> getTwistCovariance() const override;
+  mrs_msgs::UavState  getUavState() const override;
+  std::vector<double> getPoseCovariance() const override;
+  std::vector<double> getTwistCovariance() const override;
 
-  virtual bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_STATE_GPS_GARMIN_H

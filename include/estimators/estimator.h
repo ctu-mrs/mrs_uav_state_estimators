@@ -1,5 +1,5 @@
-#ifndef ESTIMATOR_H
-#define ESTIMATOR_H
+#ifndef ESTIMATORS_ESTIMATOR_H
+#define ESTIMATORS_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -34,7 +34,7 @@ protected:
   const std::string type_;
   const std::string name_;
 
-  std::string frame_id_; // cannot be constant - must remain overridable by loaded parameter
+  std::string frame_id_;  // cannot be constant - must remain overridable by loaded parameter
   std::string ns_frame_id_;
 
   std::shared_ptr<CommonHandlers_t> ch_;
@@ -45,12 +45,14 @@ private:
   SMStates_t previous_sm_state_ = UNINITIALIZED_STATE;
   SMStates_t current_sm_state_  = UNINITIALIZED_STATE;
 
-public:
-  Estimator(const std::string &type, const std::string &name, const std::string &frame_id) : type_(type), name_(name), frame_id_(frame_id){};
+protected:
+  Estimator(const std::string &type, const std::string &name, const std::string &frame_id) : type_(type), name_(name), frame_id_(frame_id) {
+  }
 
   virtual ~Estimator(void) {
   }
 
+public:
   // virtual methods
   virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) = 0;
   virtual bool start(void)                                                                  = 0;
@@ -62,10 +64,10 @@ public:
   std::string getName(void) const;
   std::string getType(void) const;
   std::string getFrameId(void) const;
-  double getMaxFlightAltitudeAgl(void) const;
+  double      getMaxFlightAltitudeAgl(void) const;
   std::string getSmStateString(const SMStates_t &state) const;
   std::string getCurrentSmStateString(void) const;
-  SMStates_t getCurrentSmState() const;
+  SMStates_t  getCurrentSmState() const;
 
   // state machine methods
   bool changeState(SMStates_t new_state);
@@ -89,4 +91,4 @@ public:
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_ESTIMATOR_H

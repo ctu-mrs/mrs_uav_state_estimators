@@ -61,7 +61,8 @@ public:
   /*//}*/
 
 public:
-  StateMachine(){};
+  StateMachine() {
+  }
 
   bool isInState(const SMState_t &state) const {
     std::scoped_lock lock(mtx_state_);
@@ -81,8 +82,7 @@ public:
 
   bool isInTheAir() const {
     std::scoped_lock lock(mtx_state_);
-    return current_state_ == TAKING_OFF_STATE || current_state_ == HOVER_STATE || current_state_ == FLYING_STATE ||
-           current_state_ == LANDING_STATE;
+    return current_state_ == TAKING_OFF_STATE || current_state_ == HOVER_STATE || current_state_ == FLYING_STATE || current_state_ == LANDING_STATE;
   }
 
   SMState_t getCurrentState() const {
@@ -185,7 +185,8 @@ public:
 
       case DUMMY_STATE: {
         if (current_state_ != INITIALIZED_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(DUMMY_STATE).c_str(), getStateAsString(INITIALIZED_STATE).c_str());
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(DUMMY_STATE).c_str(),
+                    getStateAsString(INITIALIZED_STATE).c_str());
           return false;
         }
         break;
@@ -220,17 +221,17 @@ public:
   }
   /*//}*/
 
-/*//{ changeToPreSwitchState() */
+  /*//{ changeToPreSwitchState() */
   void changeToPreSwitchState() {
     changeState(pre_switch_state_);
   }
-/*//}*/
+  /*//}*/
 
 private:
   const std::string name_ = "StateMachine";
 
-  SMState_t current_state_  = UNINITIALIZED_STATE;
-  SMState_t previous_state_ = UNINITIALIZED_STATE;
+  SMState_t current_state_    = UNINITIALIZED_STATE;
+  SMState_t previous_state_   = UNINITIALIZED_STATE;
   SMState_t pre_switch_state_ = UNINITIALIZED_STATE;
 
   mutable std::mutex mtx_state_;
@@ -271,11 +272,11 @@ private:
   StateMachine sm_;
 
   mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics> ph_diagnostics_;
-  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_max_flight_altitude_agl_;
-  mrs_lib::PublisherHandler<mrs_msgs::UavState>     ph_uav_state_;
-  mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_main_;
-  mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_slow_;  // use topic throttler instead?
-  mrs_lib::PublisherHandler<nav_msgs::Odometry>     ph_odom_main_innovation_;
+  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>              ph_max_flight_altitude_agl_;
+  mrs_lib::PublisherHandler<mrs_msgs::UavState>                    ph_uav_state_;
+  mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_main_;
+  mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_slow_;  // use topic throttler instead?
+  mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_main_innovation_;
 
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_amsl_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_agl_;
@@ -291,15 +292,15 @@ private:
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   ros::ServiceServer srvs_change_estimator_;
-  bool callbackChangeEstimator(mrs_msgs::String::Request& req, mrs_msgs::String::Response& res);
-  int estimator_switch_count_ = 0;
+  bool               callbackChangeEstimator(mrs_msgs::String::Request &req, mrs_msgs::String::Response &res);
+  int                estimator_switch_count_ = 0;
 
 
   ros::ServiceServer srvs_toggle_callbacks_;
-  bool callbacks_enabled_ = false;
-  bool callbacks_disabled_by_service_ = false;
+  bool               callbacks_enabled_             = false;
+  bool               callbacks_disabled_by_service_ = false;
 
-  bool callFailsafeService();
+  bool                                             callFailsafeService();
   mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvch_failsafe_;
   // TODO service clients
   /* mrs_lib::ServiceClientHandler<std_srvs::Trigger> srvc_hover_; */
@@ -309,7 +310,7 @@ private:
 
   // | ------------- dynamic loading of estimators ------------- |
   std::unique_ptr<pluginlib::ClassLoader<mrs_uav_state_estimation::StateEstimator>> estimator_loader_;  // pluginlib loader of dynamically loaded estimators
-  std::vector<std::string>                                                          estimator_names_;  // list of estimator names
+  std::vector<std::string>                                                          estimator_names_;   // list of estimator names
   /* std::map<std::string, EstimatorParams>                               estimator_params_;        // map between estimator names and estimator params */
   std::vector<boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>> estimator_list_;  // list of estimators
   std::mutex                                                               mutex_estimator_list_;
@@ -321,12 +322,12 @@ private:
   std::mutex                                                  mutex_active_estimator_;
 
   std::unique_ptr<AltGeneric> est_alt_agl_;
-  const std::string est_alt_agl_name_ = "est_alt_agl";
+  const std::string           est_alt_agl_name_ = "est_alt_agl";
 
   double max_safety_area_altitude_;
 
   bool switchToHealthyEstimator();
-  void switchToEstimator(const boost::shared_ptr<mrs_uav_state_estimation::StateEstimator>& target_estimator);
+  void switchToEstimator(const boost::shared_ptr<mrs_uav_state_estimation::StateEstimator> &target_estimator);
 
 public:
   EstimationManager();
@@ -342,4 +343,4 @@ EstimationManager::EstimationManager() {
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATION_MANAGER_H

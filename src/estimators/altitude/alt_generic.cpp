@@ -91,7 +91,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time::now();
-    lkf_rep_           = std::make_unique<Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
   }
 
   // | ------------------ timers initialization ----------------- |
@@ -178,7 +178,7 @@ bool AltGeneric::reset(void) {
 
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time(0);
-    lkf_rep_           = std::make_unique<Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
   }
 
   ROS_INFO("[%s]: Estimator reset", getNamespacedName().c_str());

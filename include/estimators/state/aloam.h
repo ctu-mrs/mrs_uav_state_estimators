@@ -1,5 +1,5 @@
-#ifndef STATEALOAM_H
-#define STATEALOAM_H
+#ifndef ESTIMATORS_STATE_ALOAM_H
+#define ESTIMATORS_STATE_ALOAM_H
 
 /* includes //{ */
 
@@ -32,21 +32,21 @@ namespace mrs_uav_state_estimation
 
 namespace aloam
 {
-const std::string name     = "aloam";
-const std::string frame_id = "aloam_origin";
+const char name[]     = "aloam";
+const char frame_id[] = "aloam_origin";
 }  // namespace aloam
 
 class Aloam : public StateEstimator {
 
 private:
-  std::unique_ptr<LatGeneric>    est_lat_aloam_;
-  const std::string est_lat_name_ = "lat_aloam";
+  std::unique_ptr<LatGeneric> est_lat_aloam_;
+  const std::string           est_lat_name_ = "lat_aloam";
 
   std::unique_ptr<AltGeneric> est_alt_aloam_;
-  const std::string est_alt_name_ = "alt_aloam";
+  const std::string           est_alt_name_ = "alt_aloam";
 
   std::unique_ptr<HdgGeneric> est_hdg_aloam_;
-  const std::string est_hdg_name_ = "hdg_aloam";
+  const std::string           est_hdg_name_ = "hdg_aloam";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
   double                                        _critical_timeout_mavros_odom_;
@@ -64,22 +64,23 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  Aloam() : StateEstimator(aloam::name, aloam::frame_id){};
+  Aloam() : StateEstimator(aloam::name, aloam::frame_id) {
+  }
 
   ~Aloam(void) {
   }
 
-  virtual void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
-  virtual bool start(void) override;
-  virtual bool pause(void) override;
-  virtual bool reset(void) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  bool start(void) override;
+  bool pause(void) override;
+  bool reset(void) override;
 
-  virtual mrs_msgs::UavState  getUavState() const override;
-  virtual std::vector<double> getPoseCovariance() const override;
-  virtual std::vector<double> getTwistCovariance() const override;
+  mrs_msgs::UavState  getUavState() const override;
+  std::vector<double> getPoseCovariance() const override;
+  std::vector<double> getTwistCovariance() const override;
 
-  virtual bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_STATE_ALOAM_H

@@ -3,6 +3,10 @@
 #include <gtest/gtest.h>
 #include <log4cxx/logger.h>
 
+#include <string>
+#include <vector>
+#include <memory>
+
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_msgs/TFMessage.h>
 
@@ -10,8 +14,8 @@
 
 #include <mrs_msgs/RtkGps.h>
 
-#include "estimators/correction.h"
-#include "common_handlers.h"
+#include "include/estimators/correction.h"
+#include "include/common_handlers.h"
 
 namespace mrs_uav_state_estimation
 {
@@ -37,9 +41,9 @@ measurement_t correctionTfExpected(const DataPoint_t& data) {
   measurement_t result;
 
   tf2::Quaternion q(data.fcu_qx, data.fcu_qy, data.fcu_qz, data.fcu_qw);
-  tf2::Matrix3x3 rot_mat(q);
-  tf2::Vector3   meas(data.meas_x, data.meas_y, 0);
-  tf2::Vector3   antenna_pos(0, 0, data.antenna_z);
+  tf2::Matrix3x3  rot_mat(q);
+  tf2::Vector3    meas(data.meas_x, data.meas_y, 0);
+  tf2::Vector3    antenna_pos(0, 0, data.antenna_z);
 
   tf2::Vector3 res_vec = meas - rot_mat * antenna_pos;
   result(0)            = res_vec.getX();
@@ -90,10 +94,10 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
   measurement_t       output;
 
   mrs_msgs::RtkGps rtk_msg;
-  rtk_msg.header.stamp         = ros::Time::now();
-  rtk_msg.header.frame_id      = "utm";
-  rtk_msg.pose.pose.position.x = data.meas_x;
-  rtk_msg.pose.pose.position.y = data.meas_y;
+  rtk_msg.header.stamp            = ros::Time::now();
+  rtk_msg.header.frame_id         = "utm";
+  rtk_msg.pose.pose.position.x    = data.meas_x;
+  rtk_msg.pose.pose.position.y    = data.meas_y;
   rtk_msg.pose.pose.orientation.w = 1;
   pub_rtk_msg.publish(rtk_msg);
   ros::spinOnce();
@@ -186,21 +190,21 @@ TEST(TESTSuite, correctionTf) {
 
   for (int i = 0; i < 10; i++) {
     tf2::Quaternion q;
-    double low = -1;
-    double high = 1;
-    q.setX(low + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(high-low))));
-    q.setY(low + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(high-low))));
-    q.setZ(low + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(high-low))));
-    q.setW(low + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(high-low))));
-    q.normalize(); 
+    double          low  = -1;
+    double          high = 1;
+    q.setX(low + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (high - low))));
+    q.setY(low + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (high - low))));
+    q.setZ(low + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (high - low))));
+    q.setW(low + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (high - low))));
+    q.normalize();
     data.push_back(q.getX());
     data.push_back(q.getY());
     data.push_back(q.getZ());
     data.push_back(q.getW());
     for (int j = 0; j < 3; j++) {
-      const double low = -10000;
+      const double low  = -10000;
       const double high = 10000;
-      const double num = low + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(high-low)));
+      const double num  = low + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (high - low)));
       data.push_back(num);
     }
     if (data.size() > 6) {

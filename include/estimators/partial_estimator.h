@@ -1,5 +1,5 @@
-#ifndef PARTIAL_ESTIMATOR_H_
-#define PARTIAL_ESTIMATOR_H_
+#ifndef ESTIMATORS_PARTIAL_ESTIMATOR_H
+#define ESTIMATORS_PARTIAL_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -28,7 +28,7 @@ public:
 
 protected:
   mutable mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput> ph_output_;
-  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_input_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>             ph_input_;
 
 private:
   static const int _n_axes_   = n_axes;
@@ -37,12 +37,13 @@ private:
   static const int _n_measurements_;
 
 public:
-  PartialEstimator(const std::string &type, const std::string &name, const std::string &frame_id) : Estimator(type, name, frame_id){};
-
-  virtual ~PartialEstimator(void) {
+  PartialEstimator(const std::string &type, const std::string &name, const std::string &frame_id) : Estimator(type, name, frame_id) {
   }
 
-  // virtual methods
+  ~PartialEstimator(void) {
+  }
+
+  //  methods
   virtual double getState(const int &state_idx_in) const                    = 0;
   virtual double getState(const int &state_id_in, const int &axis_in) const = 0;
 
@@ -58,7 +59,7 @@ public:
   virtual covariance_t getCovarianceMatrix(void) const                 = 0;
   virtual void         setCovarianceMatrix(const covariance_t &cov_in) = 0;
 
-  virtual double getInnovation(const int &state_idx) const = 0;
+  virtual double getInnovation(const int &state_idx) const                       = 0;
   virtual double getInnovation(const int &state_id_in, const int &axis_in) const = 0;
 
   // implemented methods
@@ -69,7 +70,7 @@ public:
   int stateIdToIndex(const int &state_id_in, const int &axis_in) const;
 
   template <typename u_t>
-  void publishInput(const u_t& u) const;
+  void publishInput(const u_t &u) const;
   void publishOutput() const;
 };
 
@@ -131,10 +132,10 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
 /*//{ publishInput() */
 template <int n_states, int n_axes>
 template <typename u_t>
-void PartialEstimator<n_states, n_axes>::publishInput(const u_t& u) const {
+void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u) const {
 
   mrs_msgs::Float64ArrayStamped msg;
-  msg.header.stamp    = ros::Time::now();
+  msg.header.stamp = ros::Time::now();
   for (int i = 0; i < u.rows(); i++) {
     msg.values.push_back(u(i));
   }
@@ -147,4 +148,4 @@ void PartialEstimator<n_states, n_axes>::publishInput(const u_t& u) const {
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_PARTIAL_ESTIMATOR_H

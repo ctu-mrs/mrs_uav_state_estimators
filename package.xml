@@ -12,7 +12,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>pluginlib</depend>
+  <build_depend>roslint</build_depend>
+
   <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
@@ -25,6 +26,11 @@
   <depend>dynamic_reconfigure</depend>
   <depend>message_generation</depend>
   <depend>message_runtime</depend>
+
+  <exec_depend>pluginlib</exec_depend>
+  <exec_depend>mrs_uav_general</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>plotjuggler</exec_depend>
 
   <test_depend>rostest</test_depend>
 

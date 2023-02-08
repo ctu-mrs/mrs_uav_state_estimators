@@ -1,5 +1,5 @@
-#ifndef HEADINGESTIMATOR_H_
-#define HEADINGESTIMATOR_H_
+#ifndef ESTIMATORS_HEADING_HEADING_ESTIMATOR_H
+#define ESTIMATORS_HEADING_HEADING_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -12,15 +12,15 @@ namespace mrs_uav_state_estimation
 
 namespace heading
 {
-const std::string type = "HEADING";
+const char type[] = "HEADING";
 }
 
 template <int n_states>
 class HeadingEstimator : public PartialEstimator<n_states, 1> {
 
-private:
-public:
-  HeadingEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(heading::type, name, frame_id){};
+protected:
+  HeadingEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(heading::type, name, frame_id) {
+  }
 
   virtual ~HeadingEstimator(void) {
   }
@@ -35,4 +35,4 @@ private:
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_HEADING_HEADING_ESTIMATOR_H

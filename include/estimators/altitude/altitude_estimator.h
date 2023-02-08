@@ -1,5 +1,6 @@
-#ifndef ALTITUDEESTIMATOR_H_
-#define ALTITUDEESTIMATOR_H_
+#pragma once
+#ifndef ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H
+#define ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H
 
 /* includes //{ */
 
@@ -12,21 +13,22 @@ namespace mrs_uav_state_estimation
 
 namespace altitude
 {
-const std::string type = "ALTITUDE";
+const char type[] = "ALTITUDE";
 
-typedef enum {
+typedef enum
+{
   ODOMETRY,
   RANGE
 } MeasurementType_t;
 
-}
+}  // namespace altitude
 
 template <int n_states>
 class AltitudeEstimator : public PartialEstimator<n_states, 1> {
 
-private:
-public:
-  AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id){};
+protected:
+  AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id) {
+  }
 
   virtual ~AltitudeEstimator(void) {
   }
@@ -41,4 +43,4 @@ private:
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H

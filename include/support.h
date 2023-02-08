@@ -256,10 +256,10 @@ public:
 
   //}
 private:
-  Support(){};
+  Support(){}
 };
 /*//}*/
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif // SUPPORT_H

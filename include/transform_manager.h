@@ -25,6 +25,9 @@
 
 #include <nav_msgs/Odometry.h>
 
+#include <memory>
+#include <string>
+
 #include "support.h"
 
 /*//}*/
@@ -94,7 +97,8 @@ public:
     transformer_->retryLookupNewest(true);
 
     for (auto frame_id : republish_in_frames_) {
-      republishers_.push_back(std::make_pair(frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, full_topic_ + "/" + frame_id.substr(0, frame_id.find("_origin")))));
+      republishers_.push_back(
+          std::make_pair(frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, full_topic_ + "/" + frame_id.substr(0, frame_id.find("_origin")))));
     }
     is_initialized_ = true;
     ROS_INFO("[%s]: initialized", getName().c_str());
@@ -359,7 +363,8 @@ private:
 class TransformManager : public nodelet::Nodelet {
 
 public:
-  TransformManager(){};
+  TransformManager() {
+  }
 
   void onInit();
 
@@ -419,4 +424,4 @@ private:
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif  // TRANSFORM_MANAGER_H
