@@ -19,6 +19,8 @@
 #include "types.h"
 #include "support.h"
 #include "common_handlers.h"
+#include "estimators/processors/processor.h"
+#include "estimators/processors/proc_median_filter.h"
 
 #include "mrs_uav_state_estimation/EstimatorCorrection.h"
 #include "mrs_uav_state_estimation/CorrectionConfig.h"
@@ -63,10 +65,10 @@ public:
   StateId_t getStateId() const;
 
   bool             isHealthy();
-  std::atomic_bool is_healthy_  = true;
-  std::atomic_bool is_delay_ok_ = true;
-  std::atomic_bool is_dt_ok_    = true;
-  std::atomic_bool is_nan_free_ = true;
+  std::atomic_bool is_healthy_    = true;
+  std::atomic_bool is_delay_ok_   = true;
+  std::atomic_bool is_dt_ok_      = true;
+  std::atomic_bool is_nan_free_   = true;
   std::atomic_bool got_first_msg_ = false;
 
   bool getCorrection(measurement_t& measurement, ros::Time& stamp);
@@ -80,7 +82,8 @@ private:
 
   void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
-  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_;
+  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_raw_;
+  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_proc_;
 
   const std::string                 est_name_;
   const std::string                 name_;
@@ -111,7 +114,13 @@ private:
 
   double time_since_last_msg_limit_;
 
-  void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp);
+  auto createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
+  bool process(measurement_t& measurement);
+
+  std::vector<std::string>                               processor_names_;
+  std::vector<std::shared_ptr<Processor<n_measurements>>> processors_;
+
+  void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
 };
 
 /*//{ constructor */
@@ -146,6 +155,13 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ros::shutdown();
   }
   param_loader.loadParam("noise", R_);
+
+  // | --------------- processors initialization --------------- |
+  param_loader.loadParam("processors", processor_names_);
+
+  for (auto proc_name : processor_names_) {
+    processors_.push_back(createProcessorFromName(proc_name, nh));
+  }
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
@@ -192,31 +208,40 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | --------------- initialize publish handlers -------------- |
-  ph_correction_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName(), 1);
+  ph_correction_raw_  = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
+  ph_correction_proc_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + " _proc", 1);
 }
 /*//}*/
 
+/*//{ getName() */
 template <int n_measurements>
 std::string Correction<n_measurements>::getName() const {
   return name_;
 }
+/*//}*/
 
+/*//{ getNamespacedName() */
 template <int n_measurements>
 std::string Correction<n_measurements>::getNamespacedName() const {
   return est_name_ + "/" + name_;
 }
+/*//}*/
 
+/*//{ getR() */
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
   std::scoped_lock lock(mtx_R_);
   R_ = drmgr_->config.noise;
   return R_;
 }
+/*//}*/
 
+/*//{ getStateId() */
 template <int n_measurements>
 StateId_t Correction<n_measurements>::getStateId() const {
   return state_id_;
 }
+/*//}*/
 
 /*//{ isHealthy() */
 template <int n_measurements>
@@ -330,7 +355,11 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
   /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
 
   got_first_msg_ = true;
-  publishCorrection(measurement, measurement_stamp);
+  publishCorrection(measurement, measurement_stamp, ph_correction_raw_);
+
+  if (process(measurement)) {
+    publishCorrection(measurement, measurement_stamp, ph_correction_proc_);
+  }
 
   return true;
 }
@@ -591,8 +620,8 @@ bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, co
 
   // velocity from mavros is already in global frame
   if (msg.header.frame_id == "map" && msg.child_frame_id == "base_link") {
-    measurement_out(0) = msg.twist.twist.linear.x; 
-    measurement_out(1) = msg.twist.twist.linear.y; 
+    measurement_out(0) = msg.twist.twist.linear.x;
+    measurement_out(1) = msg.twist.twist.linear.y;
     return true;
   }
 
@@ -660,7 +689,7 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
 }
 /*//}*/
 
-/*//{ isMsgDelayOk() */
+/*//{ checkMsgDelay() */
 template <int n_measurements>
 void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
@@ -674,9 +703,41 @@ void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 }
 /*//}*/
 
+/*//{ createProcessorFromName() */
+template <int n_measurements>
+auto Correction<n_measurements>::createProcessorFromName(const std::string& name, ros::NodeHandle& nh) {
+
+  if (name == "median_filter") {
+
+    return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_);
+  } else if (name == "innovation_gate") {
+    // TODO handle this and other cases
+    ROS_ERROR("[%s]: TODO: implement processor %s", getNamespacedName().c_str(), name.c_str());
+  } else {
+    ROS_ERROR("[%s]: requested invalid processor %s", getNamespacedName().c_str(), name.c_str());
+    ros::shutdown();
+  }
+
+}
+/*//}*/
+
+/*//{ process() */
+template <int n_measurements>
+bool Correction<n_measurements>::process(Correction<n_measurements>::measurement_t& measurement) {
+  bool ok_flag = true;
+  for (auto processor : processors_) {
+    if (processor->process(measurement)) {
+      ok_flag = false;
+    }
+  }
+  return ok_flag;
+}
+/*//}*/
+
 /*//{ publishCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp) {
+void Correction<n_measurements>::publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp,
+                                                   mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr) {
   EstimatorCorrection msg;
   msg.header.stamp    = measurement_stamp;
   msg.header.frame_id = ns_frame_id_;
@@ -689,10 +750,10 @@ void Correction<n_measurements>::publishCorrection(const measurement_t& measurem
     msg.covariance[n_measurements * i + i] = getR();
   }
 
-  ph_correction_.publish(msg);
+  ph_corr.publish(msg);
 }
 /*//}*/
 
 }  // namespace mrs_uav_state_estimation
 
-#endif
+#endif // CORRECTION_H

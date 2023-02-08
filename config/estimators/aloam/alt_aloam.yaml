@@ -36,3 +36,12 @@ aloam: # namespace of the state estimator
         limit: 
           delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [ # types of processors attached to this measurement
+        "median_filter"
+      ]
+
+      median_filter:
+        buffer_size: 20 # the number of samples from which the median is calculated
+        max_diff: 2.0 # [m] reject measurement if difference from median is over this value
+

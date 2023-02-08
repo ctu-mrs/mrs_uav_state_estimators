@@ -24,3 +24,5 @@ aloam: # namespace of the state estimator
         limit: 
           delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [] # types of processors attached to this measurement
