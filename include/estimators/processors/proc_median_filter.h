@@ -64,7 +64,7 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 
   bool ok_flag = true;
   for (int i = 0; i < measurement.rows(); i++) {
-    if (!vec_mf_[i].addCheck(measurement(i))) {
+    if (!vec_mf_[i].addCheck(measurement(i)) || !vec_mf_[i].full()) {
       std::stringstream ss_measurement_string;
       ss_measurement_string << measurement(i);
       ss_measurement_string << " ";

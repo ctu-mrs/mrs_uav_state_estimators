@@ -21,12 +21,15 @@ find_package(catkin REQUIRED COMPONENTS
   )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
-
 # include Eigen3
 find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
 set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
+# clang-tidy linting
+# find_program(CLANG_TIDY_COMMAND NAMES clang-tidy)
+# set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-header-filter='${CMAKE_SOURCE_DIR}/*'")
+# set(CLANG_TIDY_DEFINITIONS "--use-color")
 
 ###################################
 ## catkin specific configuration ##
@@ -185,6 +188,7 @@ add_library(EstimationManager
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(EstimationManager
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )

@@ -1,5 +1,5 @@
 #define VERSION "0.0.0.1"
-#include "include/estimation_manager.h"
+#include "estimation_manager.h"
 
 namespace mrs_uav_state_estimation
 {

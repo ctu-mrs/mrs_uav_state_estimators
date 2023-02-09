@@ -26,6 +26,8 @@ gps_garmin: # namespace of the state estimator
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
+      processors: [] # types of processors attached to this measurement
+
     vel_baro:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
@@ -35,3 +37,5 @@ gps_garmin: # namespace of the state estimator
         limit: 
           delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [] # types of processors attached to this measurement

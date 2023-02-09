@@ -40,19 +40,24 @@ class TfSource {
 
 public:
   /*//{ constructor */
-  TfSource(const std::string& name, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster>& broadcaster,
+  TfSource(const std::string& name, const std::string& ns_fcu_frame_id, ros::NodeHandle nh, const std::shared_ptr<mrs_lib::TransformBroadcaster>& broadcaster,
            const std::shared_ptr<mrs_lib::Transformer>& transformer)
-      : name_(name), nh_(nh), broadcaster_(broadcaster), transformer_(transformer) {
+      : name_(name), ns_fcu_frame_id_(ns_fcu_frame_id), nh_(nh), broadcaster_(broadcaster), transformer_(transformer) {
 
     ROS_INFO("[%s]: initializing", getName().c_str());
 
     /*//{ load parameters */
     mrs_lib::ParamLoader param_loader(nh_, getName());
-    std::string          topic, ns;
+    std::string          odom_topic, attitude_topic, ns;
     param_loader.loadParam("uav_name", uav_name_);
-    param_loader.loadParam(getName() + "/topic", topic);
+    param_loader.loadParam(getName() + "/odom_topic", odom_topic);
+    param_loader.loadParam(getName() + "/tf_from_attitude/enabled", tf_from_attitude_enabled_);
+    if (tf_from_attitude_enabled_) {
+      param_loader.loadParam(getName() + "/tf_from_attitude/attitude_topic", attitude_topic);
+    }
     param_loader.loadParam(getName() + "/namespace", ns);
-    full_topic_ = "/" + uav_name_ + "/" + ns + "/" + topic;
+    full_topic_odom_     = "/" + uav_name_ + "/" + ns + "/" + odom_topic;
+    full_topic_attitude_ = "/" + uav_name_ + "/" + ns + "/" + attitude_topic;
     param_loader.loadParam(getName() + "/inverted", is_inverted_);
     param_loader.loadParam(getName() + "/republish_in_frames", republish_in_frames_);
 
@@ -90,7 +95,10 @@ public:
     shopts.queue_size         = 10;
     shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-    sh_tf_source_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic_, &TfSource::callbackTfSource, this);
+    sh_tf_source_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, full_topic_odom_, &TfSource::callbackTfSourceOdom, this);
+    if (tf_from_attitude_enabled_) {
+      sh_tf_source_att_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, full_topic_attitude_, &TfSource::callbackTfSourceAtt, this);
+    }
     /*//}*/
 
     transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, getName());
@@ -98,7 +106,7 @@ public:
 
     for (auto frame_id : republish_in_frames_) {
       republishers_.push_back(
-          std::make_pair(frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, full_topic_ + "/" + frame_id.substr(0, frame_id.find("_origin")))));
+          std::make_pair(frame_id, mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh_, full_topic_odom_ + "/" + frame_id.substr(0, frame_id.find("_origin")))));
     }
     is_initialized_ = true;
     ROS_INFO("[%s]: initialized", getName().c_str());
@@ -133,6 +141,7 @@ public:
 
 private:
   const std::string name_;
+  const std::string ns_fcu_frame_id_;
 
   ros::NodeHandle nh_;
 
@@ -153,7 +162,9 @@ private:
 
   std::string uav_name_;
 
-  std::string full_topic_;
+  std::string full_topic_odom_;
+  std::string full_topic_attitude_;
+  bool        tf_from_attitude_enabled_ = false;
 
   std::atomic_bool is_initialized_               = false;
   std::atomic_bool is_local_static_tf_published_ = false;
@@ -164,11 +175,12 @@ private:
 
   std::vector<std::pair<std::string, mrs_lib::PublisherHandler<nav_msgs::Odometry>>> republishers_;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_tf_source_;
-  nav_msgs::OdometryConstPtr                    first_msg_;
+  mrs_lib::SubscribeHandler<nav_msgs::Odometry>               sh_tf_source_odom_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_tf_source_att_;
+  nav_msgs::OdometryConstPtr                                  first_msg_;
 
-  /*//{ callbackTfSource()*/
-  void callbackTfSource(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+  /*//{ callbackTfSourceOdom()*/
+  void callbackTfSourceOdom(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
 
     if (!is_initialized_) {
       return;
@@ -193,6 +205,18 @@ private:
     for (auto republisher : republishers_) {
       republishInFrame(msg, uav_name_ + "/" + republisher.first, republisher.second);
     }
+  }
+  /*//}*/
+
+  /*//{ callbackTfSourceAtt()*/
+  void callbackTfSourceAtt(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>& wrp) {
+
+    if (!is_initialized_) {
+      return;
+    }
+
+    geometry_msgs::QuaternionStampedConstPtr msg = wrp.getMsg();
+    publishTfFromAtt(msg);
   }
   /*//}*/
 
@@ -228,12 +252,68 @@ private:
       catch (...) {
         ROS_ERROR("exception caught ");
       }
+
+      if (!tf_from_attitude_enabled_) {
+        if (is_inverted_) {
+          tf_msg.child_frame_id += "att_only";
+        } else {
+          tf_msg.header.frame_id += "att_only";
+        }
+        try {
+          broadcaster_->sendTransform(tf_msg);
+        }
+        catch (...) {
+          ROS_ERROR("exception caught ");
+        }
+      }
     } else {
       ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
                         tf_msg.child_frame_id.c_str());
     }
     ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on topic: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
-                  tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+                  tf_msg.child_frame_id.c_str(), full_topic_odom_.c_str());
+  }
+  /*//}*/
+
+  /* publishTfFromAtt() //{*/
+  void publishTfFromAtt(const geometry_msgs::QuaternionStampedConstPtr& msg) {
+
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg.header.stamp = msg->header.stamp;
+
+    geometry_msgs::Pose pose;
+    pose.orientation = msg->quaternion;
+    if (is_inverted_) {
+
+      const tf2::Transform      tf       = Support::tf2FromPose(pose);
+      const tf2::Transform      tf_inv   = tf.inverse();
+      const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
+
+      tf_msg.header.frame_id       = ns_fcu_frame_id_;
+      tf_msg.child_frame_id        = msg->header.frame_id;
+      tf_msg.transform.translation = Support::pointToVector3(pose_inv.position);
+      tf_msg.transform.rotation    = pose_inv.orientation;
+
+    } else {
+      tf_msg.header.frame_id       = msg->header.frame_id;
+      tf_msg.child_frame_id        = ns_fcu_frame_id_;
+      tf_msg.transform.translation = Support::pointToVector3(pose.position);
+      tf_msg.transform.rotation    = pose.orientation;
+    }
+
+    if (Support::noNans(tf_msg)) {
+      try {
+        broadcaster_->sendTransform(tf_msg);
+      }
+      catch (...) {
+        ROS_ERROR("exception caught ");
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                        tf_msg.child_frame_id.c_str());
+    }
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on topic: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+                  tf_msg.child_frame_id.c_str(), full_topic_attitude_.c_str());
   }
   /*//}*/
 
@@ -261,7 +341,7 @@ private:
                         tf_msg.child_frame_id.c_str());
     }
     ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
-                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_odom_.c_str());
     is_local_static_tf_published_ = true;
   }
   /*//}*/
@@ -295,7 +375,7 @@ private:
                         tf_msg.child_frame_id.c_str());
     }
     ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
-                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_odom_.c_str());
     is_utm_static_tf_published_ = true;
   }
   /*//}*/
@@ -329,7 +409,7 @@ private:
                         tf_msg.child_frame_id.c_str());
     }
     ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s based on first message of: %s", getName().c_str(),
-                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_.c_str());
+                  tf_msg.header.frame_id.c_str(), tf_msg.child_frame_id.c_str(), full_topic_odom_.c_str());
     is_world_static_tf_published_ = true;
   }
   /*//}*/

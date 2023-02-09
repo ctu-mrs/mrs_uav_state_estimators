@@ -117,7 +117,7 @@ private:
   auto createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
   bool process(measurement_t& measurement);
 
-  std::vector<std::string>                               processor_names_;
+  std::vector<std::string>                                processor_names_;
   std::vector<std::shared_ptr<Processor<n_measurements>>> processors_;
 
   void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
@@ -209,7 +209,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   // | --------------- initialize publish handlers -------------- |
   ph_correction_raw_  = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
-  ph_correction_proc_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + " _proc", 1);
+  ph_correction_proc_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_proc", 1);
 }
 /*//}*/
 
@@ -342,15 +342,15 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
       is_healthy_ = false;
       return false;
     }
+  }
 
-      // check for nans
-      for (int i = 0; i < measurement.rows(); i++) {
-        if (!std::isfinite(measurement(i))) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getNamespacedName().c_str());
-          is_nan_free_ = false;
-          return false;
-        }
-      }
+  // check for nans
+  for (int i = 0; i < measurement.rows(); i++) {
+    if (!std::isfinite(measurement(i))) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getNamespacedName().c_str());
+      is_nan_free_ = false;
+      return false;
+    }
   }
   /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
 
@@ -359,6 +359,8 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
 
   if (process(measurement)) {
     publishCorrection(measurement, measurement_stamp, ph_correction_proc_);
+  } else {
+    return false;  // invalid correction
   }
 
   return true;
@@ -383,7 +385,7 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
         }
 
         case StateId_t::VELOCITY: {
-          if (!getVelInFrame(msg, ns_frame_id_, measurement)) {
+          if (!getVelInFrame(msg, ns_frame_id_ + "_att_only", measurement)) {
             return false;
           }
           break;
@@ -619,7 +621,7 @@ template <int n_measurements>
 bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out) {
 
   // velocity from mavros is already in global frame
-  if (msg.header.frame_id == "map" && msg.child_frame_id == "base_link") {
+  if (frame == ch_->uav_name + "/pixhawk_origin" && frame == msg.header.frame_id) {
     measurement_out(0) = msg.twist.twist.linear.x;
     measurement_out(1) = msg.twist.twist.linear.y;
     return true;
@@ -756,4 +758,4 @@ void Correction<n_measurements>::publishCorrection(const measurement_t& measurem
 
 }  // namespace mrs_uav_state_estimation
 
-#endif // ESTIMATORS_CORRECTION_H
+#endif  // ESTIMATORS_CORRECTION_H

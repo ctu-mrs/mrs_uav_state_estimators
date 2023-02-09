@@ -47,9 +47,11 @@ protected:
   mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_odom_;
   mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_pose_covariance_, ph_twist_covariance_;
   mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_innovation_;
+  mutable mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>   ph_attitude_;
 
 public:
-  StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id){}
+  StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id) {
+  }
 
   virtual ~StateEstimator(void) {
   }
@@ -63,14 +65,13 @@ public:
 
 
   // implemented methods
-  void publishUavState() const;
-  void publishOdom() const;
-  void publishCovariance() const;
-  void publishInnovation() const;
-  geometry_msgs::Quaternion rotateQuaternionByHeading(const geometry_msgs::Quaternion& q, const double hdg) const;
-
+  void                      publishUavState() const;
+  void                      publishOdom() const;
+  void                      publishCovariance() const;
+  void                      publishInnovation() const;
+  geometry_msgs::Quaternion rotateQuaternionByHeading(const geometry_msgs::Quaternion &q, const double hdg) const;
 };
 
 }  // namespace mrs_uav_state_estimation
 
-#endif // ESTIMATORS_STATE_STATE_ESTIMATOR_H
+#endif  // ESTIMATORS_STATE_STATE_ESTIMATOR_H

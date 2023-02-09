@@ -28,14 +28,6 @@ protected:
   const std::shared_ptr<CommonHandlers_t> ch_;
 };
 
-/*//{ constructor */
-/* template <typename measurement_t> */
-/* Processor<measurement_t>::Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const
- * std::shared_ptr<CommonHandlers_t>& ch) : correction_name_(correction_name), name_(name), ch_(ch) { */
-
-/* } */
-/*//}*/
-
 /*//{ getName() */
 template <int n_measurements>
 std::string Processor<n_measurements>::getName() const {

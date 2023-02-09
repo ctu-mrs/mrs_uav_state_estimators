@@ -56,6 +56,10 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
+  ros::Timer timer_pub_attitude_;
+  int        _pub_attitude_timer_rate_;
+  void       timerPubAttitude(const ros::TimerEvent &event);
+
   bool isConverged();
 
   void waitForEstimationInitialization();

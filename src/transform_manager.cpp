@@ -114,7 +114,7 @@ void TransformManager::onInit() {
   for (size_t i = 0; i < tf_source_names_.size(); i++) {
     const std::string tf_source_name = tf_source_names_[i];
     ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
-    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_, transformer_));
+    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name,ns_fcu_frame_id_, nh_, broadcaster_, transformer_));
   }
 
   // additionally publish tf of all available estimators

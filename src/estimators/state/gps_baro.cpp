@@ -22,6 +22,8 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GpsBaro::timerUpdate, this, false, false);  // not running after init
   _check_health_timer_rate_ = 1;                                                                                            // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GpsBaro::timerCheckHealth, this);
+  _pub_attitude_timer_rate_ = 100;                                                                                      // TODO(petrlmat): parametrize
+  timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &GpsBaro::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to mavros odometry
@@ -43,6 +45,7 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
   ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_attitude_         = mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>(nh, Support::toSnakeCase(getName()) + "/attitude", 1);
 
   // | ---------------- estimators initialization --------------- |
   std::vector<double> max_altitudes;
@@ -108,6 +111,7 @@ bool GpsBaro::start(void) {
 
     if (est_hdg_mavros_->isStarted() || est_hdg_mavros_->isRunning()) {
       est_hdg_mavros_start_successful = true;
+      timer_pub_attitude_.start();
     } else {
       est_hdg_mavros_start_successful = est_hdg_mavros_->start();
     }
@@ -282,6 +286,24 @@ void GpsBaro::timerCheckHealth(const ros::TimerEvent &event) {
       return;
     }
   }
+}
+/*//}*/
+
+/* timerPubAttitude() //{*/
+void GpsBaro::timerPubAttitude(const ros::TimerEvent &event) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  const ros::Time time_now = ros::Time::now();
+
+  geometry_msgs::QuaternionStamped att;
+  att.header.stamp          = time_now;
+  att.header.frame_id       = ns_frame_id_ + "_att_only";
+  att.quaternion = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+
+  ph_attitude_.publish(att);
 }
 /*//}*/
 
