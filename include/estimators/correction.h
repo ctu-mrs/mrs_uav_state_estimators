@@ -71,6 +71,8 @@ public:
   std::atomic_bool is_nan_free_   = true;
   std::atomic_bool got_first_msg_ = false;
 
+  int counter_nan_ = 0;
+
   bool getCorrection(measurement_t& measurement, ros::Time& stamp);
 
 private:
@@ -345,9 +347,10 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
   }
 
   // check for nans
+  is_nan_free_ = true;
   for (int i = 0; i < measurement.rows(); i++) {
     if (!std::isfinite(measurement(i))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction", getNamespacedName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getNamespacedName().c_str(), ++counter_nan_);
       is_nan_free_ = false;
       return false;
     }
