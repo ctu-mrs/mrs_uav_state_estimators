@@ -26,8 +26,19 @@ gps_garmin: # namespace of the state estimator
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
-      processors: [] # types of processors attached to this measurement
+      processors: ["median_filter", "saturate"] # types of processors attached to this measurement (the processors are called in exactly this order)
+      
+      median_filter:
+        buffer_size: 100 # [samples] number of historic values from which the median is calculated
+        max_diff: 2.0 # [m] difference of input value from median to be considered valid
 
+      saturate:
+        start_enabled: true # saturate processor can start as disabled and then be enabled by a service or a trigger condition
+        keep_enabled: true # keep enabled even after the corrections are near the value of state
+        min: -0.1
+        max: 0.1
+
+  # Parameters of altitude median filters - buffer_size , max_diff 
     vel_baro:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)

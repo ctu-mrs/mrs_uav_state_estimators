@@ -47,8 +47,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(
-        std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_));
+    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING,
+                                                                                     ch_, [this](int a, int b) { return this->getState(a, b); }));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -186,8 +186,12 @@ bool HdgGeneric::reset(void) {
 /* timerUpdate() //{*/
 void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
 
-
   if (!isInitialized()) {
+    return;
+  }
+
+  if (first_iter_) {
+    first_iter_ = false;
     return;
   }
 
@@ -230,16 +234,16 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getNamespacedName().c_str(), e.what());
   }
 
+  // go through available corrections and apply them
   for (auto correction : corrections_) {
     z_t       z;
     ros::Time stamp;
-    if (correction->getCorrection(z, stamp)) {
-
-      // TODO processing, median filter, gating etc.
+    if (correction->getProcessedCorrection(z, stamp)) {
       doCorrection(z, correction->getR(), correction->getStateId(), stamp);
     }
   }
 
+  // publishing
   publishInput(u);
   publishOutput();
   publishDiagnostics();
@@ -270,9 +274,9 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         z_t       z;
         ros::Time stamp;
-        if (correction->getCorrection(z, stamp)) {
+        if (correction->getRawCorrection(z, stamp)) {
           setState(z(AXIS_X), correction->getStateId(), AXIS_X);
-          setState(z(AXIS_Y), correction->getStateId(), AXIS_Y);
+          ROS_INFO("[%s]: Setting initial state to: %.2f", getNamespacedName().c_str(), z(AXIS_X));
         } else {
           ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           return;

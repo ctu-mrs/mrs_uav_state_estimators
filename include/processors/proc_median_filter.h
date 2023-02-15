@@ -1,8 +1,8 @@
 #pragma once
-#ifndef ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H
-#define ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H
+#ifndef PROCESSORS_PROC_MEDIAN_FILTER_H
+#define PROCESSORS_PROC_MEDIAN_FILTER_H
 
-#include "estimators/processors/processor.h"
+#include "processors/processor.h"
 
 #include <mrs_lib/median_filter.h>
 #include <mrs_lib/param_loader.h>
@@ -62,15 +62,24 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const st
 template <int n_measurements>
 bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 
+  if (!Processor<n_measurements>::enabled_) {
+    return false;
+  }
+
   bool ok_flag = true;
   for (int i = 0; i < measurement.rows(); i++) {
-    if (!vec_mf_[i].addCheck(measurement(i)) || !vec_mf_[i].full()) {
-      std::stringstream ss_measurement_string;
-      ss_measurement_string << measurement(i);
-      ss_measurement_string << " ";
-      ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, size: %d, max_diff: %.2f).",
-                        Processor<n_measurements>::correction_name_.c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), buffer_size_,
-                        max_diff_);
+    vec_mf_[i].add(measurement(i));
+    if (vec_mf_[i].full()) {
+      if (!vec_mf_[i].check(measurement(i))) {
+        std::stringstream ss_measurement_string;
+        ss_measurement_string << measurement(i);
+        ss_measurement_string << " ";
+        ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, max_diff: %.2f).",
+                          Processor<n_measurements>::correction_name_.c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
+        ok_flag = false;
+      }
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: median filter not full yet", Processor<n_measurements>::correction_name_.c_str());
       ok_flag = false;
     }
   }
@@ -81,4 +90,4 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 
 }  // namespace mrs_uav_state_estimation
 
-#endif  // ESTIMATORS_PROCESSORS_PROC_MEDIAN_FILTER_H
+#endif  // PROCESSORS_PROC_MEDIAN_FILTER_H

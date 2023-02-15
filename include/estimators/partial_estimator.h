@@ -30,6 +30,8 @@ protected:
   mutable mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput> ph_output_;
   mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>             ph_input_;
 
+  bool first_iter_ = true;
+
 private:
   static const int _n_axes_   = n_axes;
   static const int _n_states_ = n_states;

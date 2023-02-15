@@ -1,6 +1,6 @@
 #pragma once
-#ifndef ESTIMATORS_PROCESSORS_PROCESSOR_H
-#define ESTIMATORS_PROCESSORS_PROCESSOR_H
+#ifndef PROCESSORS_PROCESSOR_H
+#define PROCESSORS_PROCESSOR_H
 
 namespace mrs_uav_state_estimation
 {
@@ -15,6 +15,8 @@ public:
   std::string getName() const;
   std::string getNamespacedName() const;
 
+  void toggle(bool enable);
+
   virtual bool process(measurement_t& measurement) = 0;
 
 protected:
@@ -26,6 +28,9 @@ protected:
   const std::string name_;
 
   const std::shared_ptr<CommonHandlers_t> ch_;
+
+  bool enabled_ = true;
+  bool start_enabled_ = true;
 };
 
 /*//{ getName() */
@@ -42,6 +47,13 @@ std::string Processor<n_measurements>::getNamespacedName() const {
 }
 /*//}*/
 
+/*//{ toggle() */
+template <int n_measurements>
+void Processor<n_measurements>::toggle(bool enable) {
+  enabled_ = enable;
+}
+/*//}*/
+
 }  // namespace mrs_uav_state_estimation
 
-#endif  // ESTIMATORS_PROCESSORS_PROCESSOR_H
+#endif  // PROCESSORS_PROCESSOR_H

@@ -14,6 +14,8 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
 
+#include <functional>
+
 #include "estimators/altitude/altitude_estimator.h"
 #include "estimators/correction.h"
 

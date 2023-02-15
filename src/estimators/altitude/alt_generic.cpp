@@ -47,8 +47,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(
-        std::make_shared<Correction<alt_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_));
+    corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); }));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -195,6 +195,11 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  if (first_iter_) {
+    first_iter_ = false;
+    return;
+  }
+
   // prediction step
   u_t       u;
   ros::Time input_stamp;
@@ -210,8 +215,6 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     u = u_t::Zero();
   }
 
-  setDt((event.current_real - event.last_real).toSec());
-
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
@@ -219,7 +222,9 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
       lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
       /* sc_ = lkf_rep_->predictTo(ros::Time::now()); */
     } else {
+      /* ROS_INFO_ONCE("[%s]: before first pred %.2f", getNamespacedName().c_str(), sc_.x(0)); */
       sc_ = lkf_->predict(sc_, u, getQ(), dt_);
+      /* ROS_INFO_ONCE("[%s]: after first pred %.2f", getNamespacedName().c_str(), sc_.x(0)); */
     }
   }
   catch (const std::exception &e) {
@@ -227,16 +232,16 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getNamespacedName().c_str(), e.what());
   }
 
+  // go through available corrections and apply them
   for (auto correction : corrections_) {
     z_t       z;
     ros::Time stamp;
-    if (correction->getCorrection(z, stamp)) {
-
-      // TODO processing, median filter, gating etc.
+    if (correction->getProcessedCorrection(z, stamp)) {
       doCorrection(z, correction->getR(), correction->getStateId(), stamp);
     }
   }
 
+  // publishing
   publishInput(u);
   publishOutput();
   publishDiagnostics();
@@ -268,8 +273,9 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         z_t       z;
         ros::Time stamp;
-        if (correction->getCorrection(z, stamp)) {
+        if (correction->getRawCorrection(z, stamp)) {
           setState(z(0), correction->getStateId());
+          ROS_INFO("[%s]: Setting initial state to: %.2f", getNamespacedName().c_str(), z(0));
         } else {
           ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           return;
@@ -389,6 +395,7 @@ double AltGeneric::getState(const int &state_id_in, const int &axis_in) const {
 double AltGeneric::getState(const int &state_idx_in) const {
 
   std::scoped_lock lock(mutex_lkf_);
+  /* ROS_INFO("[%s]: returning state[%d]: %.2f", getNamespacedName().c_str(), state_idx_in, sc_.x(state_idx_in)); */
   return sc_.x(state_idx_in);
 }
 /*//}*/

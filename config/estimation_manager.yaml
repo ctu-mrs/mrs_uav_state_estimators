@@ -16,7 +16,7 @@ state_estimators: [
 "dummy"
 ]
 
-initial_estimator: "aloam" # will be used as the first estimator
+initial_estimator: "gps_garmin" # will be used as the first estimator
 
 # rates of timers [Hz]
 rate:

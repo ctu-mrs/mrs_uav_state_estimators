@@ -16,11 +16,16 @@
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
 
+#include <std_srvs/SetBool.h>
+
+#include <functional>
+
 #include "types.h"
 #include "support.h"
 #include "common_handlers.h"
-#include "estimators/processors/processor.h"
-#include "estimators/processors/proc_median_filter.h"
+#include "processors/processor.h"
+#include "processors/proc_median_filter.h"
+#include "processors/proc_saturate.h"
 
 #include "mrs_uav_state_estimation/EstimatorCorrection.h"
 #include "mrs_uav_state_estimation/CorrectionConfig.h"
@@ -56,7 +61,7 @@ public:
 
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
-             const std::shared_ptr<CommonHandlers_t>& ch);
+             const std::shared_ptr<CommonHandlers_t>& ch, std::function<double(int, int)> fun_get_state);
 
   std::string getName() const;
   std::string getNamespacedName() const;
@@ -73,7 +78,8 @@ public:
 
   int counter_nan_ = 0;
 
-  bool getCorrection(measurement_t& measurement, ros::Time& stamp);
+  bool getRawCorrection(measurement_t& measurement, ros::Time& stamp);
+  bool getProcessedCorrection(measurement_t& measurement, ros::Time& stamp);
 
 private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
@@ -81,6 +87,10 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
   mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
+
+  ros::ServiceServer ser_toggle_range_;
+  bool               callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
+  bool               range_enabled_ = true;
 
   void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
@@ -116,11 +126,13 @@ private:
 
   double time_since_last_msg_limit_;
 
-  auto createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
-  bool process(measurement_t& measurement);
+  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
+  bool                                       process(measurement_t& measurement);
 
-  std::vector<std::string>                                processor_names_;
-  std::vector<std::shared_ptr<Processor<n_measurements>>> processors_;
+  std::vector<std::string>                                                    processor_names_;
+  std::unordered_map<std::string, std::shared_ptr<Processor<n_measurements>>> processors_;
+
+  std::function<double(int, int)> fun_get_state_;
 
   void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
 };
@@ -128,8 +140,9 @@ private:
 /*//{ constructor */
 template <int n_measurements>
 Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
-                                       const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch)
-    : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch) {
+                                       const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
+                                       std::function<double(int, int)> fun_get_state)
+    : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getName());
@@ -162,7 +175,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   param_loader.loadParam("processors", processor_names_);
 
   for (auto proc_name : processor_names_) {
-    processors_.push_back(createProcessorFromName(proc_name, nh));
+    processors_[proc_name] = createProcessorFromName(proc_name, nh);
   }
 
   if (!param_loader.loadedSuccessfully()) {
@@ -200,7 +213,13 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RANGE: {
-      sh_range_ = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      const std::size_t found     = ros::this_node::getName().find_last_of("/");
+      std::string       node_name = ros::this_node::getName().substr(found + 1);
+      /* ser_toggle_range_ = nh.advertiseService("/" + ch_->uav_name + "/" + node_name + "/" + getNamespacedName() + "/toggle_range_in",
+       * &Correction::callbackToggleRange, this); */
+      ser_toggle_range_ =
+          nh.advertiseService(ros::this_node::getName() + "/" + getNamespacedName() + "/toggle_range_in", &Correction::callbackToggleRange, this);
       break;
     }
     case MessageType_t::RTK_GPS: {
@@ -257,19 +276,15 @@ bool Correction<n_measurements>::isHealthy() {
     ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getNamespacedName().c_str());
   }
 
-  if (!is_nan_free_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: nan detected", getNamespacedName().c_str());
-  }
-
-  is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_ && is_nan_free_;
+  is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_;
 
   return is_healthy_;
 }
 /*//}*/
 
-/*//{ getCorrection() */
+/*//{ getRawCorrection() */
 template <int n_measurements>
-bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
+bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
 
   switch (msg_type_) {
 
@@ -306,6 +321,11 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
     }
 
     case MessageType_t::RANGE: {
+
+      if (!range_enabled_) {
+        ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getNamespacedName().c_str());
+        return false;
+      }
 
       if (!sh_range_.newMsg()) {
         return false;
@@ -360,7 +380,15 @@ bool Correction<n_measurements>::getCorrection(measurement_t& measurement, ros::
   got_first_msg_ = true;
   publishCorrection(measurement, measurement_stamp, ph_correction_raw_);
 
-  if (process(measurement)) {
+  return true;
+}
+/*//}*/
+
+/*//{ getProcessedCorrection() */
+template <int n_measurements>
+bool Correction<n_measurements>::getProcessedCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
+
+  if (getRawCorrection(measurement, measurement_stamp) && process(measurement)) {
     publishCorrection(measurement, measurement_stamp, ph_correction_proc_);
   } else {
     return false;  // invalid correction
@@ -596,6 +624,35 @@ void Correction<n_measurements>::timeoutCallback(const std::string& topic, const
 }
 /*//}*/
 
+/* //{ callbackToggleRange() */
+template <int n_measurements>
+bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+
+  if (!range_enabled_ && req.data) {
+    processors_["saturate"]->toggle(true);
+  }
+
+  range_enabled_ = req.data;
+
+  // after enabling range we want to start correcting the altitude slowly
+
+  res.success = true;
+  res.message = (range_enabled_ ? "Range enabled" : "Range disabled");
+
+  if (range_enabled_) {
+
+    ROS_INFO("[%s]: Range enabled.", getNamespacedName().c_str());
+
+  } else {
+
+    ROS_INFO("[%s]: Range disabled", getNamespacedName().c_str());
+  }
+
+  return true;
+}
+
+//}
+
 /*//{ getZVelUntilted() */
 template <int n_measurements>
 std::optional<double> Correction<n_measurements>::getZVelUntilted(const nav_msgs::Odometry& msg) {
@@ -710,19 +767,17 @@ void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
 /*//{ createProcessorFromName() */
 template <int n_measurements>
-auto Correction<n_measurements>::createProcessorFromName(const std::string& name, ros::NodeHandle& nh) {
+std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, ros::NodeHandle& nh) {
 
   if (name == "median_filter") {
-
     return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_);
-  } else if (name == "innovation_gate") {
-    // TODO handle this and other cases
-    ROS_ERROR("[%s]: TODO: implement processor %s", getNamespacedName().c_str(), name.c_str());
+  } else if (name == "saturate") {
+    return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, state_id_, fun_get_state_);
   } else {
     ROS_ERROR("[%s]: requested invalid processor %s", getNamespacedName().c_str(), name.c_str());
     ros::shutdown();
   }
-  return std::shared_ptr<ProcMedianFilter<n_measurements>>(nullptr);
+  return std::shared_ptr<Processor<n_measurements>>(nullptr);
 }
 /*//}*/
 
@@ -730,8 +785,9 @@ auto Correction<n_measurements>::createProcessorFromName(const std::string& name
 template <int n_measurements>
 bool Correction<n_measurements>::process(Correction<n_measurements>::measurement_t& measurement) {
   bool ok_flag = true;
-  for (auto processor : processors_) {
-    if (processor->process(measurement)) {
+  for (auto proc_name :
+       processor_names_) {  // need to access the estimators in the specific order from the config (e.g. median filter should go before saturation etc.)
+    if (!processors_[proc_name]->process(measurement)) {
       ok_flag = false;
     }
   }
