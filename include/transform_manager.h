@@ -51,6 +51,10 @@ public:
     std::string          odom_topic, attitude_topic, ns;
     param_loader.loadParam("uav_name", uav_name_);
     param_loader.loadParam(getName() + "/odom_topic", odom_topic);
+    param_loader.loadParam(getName() + "/custom_frame_id/enabled", custom_frame_id_enabled_, false);
+    if (custom_frame_id_enabled_) {
+      param_loader.loadParam(getName() + "/custom_frame_id/frame_id", custom_frame_id_);
+    }
     param_loader.loadParam(getName() + "/tf_from_attitude/enabled", tf_from_attitude_enabled_);
     if (tf_from_attitude_enabled_) {
       param_loader.loadParam(getName() + "/tf_from_attitude/attitude_topic", attitude_topic);
@@ -166,6 +170,9 @@ private:
   std::string full_topic_attitude_;
   bool        tf_from_attitude_enabled_ = false;
 
+  bool custom_frame_id_enabled_;
+  std::string custom_frame_id_;
+
   std::atomic_bool is_initialized_               = false;
   std::atomic_bool is_local_static_tf_published_ = false;
   std::atomic_bool is_utm_static_tf_published_   = false;
@@ -227,20 +234,22 @@ private:
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp = odom->header.stamp;
 
+    std::string origin_frame_id = custom_frame_id_enabled_ ? uav_name_ + custom_frame_id_ : odom->header.frame_id;
+
     if (is_inverted_) {
 
       const tf2::Transform      tf       = Support::tf2FromPose(odom->pose.pose);
       const tf2::Transform      tf_inv   = tf.inverse();
       const geometry_msgs::Pose pose_inv = Support::poseFromTf2(tf_inv);
 
-      tf_msg.header.frame_id       = odom->child_frame_id;
-      tf_msg.child_frame_id        = odom->header.frame_id;
+      tf_msg.header.frame_id       = ns_fcu_frame_id_;
+      tf_msg.child_frame_id        = origin_frame_id;
       tf_msg.transform.translation = Support::pointToVector3(pose_inv.position);
       tf_msg.transform.rotation    = pose_inv.orientation;
 
     } else {
-      tf_msg.header.frame_id       = odom->header.frame_id;
-      tf_msg.child_frame_id        = odom->child_frame_id;
+      tf_msg.header.frame_id       = origin_frame_id;
+      tf_msg.child_frame_id        = ns_fcu_frame_id_;
       tf_msg.transform.translation = Support::pointToVector3(odom->pose.pose.position);
       tf_msg.transform.rotation    = odom->pose.pose.orientation;
     }
@@ -253,7 +262,7 @@ private:
         ROS_ERROR("exception caught ");
       }
 
-      if (!tf_from_attitude_enabled_) {
+      if (tf_from_attitude_enabled_) {
         if (is_inverted_) {
           tf_msg.child_frame_id += "att_only";
         } else {
