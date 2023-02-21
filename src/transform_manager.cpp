@@ -178,6 +178,11 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     pose.header = msg->header;
     pose.pose   = msg->pose;
 
+    if (pose.pose.orientation.w == 0 && pose.pose.orientation.z == 0 && pose.pose.orientation.y == 0 && pose.pose.orientation.x == 0) {
+      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getName().c_str(), pose.header.frame_id.c_str());
+      pose.pose.orientation.w = 1.0;
+    }
+
     auto res = transformer_->transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
 
     if (res) {
@@ -218,6 +223,10 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     geometry_msgs::PoseStamped pose;
     pose.header = msg->header;
     pose.pose   = msg->pose;
+    if (pose.pose.orientation.w == 0 && pose.pose.orientation.z == 0 && pose.pose.orientation.y == 0 && pose.pose.orientation.x == 0) {
+      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getName().c_str(), pose.header.frame_id.c_str());
+      pose.pose.orientation.w = 1.0;
+    }
 
     auto res = transformer_->transformSingle(pose, first_frame_id_);
 
