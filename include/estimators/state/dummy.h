@@ -68,6 +68,7 @@ public:
   bool reset(void) override;
 
   mrs_msgs::UavState  getUavState() const override;
+  nav_msgs::Odometry  getInnovation() const override;
   std::vector<double> getPoseCovariance() const override;
   std::vector<double> getTwistCovariance() const override;
 

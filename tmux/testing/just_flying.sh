@@ -25,11 +25,14 @@ PROJECT_NAME=just_flying
 # * can be used for attaching as 'tmux a -t <session name>'
 SESSION_NAME=mav
 
+# SENSORS="--enable-rangefinder --enable-ground-truth --enable-ouster --ouster-model OS0-32 --use-gpu-ray"
+SENSOR_PARAMS="--enable-rangefinder --enable-ground-truth --use-gpu-ray"
+
 export UAV_NUMBER=$(shuf -i 1-30 -n 1);
 export UAV_NAME=uav$UAV_NUMBER
 
 # following commands will be executed first, in each window
-pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER export RUN_TYPE=simulation; export UAV_TYPE=x500; export WORLD_NAME=simulation; export SENSORS='garmin_down'"
+pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER export RUN_TYPE=simulation; export UAV_TYPE=x500; export WORLD_FILE=world/world_simulation.yaml; export SENSORS='garmin_down'"
 
 # define commands
 # 'name' 'command'
@@ -39,19 +42,19 @@ pre_input="export UAV_NAME="uav${UAV_NUMBER}"; export UAV_NUMBER=$UAV_NUMBER exp
 input=(
   'Gazebo' "waitForRos; roslaunch mrs_simulation simulation.launch world_name:=forest gui:=true
 "
-'Spawn' 'waitForSimulation; rosservice call /mrs_drone_spawner/spawn "$UAV_NUMBER $UAV_TYPE --enable-rangefinder --enable-ground-truth --enable-ouster --ouster-model OS0-32 --use-gpu-ray"
+'Spawn' 'waitForSimulation; rosservice call /mrs_drone_spawner/spawn "$UAV_NUMBER $UAV_TYPE '"$SENSOR_PARAMS"'"
 '
   'Status' "waitForOdometry; roslaunch mrs_uav_status status.launch
 "
-  'Control' "waitForOdometry; roslaunch mrs_uav_general core.launch config_uav_manager:=./custom_configs/uav_manager.yaml
+  'Control' "waitForOdometry; roslaunch mrs_uav_state_estimation core.launch config_uav_manager:=./custom_configs/uav_manager.yaml
 "
-  'SLAM' 'waitForRos; roslaunch mission_controller slam_pipeline.launch OUSTER_TYPE:=OS0-32
-'
+  # 'SLAM' 'waitForRos; roslaunch mission_controller slam_pipeline.launch OUSTER_TYPE:=OS0-32
+# '
   # 'OdometryTesting' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_testing.launch
 # "
   'EstimationManager' "waitForOdometry; roslaunch mrs_uav_state_estimation estimation_manager.launch
 "
-  'AutomaticStart' "waitForSimulation; roslaunch mrs_uav_general automatic_start.launch
+  'AutomaticStart' "waitForSimulation; roslaunch mrs_uav_general automatic_start.launch custom_config:=./custom_configs/automatic_start.yaml
 "
   "ArmAndOffboard" "waitForControl; rosservice call /$UAV_NAME/mavros/cmd/arming 1; sleep 2; rosservice call /$UAV_NAME/mavros/set_mode 0 offboard
 "

@@ -222,6 +222,13 @@ mrs_msgs::UavState Dummy::getUavState() const {
 }
 /*//}*/
 
+/*//{ getInnovation() */
+nav_msgs::Odometry Dummy::getInnovation() const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_;
+}
+/*//}*/
+
 /*//{ getPoseCovariance() */
 std::vector<double> Dummy::getPoseCovariance() const {
   std::scoped_lock lock(mtx_covariance_);

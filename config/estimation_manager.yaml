@@ -9,11 +9,11 @@ frame_id:
 # loaded state estimator plugins
 state_estimators: [
 "gps_garmin",
-"gps_baro",
-"rtk",
-"aloam",
+# "gps_baro",
+# "rtk",
+# "aloam",
 "ground_truth",
-"dummy"
+# "dummy"
 ]
 
 initial_estimator: "gps_garmin" # will be used as the first estimator

@@ -1,0 +1,26 @@
+version: "1.0.4.0"
+
+safety_timeout: 5.0 # [s]
+
+main_timer_rate: 30 # [Hz]
+
+# how many times it will try to call the start/stop services if the call fails
+call_n_attempts: 10
+
+handle_takeoff: true
+handle_landing: false
+action_duration: 12.0 # [min]
+land_mode: "eland" # {land_home, land, eland}
+pre_takeoff_sleep: 0 # [s]
+
+topic_check:
+
+  enabled: true
+  timeout: 5.0 # [s], a window for the last accepted message
+
+  # if "/" is provided at the beginning of topic_name, the topic name is considered as written,
+  # if there is no "/" at the beginning, UAV_NAME is automatically added in from of the topic name (/uav1/topic_name)
+  topics: [
+    "estimation_manager/uav_state",
+    "control_manager/diagnostics",
+  ]

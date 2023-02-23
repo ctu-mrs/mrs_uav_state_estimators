@@ -324,6 +324,13 @@ mrs_msgs::UavState GpsGarmin::getUavState() const {
 }
 /*//}*/
 
+/*//{ getInnovation() */
+nav_msgs::Odometry GpsGarmin::getInnovation() const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_;
+}
+/*//}*/
+
 /*//{ getPoseCovariance() */
 std::vector<double> GpsGarmin::getPoseCovariance() const {
   std::scoped_lock lock(mtx_covariance_);

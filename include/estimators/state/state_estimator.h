@@ -43,11 +43,11 @@ protected:
   bool is_override_frame_id_ = false;
 
 protected:
-  mutable mrs_lib::PublisherHandler<mrs_msgs::UavState>            ph_uav_state_;
-  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_odom_;
-  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_pose_covariance_, ph_twist_covariance_;
-  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>            ph_innovation_;
-  mutable mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>   ph_attitude_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::UavState>               ph_uav_state_;
+  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>               ph_odom_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>    ph_pose_covariance_, ph_twist_covariance_;
+  mutable mrs_lib::PublisherHandler<nav_msgs::Odometry>               ph_innovation_;
+  mutable mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped> ph_attitude_;
 
 public:
   StateEstimator(const std::string &name, const std::string &frame_id) : Estimator(state::type, name, frame_id) {
@@ -58,6 +58,7 @@ public:
 
   // virtual methods
   virtual mrs_msgs::UavState  getUavState() const        = 0;
+  virtual nav_msgs::Odometry  getInnovation() const      = 0;
   virtual std::vector<double> getPoseCovariance() const  = 0;
   virtual std::vector<double> getTwistCovariance() const = 0;
 

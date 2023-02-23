@@ -360,6 +360,13 @@ mrs_msgs::UavState Aloam::getUavState() const {
 }
 /*//}*/
 
+/*//{ getInnovation() */
+nav_msgs::Odometry Aloam::getInnovation() const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_;
+}
+/*//}*/
+
 /*//{ getPoseCovariance() */
 std::vector<double> Aloam::getPoseCovariance() const {
   std::scoped_lock lock(mtx_covariance_);

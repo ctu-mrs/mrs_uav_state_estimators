@@ -86,7 +86,7 @@ void EstimationManager::onInit() {
   // initialize standalone height estimator
   est_alt_agl_ = std::make_unique<AltGeneric>(est_alt_agl_name_, "agl_origin", Support::toSnakeCase(getName()));
   est_alt_agl_->initialize(nh, ch_);
-  est_alt_agl_->setInputCoeff(0.0); // no input, just corrections
+  est_alt_agl_->setInputCoeff(0.0);  // no input, just corrections
 
   ROS_INFO("[%s]: estimators were loaded", getName().c_str());
   /*//}*/
@@ -127,9 +127,14 @@ void EstimationManager::onInit() {
   /*//{ initialize publishers */
   ph_uav_state_               = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, "uav_state_out", 1);
   ph_odom_main_               = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "odom_main_out", 1);
+  ph_innovation_              = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, "innovation_out", 1);
   ph_diagnostics_             = mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics>(nh, "diagnostics_out", 1);
   ph_max_flight_altitude_agl_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "max_flight_altitude_agl_out", 1);
-  ph_altitude_agl_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "altitude_agl_out", 1);
+  ph_altitude_agl_            = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, "altitude_agl_out", 1);
+
+  /*//{ FIXME: delete after merge with new uav system */
+  ph_diagnostics_legacy_ = mrs_lib::PublisherHandler<mrs_msgs::OdometryDiag>(nh, "diagnostics_legacy_out", 1);
+  /*//}*/
   /*//}*/
 
   /*//{ initialize timers */
@@ -148,6 +153,7 @@ void EstimationManager::onInit() {
 
   /*//{ initialize service servers */
   srvs_change_estimator_ = nh.advertiseService("change_estimator_in", &EstimationManager::callbackChangeEstimator, this);
+  srvs_toggle_callbacks_ = nh.advertiseService("toggle_service_callbacks_in", &EstimationManager::callbackToggleServiceCallbacks, this);
   /*//}*/
 
   if (!param_loader.loadedSuccessfully()) {
@@ -197,6 +203,30 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
     }
     ph_max_flight_altitude_agl_.publish(max_altitude_msg);
     ph_diagnostics_.publish(diagnostics);
+
+    /*//{ FIXME: delete after merge with new uav system */
+    mrs_msgs::OdometryDiag legacy_odom_diag_msg;
+    legacy_odom_diag_msg.header.stamp = ros::Time::now();
+    mrs_msgs::EstimatorType est_type;
+    est_type.name                       = "NONE";
+    est_type.type                       = 1;
+    legacy_odom_diag_msg.estimator_type = est_type;
+    mrs_msgs::AltitudeType alt_type;
+    alt_type.name                      = "NONE";
+    alt_type.type                      = 1;
+    legacy_odom_diag_msg.altitude_type = alt_type;
+    mrs_msgs::HeadingType hdg_type;
+    hdg_type.name                                 = "NONE";
+    hdg_type.type                                 = 1;
+    legacy_odom_diag_msg.heading_type             = hdg_type;
+    legacy_odom_diag_msg.available_lat_estimators = {""};
+    legacy_odom_diag_msg.available_hdg_estimators = {""};
+    legacy_odom_diag_msg.available_alt_estimators = {""};
+
+    legacy_odom_diag_msg.max_altitude = max_flight_altitude_agl;
+    ph_diagnostics_legacy_.publish(legacy_odom_diag_msg);
+
+    /*//}*/
   }
 
   if (sm_.isInPublishableState()) {
@@ -223,10 +253,13 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     ph_odom_main_.publish(odom_main);
 
+    nav_msgs::Odometry innovation = active_estimator_->getInnovation();
+    ph_innovation_.publish(innovation);
+
     mrs_msgs::Float64Stamped alt_agl_msg;
-    alt_agl_msg.header.stamp = ros::Time::now();
+    alt_agl_msg.header.stamp    = ros::Time::now();
     alt_agl_msg.header.frame_id = est_alt_agl_->getFrameId();
-    alt_agl_msg.value = est_alt_agl_->getState(POSITION);
+    alt_agl_msg.value           = est_alt_agl_->getState(POSITION);
     ph_altitude_agl_.publish(alt_agl_msg);
 
   } else {
@@ -373,6 +406,32 @@ bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, 
 }
 /*//}*/
 
+/* //{ callbackToggleServiceCallbacks() */
+bool EstimationManager::callbackToggleServiceCallbacks(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+
+  if (!sm_.isInitialized()) {
+    return false;
+  }
+
+  callbacks_disabled_by_service_ = !req.data;
+
+  res.success = true;
+  res.message = (callbacks_disabled_by_service_ ? "Service callbacks disabled" : "Service callbacks enabled");
+
+  if (callbacks_disabled_by_service_) {
+
+    ROS_INFO("[%s]: Service callbacks disabled.", getName().c_str());
+
+  } else {
+
+    ROS_INFO("[%s]: Service callbacks enabled", getName().c_str());
+  }
+
+  return true;
+}
+
+//}
+//
 /*//{ switchToHealthyEstimator() */
 bool EstimationManager::switchToHealthyEstimator() {
 

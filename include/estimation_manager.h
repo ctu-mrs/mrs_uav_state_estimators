@@ -19,6 +19,10 @@
 #include <mrs_msgs/Float64Stamped.h>
 #include <mrs_msgs/String.h>
 
+/*//{ FIXME: delete after merge with new uav system */
+#include <mrs_msgs/OdometryDiag.h>
+/*//}*/
+
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/service_client_handler.h>
@@ -276,12 +280,16 @@ private:
   mrs_lib::PublisherHandler<mrs_msgs::UavState>                    ph_uav_state_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_main_;
   mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_slow_;  // use topic throttler instead?
-  mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_odom_main_innovation_;
+  mrs_lib::PublisherHandler<nav_msgs::Odometry>                    ph_innovation_;
 
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_amsl_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped> ph_altitude_agl_;
 
   mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped> ph_orientation_;
+
+/*//{ FIXME: delete after merge with new uav system */
+  mrs_lib::PublisherHandler<mrs_msgs::OdometryDiag> ph_diagnostics_legacy_;
+/*//}*/
 
   ros::Timer timer_publish_;
   double     timer_rate_publish_;
@@ -297,6 +305,7 @@ private:
 
 
   ros::ServiceServer srvs_toggle_callbacks_;
+  bool callbackToggleServiceCallbacks(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool               callbacks_enabled_             = false;
   bool               callbacks_disabled_by_service_ = false;
 

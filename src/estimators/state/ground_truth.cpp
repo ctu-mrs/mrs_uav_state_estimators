@@ -263,6 +263,13 @@ mrs_msgs::UavState GroundTruth::getUavState() const {
 }
 /*//}*/
 
+/*//{ getInnovation() */
+nav_msgs::Odometry GroundTruth::getInnovation() const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_;
+}
+/*//}*/
+
 /*//{ getPoseCovariance() */
 std::vector<double> GroundTruth::getPoseCovariance() const {
   std::scoped_lock lock(mtx_covariance_);

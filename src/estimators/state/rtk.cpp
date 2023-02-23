@@ -356,6 +356,13 @@ mrs_msgs::UavState Rtk::getUavState() const {
 }
 /*//}*/
 
+/*//{ getInnovation() */
+nav_msgs::Odometry Rtk::getInnovation() const {
+  std::scoped_lock lock(mtx_innovation_);
+  return innovation_;
+}
+/*//}*/
+
 /*//{ getPoseCovariance() */
 std::vector<double> Rtk::getPoseCovariance() const {
   std::scoped_lock lock(mtx_covariance_);
