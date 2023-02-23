@@ -234,10 +234,10 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   // go through available corrections and apply them
   for (auto correction : corrections_) {
-    z_t       z;
-    ros::Time stamp;
-    if (correction->getProcessedCorrection(z, stamp)) {
-      doCorrection(z, correction->getR(), correction->getStateId(), stamp);
+    auto res = correction->getProcessedCorrection();
+    if (res) {
+      auto measurement_stamped = res.value();
+      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
     }
   }
 
@@ -271,11 +271,11 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
       // initialize the estimator with current corrections
       for (auto correction : corrections_) {
-        z_t       z;
-        ros::Time stamp;
-        if (correction->getRawCorrection(z, stamp)) {
-          setState(z(0), correction->getStateId());
-          ROS_INFO("[%s]: Setting initial state to: %.2f", getNamespacedName().c_str(), z(0));
+        auto res = correction->getRawCorrection();
+        if (res) {
+          auto measurement_stamped = res.value();
+          setState(measurement_stamped.value(0), correction->getStateId());
+          ROS_INFO("[%s]: Setting initial state to: %.2f", getNamespacedName().c_str(), measurement_stamped.value(0));
         } else {
           ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
           return;

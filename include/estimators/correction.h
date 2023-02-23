@@ -59,6 +59,12 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1>         measurement_t;
   typedef mrs_lib::DynamicReconfigureMgr<CorrectionConfig> drmgr_t;
 
+  struct MeasurementStamped
+  {
+    ros::Time     stamp;
+    measurement_t value;
+  };
+
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch, std::function<double(int, int)> fun_get_state);
@@ -78,8 +84,8 @@ public:
 
   int counter_nan_ = 0;
 
-  bool getRawCorrection(measurement_t& measurement, ros::Time& stamp);
-  bool getProcessedCorrection(measurement_t& measurement, ros::Time& stamp);
+  std::optional<MeasurementStamped> getRawCorrection();
+  std::optional<MeasurementStamped> getProcessedCorrection();
 
 private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
@@ -113,13 +119,13 @@ private:
 
   std::unique_ptr<drmgr_t> drmgr_;
 
-  bool                  getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement);
-  bool                  getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement);
-  bool                  getCorrectionFromRtk(const mrs_msgs::RtkGps& msg, measurement_t& measurement);
-  std::optional<double> getZVelUntilted(const nav_msgs::Odometry& msg);
-  bool                  getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out);
+  std::optional<measurement_t> getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
+  std::optional<measurement_t> getZVelUntilted(const nav_msgs::OdometryConstPtr msg);
+  std::optional<measurement_t> getVelInFrame(const nav_msgs::OdometryConstPtr msg, const std::string frame);
 
-  geometry_msgs::Pose transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
+  std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
 
   void   checkMsgDelay(const ros::Time& msg_time);
   double msg_delay_limit_;
@@ -134,7 +140,7 @@ private:
 
   std::function<double(int, int)> fun_get_state_;
 
-  void publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
+  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
 };
 
 /*//{ constructor */
@@ -284,22 +290,30 @@ bool Correction<n_measurements>::isHealthy() {
 
 /*//{ getRawCorrection() */
 template <int n_measurements>
-bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
+std::optional<typename Correction<n_measurements>::MeasurementStamped> Correction<n_measurements>::getRawCorrection() {
+
+  MeasurementStamped measurement_stamped;
 
   switch (msg_type_) {
 
     case MessageType_t::ODOMETRY: {
 
       if (!sh_odom_.newMsg()) {
-        return false;
+        return {};
       }
 
-      auto msg          = sh_odom_.getMsg();
-      measurement_stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamp);
+      auto msg                  = sh_odom_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamped.stamp);
 
-      if (!is_delay_ok_ || !getCorrectionFromOdometry(*msg, measurement)) {
-        return false;
+      if (!is_delay_ok_) {
+        return {};
+      }
+      auto res = getCorrectionFromOdometry(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
       }
       break;
     }
@@ -308,7 +322,7 @@ bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ro
       // TODO implement
       /* return getCorrectionFromPoseS(msg); */
       is_healthy_ = false;
-      return false;
+      return {};
       break;
     }
 
@@ -316,7 +330,7 @@ bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ro
       // TODO implement
       /* return getCorrectionFromPoseWCS(msg); */
       is_healthy_ = false;
-      return false;
+      return {};
       break;
     }
 
@@ -324,20 +338,26 @@ bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ro
 
       if (!range_enabled_) {
         ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getNamespacedName().c_str());
-        return false;
+        return {};
       }
 
       if (!sh_range_.newMsg()) {
-        return false;
+        return {};
       }
 
-      auto msg          = sh_range_.getMsg();
-      measurement_stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamp);
+      auto msg                  = sh_range_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamped.stamp);
 
-      // range correction must be transformed to the untilted frame
-      if (!is_delay_ok_ || !getCorrectionFromRange(*msg, measurement)) {
-        return false;
+      if (!is_delay_ok_) {
+        return {};
+      }
+
+      auto res = getCorrectionFromRange(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
       }
       break;
     }
@@ -346,61 +366,75 @@ bool Correction<n_measurements>::getRawCorrection(measurement_t& measurement, ro
 
       if (!sh_rtk_.newMsg()) {
         /* ROS_ERROR(" no new rtk msg"); */
-        return false;
+        return {};
       }
 
-      auto msg          = sh_rtk_.getMsg();
-      measurement_stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamp);
+      auto msg                  = sh_rtk_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      checkMsgDelay(measurement_stamped.stamp);
 
-      if (!is_delay_ok_ || !getCorrectionFromRtk(*msg, measurement)) {
-        return false;
+      if (!is_delay_ok_) {
+        return {};
       }
+
+      auto res = getCorrectionFromRtk(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+
       break;
     }
 
     default: {
       ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getNamespacedName().c_str());
       is_healthy_ = false;
-      return false;
+      return {};
     }
   }
 
   // check for nans
   is_nan_free_ = true;
-  for (int i = 0; i < measurement.rows(); i++) {
-    if (!std::isfinite(measurement(i))) {
+  for (int i = 0; i < measurement_stamped.value.rows(); i++) {
+    if (!std::isfinite(measurement_stamped.value(i))) {
       ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getNamespacedName().c_str(), ++counter_nan_);
       is_nan_free_ = false;
-      return false;
+      return {};
     }
   }
   /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
 
   got_first_msg_ = true;
-  publishCorrection(measurement, measurement_stamp, ph_correction_raw_);
+  publishCorrection(measurement_stamped, ph_correction_raw_);
 
-  return true;
+  return measurement_stamped;
 }
 /*//}*/
 
 /*//{ getProcessedCorrection() */
 template <int n_measurements>
-bool Correction<n_measurements>::getProcessedCorrection(measurement_t& measurement, ros::Time& measurement_stamp) {
+std::optional<typename Correction<n_measurements>::MeasurementStamped> Correction<n_measurements>::getProcessedCorrection() {
 
-  if (getRawCorrection(measurement, measurement_stamp) && process(measurement)) {
-    publishCorrection(measurement, measurement_stamp, ph_correction_proc_);
+  MeasurementStamped measurement_stamped;
+  auto               res = getRawCorrection();
+  if (res) {
+    MeasurementStamped measurement_stamped = res.value();
+    if (process(measurement_stamped.value)) {
+      publishCorrection(measurement_stamped, ph_correction_proc_);
+      return measurement_stamped;
+    } else {
+      return {};  // invalid correction
+    }
   } else {
-    return false;  // invalid correction
+    return {};  // invalid correction
   }
-
-  return true;
-}
+}  // namespace mrs_uav_state_estimation
 /*//}*/
 
 /*//{ getCorrectionFromOdometry() */
 template <int n_measurements>
-bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odometry& msg, measurement_t& measurement) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg) {
 
   switch (est_type_) {
 
@@ -410,22 +444,28 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
       switch (state_id_) {
 
         case StateId_t::POSITION: {
-          measurement(0) = msg.pose.pose.position.x;
-          measurement(1) = msg.pose.pose.position.y;
+          measurement_t measurement;
+          measurement(0) = msg->pose.pose.position.x;
+          measurement(1) = msg->pose.pose.position.y;
+          return measurement;
           break;
         }
 
         case StateId_t::VELOCITY: {
-          if (!getVelInFrame(msg, ns_frame_id_ + "_att_only", measurement)) {
-            return false;
+          auto res = getVelInFrame(msg, ns_frame_id_ + "_att_only");
+          if (res) {
+            measurement_t measurement;
+            measurement = res.value();
+            return measurement;
+          } else {
+            return {};
           }
           break;
         }
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
-          /* return {}; */
-          return false;
+          return {};
         }
       }
       break;
@@ -437,23 +477,27 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
       switch (state_id_) {
 
         case StateId_t::POSITION: {
-          measurement(0) = msg.pose.pose.position.z;
+          measurement_t measurement;
+          measurement(0) = msg->pose.pose.position.z;
+          return measurement;
           break;
         }
 
         case StateId_t::VELOCITY: {
           auto res = getZVelUntilted(msg);
           if (res) {
-            measurement(0) = res.value();
+            measurement_t measurement;
+            measurement = res.value();
+            return measurement;
           } else {
-            return false;
+            return {};
           }
           break;
         }
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
-          return false;
+          return {};
         }
       }
       break;
@@ -466,102 +510,114 @@ bool Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::Odome
 
         case StateId_t::POSITION: {
           try {
-            measurement(0) = mrs_lib::AttitudeConverter(msg.pose.pose.orientation).getHeading();
+            measurement_t measurement;
+            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
+            return measurement;
           }
           catch (...) {
             ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getNamespacedName().c_str());
-            return false;
+            return {};
           }
           break;
         }
 
         case StateId_t::VELOCITY: {
           try {
-            measurement(0) = mrs_lib::AttitudeConverter(msg.pose.pose.orientation).getHeadingRate(msg.twist.twist.angular);
+            measurement_t measurement;
+            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular);
+            return measurement;
           }
           catch (...) {
             ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getNamespacedName().c_str());
-            return false;
+            return {};
           }
           break;
         }
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
-          return false;
+          return {};
         }
       }
       break;
     }
   }
 
-  return true;
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getNamespacedName().c_str());
+  return {};
 }
 /*//}*/
 
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
-bool Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::Range& msg, measurement_t& measurement) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg) {
 
   geometry_msgs::PoseStamped range_point;
 
-  range_point.header           = msg.header;
-  range_point.pose.position.x  = msg.range;
+  range_point.header           = msg->header;
+  range_point.pose.position.x  = msg->range;
   range_point.pose.position.y  = 0;
   range_point.pose.position.z  = 0;
   range_point.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
 
   auto res = ch_->transformer->transformSingle(range_point, ch_->frames.ns_fcu_untilted);
 
-  /* Correction::measurement_t measurement; */
+  Correction::measurement_t measurement;
 
   if (res) {
     measurement(0) = -res.value().pose.position.z;
+    return measurement;
   } else {
     ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getNamespacedName().c_str(),
                        ch_->frames.ns_fcu_untilted.c_str());
-    /* return {}; */
-    return false;
+    return {};
   }
-
-  return true;
 }
 /*//}*/
 
 /*//{ getCorrectionFromRtk() */
+/* template <int n_measurements, typename Correction<n_measurements>::measurement_t> */
+/* std::optional<Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg) { */
 template <int n_measurements>
-bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& msg, measurement_t& measurement) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg) {
 
   geometry_msgs::PoseStamped rtk_pos;
 
-  if (msg.header.frame_id == "gps") {
+  if (msg->header.frame_id == "gps") {
 
-    if (!std::isfinite(msg.gps.latitude)) {
+    if (!std::isfinite(msg->gps.latitude)) {
       ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getNamespacedName().c_str());
-      return false;
+      return {};
     }
 
-    if (!std::isfinite(msg.gps.longitude)) {
+    if (!std::isfinite(msg->gps.longitude)) {
       ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getNamespacedName().c_str());
-      return false;
+      return {};
     }
 
-    rtk_pos.header = msg.header;
-    mrs_lib::UTM(msg.gps.latitude, msg.gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
-    rtk_pos.pose.position.z  = msg.gps.altitude;
+    rtk_pos.header = msg->header;
+    mrs_lib::UTM(msg->gps.latitude, msg->gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
+    rtk_pos.pose.position.z  = msg->gps.altitude;
     rtk_pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
 
-  } else if (msg.header.frame_id == "utm") {
+  } else if (msg->header.frame_id == "utm") {
 
-    rtk_pos.pose = msg.pose.pose;
+    rtk_pos.pose = msg->pose.pose;
 
   } else {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName().c_str(), msg.header.frame_id.c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName().c_str(), msg->header.frame_id.c_str());
   }
 
+  Correction::measurement_t measurement;
+
   // transform the RTK position from antenna to FCU
-  rtk_pos.pose = transformRtkToFcu(rtk_pos);
+  auto res = transformRtkToFcu(rtk_pos);
+  if (res) {
+    rtk_pos.pose = res.value();
+  } else {
+    return {};
+  }
 
   switch (est_type_) {
 
@@ -573,13 +629,13 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
         case StateId_t::POSITION: {
           measurement(0) = rtk_pos.pose.position.x;
           measurement(1) = rtk_pos.pose.position.y;
+          return measurement;
           break;
         }
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
-          /* return {}; */
-          return false;
+          return {};
         }
       }
       break;
@@ -592,12 +648,13 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
 
         case StateId_t::POSITION: {
           measurement(0) = rtk_pos.pose.position.z;
+          return measurement;
           break;
         }
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
-          return false;
+          return {};
         }
       }
       break;
@@ -605,11 +662,13 @@ bool Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGps& ms
 
     case EstimatorType_t::HEADING: {
       ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getNamespacedName().c_str());
+      return {};
       break;
     }
   }
 
-  return true;
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getNamespacedName().c_str());
+  return {};
 }
 /*//}*/
 
@@ -655,19 +714,21 @@ bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request&
 
 /*//{ getZVelUntilted() */
 template <int n_measurements>
-std::optional<double> Correction<n_measurements>::getZVelUntilted(const nav_msgs::Odometry& msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const nav_msgs::OdometryConstPtr msg) {
 
   // untilt the desired acceleration vector
   geometry_msgs::PointStamped vel;
-  vel.point.x         = msg.twist.twist.linear.x;
-  vel.point.y         = msg.twist.twist.linear.y;
-  vel.point.z         = msg.twist.twist.linear.z;
+  vel.point.x         = msg->twist.twist.linear.x;
+  vel.point.y         = msg->twist.twist.linear.y;
+  vel.point.z         = msg->twist.twist.linear.z;
   vel.header.frame_id = ch_->frames.ns_fcu;
-  vel.header.stamp    = msg.header.stamp;
+  vel.header.stamp    = msg->header.stamp;
 
   auto res = ch_->transformer->transformSingle(vel, ch_->frames.ns_fcu_untilted);
   if (res) {
-    return res.value().point.z;
+    measurement_t measurement;
+    measurement(0) = res.value().point.z;
+    return measurement;
   } else {
     ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getNamespacedName().c_str(), vel.header.frame_id.c_str(),
                       ch_->frames.ns_fcu_untilted.c_str());
@@ -678,38 +739,34 @@ std::optional<double> Correction<n_measurements>::getZVelUntilted(const nav_msgs
 
 /*//{ getVelInFrame() */
 template <int n_measurements>
-bool Correction<n_measurements>::getVelInFrame(const nav_msgs::Odometry& msg, const std::string frame, measurement_t& measurement_out) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVelInFrame(const nav_msgs::OdometryConstPtr msg,
+                                                                                                            const std::string                frame) {
 
-  // velocity from mavros is already in global frame
-  if (frame == ch_->uav_name + "/pixhawk_origin" && frame == msg.header.frame_id) {
-    measurement_out(0) = msg.twist.twist.linear.x;
-    measurement_out(1) = msg.twist.twist.linear.y;
-    return true;
-  }
+  measurement_t measurement;
 
   geometry_msgs::Vector3Stamped body_vel;
-  body_vel.header   = msg.header;
-  body_vel.vector.x = msg.twist.twist.linear.x;
-  body_vel.vector.y = msg.twist.twist.linear.y;
-  body_vel.vector.z = msg.twist.twist.linear.z;
+  body_vel.header   = msg->header;
+  body_vel.vector.x = msg->twist.twist.linear.x;
+  body_vel.vector.y = msg->twist.twist.linear.y;
+  body_vel.vector.z = msg->twist.twist.linear.z;
 
   geometry_msgs::Vector3Stamped transformed_vel;
   auto                          res = ch_->transformer->transformSingle(body_vel, frame);
   if (res) {
-    transformed_vel    = res.value();
-    measurement_out(0) = transformed_vel.vector.x;
-    measurement_out(1) = transformed_vel.vector.y;
-    return true;
+    transformed_vel = res.value();
+    measurement(0)  = transformed_vel.vector.x;
+    measurement(1)  = transformed_vel.vector.y;
+    return measurement;
   } else {
     ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getNamespacedName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
-    return false;
+    return {};
   }
 }
 /*//}*/
 
 /*//{ transformRtkToFcu() */
 template <int n_measurements>
-geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const {
+std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const {
 
   geometry_msgs::PoseStamped pose_tmp = pose_in;
 
@@ -720,7 +777,7 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
   } else {
     ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getNamespacedName().c_str(),
                        ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
-    return pose_in.pose;
+    return {};
   }
 
   // invert tf
@@ -740,7 +797,7 @@ geometry_msgs::Pose Correction<n_measurements>::transformRtkToFcu(const geometry
     utm_in_fcu = res2.value();
   } else {
     ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not using this correction.", getNamespacedName().c_str(), ch_->frames.ns_fcu.c_str());
-    return pose_in.pose;
+    return {};
   }
 
   // invert tf
@@ -797,17 +854,16 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
 
 /*//{ publishCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::publishCorrection(const measurement_t& measurement, const ros::Time& measurement_stamp,
-                                                   mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr) {
+void Correction<n_measurements>::publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr) {
   EstimatorCorrection msg;
-  msg.header.stamp    = measurement_stamp;
+  msg.header.stamp    = measurement_stamped.stamp;
   msg.header.frame_id = ns_frame_id_;
   msg.name            = name_;
   msg.estimator_name  = est_name_;
   msg.state_id        = state_id_;
   msg.covariance.resize(n_measurements * n_measurements);
-  for (int i = 0; i < measurement.rows(); i++) {
-    msg.state.push_back(measurement(i));
+  for (int i = 0; i < measurement_stamped.value.rows(); i++) {
+    msg.state.push_back(measurement_stamped.value(i));
     msg.covariance[n_measurements * i + i] = getR();
   }
 
