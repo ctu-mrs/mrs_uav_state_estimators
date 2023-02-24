@@ -19,7 +19,7 @@ safety_area:
 
   use_safety_area: true
 
-  frame_name: "gps_garmin_origin"
+  frame_name: "local_origin"
 
   # convex polygon CCW
   safety_area: [-50, -50,

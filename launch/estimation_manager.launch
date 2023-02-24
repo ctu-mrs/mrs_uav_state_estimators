@@ -14,6 +14,8 @@
   <arg if="$(eval arg('WORLD_FILE') == '' and arg('WORLD_NAME') == '' and arg('simulation'))" name="world_file" value="$(find mrs_uav_general)/config/worlds/world_simulation.yaml" />
   <arg if="$(eval arg('WORLD_FILE') != '')" name="world_file" value="$(arg WORLD_FILE)" />
 
+  <arg name="custom_config" default="" />
+
     <!-- other args -->
   <arg name="standalone" default="true" />
   <arg name="debug" default="false" />
@@ -41,6 +43,9 @@
       <rosparam file="$(arg world_file)" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimation_manager.yaml" command="load" />
       <rosparam file="$(find mrs_uav_state_estimation)/config/estimators.yaml" command="load" />
+
+      <!-- Load a user param file -->
+      <rosparam if="$(eval not arg('custom_config') == '')" file="$(arg custom_config)" />
 
 <!--//{ Subscribers-->
       <!-- common -->
