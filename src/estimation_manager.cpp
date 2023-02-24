@@ -208,15 +208,15 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
     mrs_msgs::OdometryDiag legacy_odom_diag_msg;
     legacy_odom_diag_msg.header.stamp = ros::Time::now();
     mrs_msgs::EstimatorType est_type;
-    est_type.name                       = "NONE";
+    est_type.name                       = "OTHER";
     est_type.type                       = 1;
     legacy_odom_diag_msg.estimator_type = est_type;
     mrs_msgs::AltitudeType alt_type;
-    alt_type.name                      = "NONE";
+    alt_type.name                      = "OTHER";
     alt_type.type                      = 1;
     legacy_odom_diag_msg.altitude_type = alt_type;
     mrs_msgs::HeadingType hdg_type;
-    hdg_type.name                                 = "NONE";
+    hdg_type.name                                 = "OTHER";
     hdg_type.type                                 = 1;
     legacy_odom_diag_msg.heading_type             = hdg_type;
     legacy_odom_diag_msg.available_lat_estimators = {""};
@@ -431,7 +431,7 @@ bool EstimationManager::callbackToggleServiceCallbacks(std_srvs::SetBool::Reques
 }
 
 //}
-//
+
 /*//{ switchToHealthyEstimator() */
 bool EstimationManager::switchToHealthyEstimator() {
 

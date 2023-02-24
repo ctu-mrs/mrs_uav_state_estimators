@@ -71,22 +71,7 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
 
   innovation_.header.frame_id      = ns_frame_id_;
   innovation_.child_frame_id       = ch_->frames.ns_fcu;
-  innovation_.pose.pose.position.x = std::numeric_limits<double>::quiet_NaN();
-  innovation_.pose.pose.position.y = std::numeric_limits<double>::quiet_NaN();
-  innovation_.pose.pose.position.z = std::numeric_limits<double>::quiet_NaN();
-
-  innovation_.pose.pose.orientation.x = std::numeric_limits<double>::quiet_NaN();
-  innovation_.pose.pose.orientation.y = std::numeric_limits<double>::quiet_NaN();
-  innovation_.pose.pose.orientation.z = std::numeric_limits<double>::quiet_NaN();
-  innovation_.pose.pose.orientation.w = std::numeric_limits<double>::quiet_NaN();
-
-  innovation_.twist.twist.linear.x = std::numeric_limits<double>::quiet_NaN();
-  innovation_.twist.twist.linear.y = std::numeric_limits<double>::quiet_NaN();
-  innovation_.twist.twist.linear.z = std::numeric_limits<double>::quiet_NaN();
-
-  innovation_.twist.twist.angular.x = std::numeric_limits<double>::quiet_NaN();
-  innovation_.twist.twist.angular.y = std::numeric_limits<double>::quiet_NaN();
-  innovation_.twist.twist.angular.z = std::numeric_limits<double>::quiet_NaN();
+  innovation_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
 

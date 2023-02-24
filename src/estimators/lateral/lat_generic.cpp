@@ -361,6 +361,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//{ doCorrection() */
 void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &state_id, const ros::Time &meas_stamp) {
 
+  // for position state check the innovation
   if (state_id == POSITION) {
     {
       std::scoped_lock lock(mtx_innovation_);
@@ -368,10 +369,10 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
       innovation_(0) = z(0) - getState(POSITION, AXIS_X);
       innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
 
-      if (innovation_(0) > 1.0) {
+      if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getNamespacedName().c_str(), innovation_(0));
       }
-      if (innovation_(1) > 1.0) {
+      if (innovation_(1) > 1.0 || innovation_(1) < -1.0) {
         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getNamespacedName().c_str(), innovation_(1));
       }
     }

@@ -55,22 +55,7 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
 
   innovation_.header.frame_id      = ns_frame_id_;
   innovation_.child_frame_id       = ch_->frames.ns_fcu;
-  innovation_.pose.pose.position.x = 0.0;
-  innovation_.pose.pose.position.y = 0.0;
-  innovation_.pose.pose.position.z = 0.0;
-
-  innovation_.pose.pose.orientation.x = 0.0;
-  innovation_.pose.pose.orientation.y = 0.0;
-  innovation_.pose.pose.orientation.z = 0.0;
   innovation_.pose.pose.orientation.w = 1.0;
-
-  innovation_.twist.twist.linear.x = 0.0;
-  innovation_.twist.twist.linear.y = 0.0;
-  innovation_.twist.twist.linear.z = 0.0;
-
-  innovation_.twist.twist.angular.x = 0.0;
-  innovation_.twist.twist.angular.y = 0.0;
-  innovation_.twist.twist.angular.z = 0.0;
 
   // | ------------------ finish initialization ----------------- |
 

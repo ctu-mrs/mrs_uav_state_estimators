@@ -344,12 +344,13 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//{ doCorrection() */
 void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
-  {
+  // for position state check the innovation
+  if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
 
     innovation_(0) = z(0) - getState(POSITION);
 
-    if (innovation_(0) > 1.0) {
+    if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getNamespacedName().c_str(), innovation_(0));
     }
   }

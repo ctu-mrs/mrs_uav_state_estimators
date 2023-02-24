@@ -44,7 +44,7 @@ input=(
 "
 'Spawn' 'waitForSimulation; rosservice call /mrs_drone_spawner/spawn "$UAV_NUMBER $UAV_TYPE '"$SENSOR_PARAMS"'"
 '
-  'Status' "waitForOdometry; roslaunch mrs_uav_status status.launch
+  'Status' "waitForOdometry; roslaunch mrs_uav_state_estimation status.launch
 "
   'Control' "waitForOdometry; roslaunch mrs_uav_state_estimation core.launch config_uav_manager:=./custom_configs/uav_manager.yaml
 "

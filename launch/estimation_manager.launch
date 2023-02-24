@@ -52,6 +52,7 @@
 <!--//{ Publishers -->
       <remap from="~profiler" to="profiler" />
       <remap from="~odom_main_out" to="~odom_main" />
+      <remap from="~innovation_out" to="~odom_main_innovation" />
       <remap from="~uav_state_out" to="~uav_state" />
       <remap from="~diagnostics_out" to="~diagnostics" />
       <remap from="~max_flight_altitude_agl_out" to="~max_flight_altitude_agl" />
