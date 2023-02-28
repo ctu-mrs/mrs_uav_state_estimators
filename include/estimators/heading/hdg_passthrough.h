@@ -83,6 +83,8 @@ public:
   double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
   std::string getNamespacedName() const;
+
+  std::string getPrintName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

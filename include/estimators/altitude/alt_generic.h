@@ -138,6 +138,8 @@ public:
   void timeoutRange(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
 
   std::string getNamespacedName() const;
+
+  std::string getPrintName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

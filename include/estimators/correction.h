@@ -71,6 +71,7 @@ public:
 
   std::string getName() const;
   std::string getNamespacedName() const;
+  std::string getPrintName() const;
 
   double    getR();
   StateId_t getStateId() const;
@@ -151,7 +152,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, getName());
+  mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");
 
   int msg_type_tmp;
@@ -159,7 +160,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (msg_type_tmp < n_MessageType_t) {
     msg_type_ = static_cast<MessageType_t>(msg_type_tmp);
   } else {
-    ROS_ERROR("[%s]: wrong message type: %d of correction %s", getNamespacedName().c_str(), msg_type_tmp, getName().c_str());
+    ROS_ERROR("[%s]: wrong message type: %d of correction %s", getPrintName().c_str(), msg_type_tmp, getName().c_str());
     ros::shutdown();
   }
   param_loader.loadParam("message/topic", msg_topic_);
@@ -172,7 +173,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (state_id_tmp < n_StateId_t) {
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
-    ROS_ERROR("[%s]: wrong state id: %d of correction %s", getNamespacedName().c_str(), state_id_tmp, getName().c_str());
+    ROS_ERROR("[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
     ros::shutdown();
   }
   param_loader.loadParam("noise", R_);
@@ -185,18 +186,18 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getNamespacedName());
+  drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
   drmgr_->config.noise = R_;
 
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getNamespacedName();
+  shopts.node_name          = getPrintName();
   shopts.no_message_timeout = ros::Duration(time_since_last_msg_limit_);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -254,6 +255,13 @@ std::string Correction<n_measurements>::getNamespacedName() const {
 }
 /*//}*/
 
+/*//{ getPrintName() */
+template <int n_measurements>
+std::string Correction<n_measurements>::getPrintName() const {
+  return ch_->nodelet_name + "/" + est_name_ + "/" + name_;
+}
+/*//}*/
+
 /*//{ getR() */
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
@@ -275,11 +283,11 @@ template <int n_measurements>
 bool Correction<n_measurements>::isHealthy() {
 
   if (!is_dt_ok_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: dt not ok", getNamespacedName().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: dt not ok", getPrintName().c_str());
   }
 
   if (!is_delay_ok_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getNamespacedName().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getPrintName().c_str());
   }
 
   is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_;
@@ -337,7 +345,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::RANGE: {
 
       if (!range_enabled_) {
-        ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getNamespacedName().c_str());
+        ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
         return {};
       }
 
@@ -388,7 +396,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     }
 
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getNamespacedName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getPrintName().c_str());
       is_healthy_ = false;
       return {};
     }
@@ -398,12 +406,12 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   is_nan_free_ = true;
   for (int i = 0; i < measurement_stamped.value.rows(); i++) {
     if (!std::isfinite(measurement_stamped.value(i))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getNamespacedName().c_str(), ++counter_nan_);
+      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getPrintName().c_str(), ++counter_nan_);
       is_nan_free_ = false;
       return {};
     }
   }
-  /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getNamespacedName().c_str(), measurement(0), measurement(1)); */
+  /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getPrintName().c_str(), measurement(0), measurement(1)); */
 
   got_first_msg_ = true;
   publishCorrection(measurement_stamped, ph_correction_raw_);
@@ -464,7 +472,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -496,7 +504,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -515,7 +523,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             return measurement;
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getNamespacedName().c_str());
+            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getPrintName().c_str());
             return {};
           }
           break;
@@ -528,14 +536,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             return measurement;
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getNamespacedName().c_str());
+            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str());
             return {};
           }
           break;
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -543,7 +551,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getNamespacedName().c_str());
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
@@ -568,7 +576,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     measurement(0) = -res.value().pose.position.z;
     return measurement;
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getNamespacedName().c_str(),
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getPrintName().c_str(),
                        ch_->frames.ns_fcu_untilted.c_str());
     return {};
   }
@@ -586,12 +594,12 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   if (msg->header.frame_id == "gps") {
 
     if (!std::isfinite(msg->gps.latitude)) {
-      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getNamespacedName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
       return {};
     }
 
     if (!std::isfinite(msg->gps.longitude)) {
-      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getNamespacedName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getPrintName().c_str());
       return {};
     }
 
@@ -606,7 +614,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   } else {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getNamespacedName().c_str(), msg->header.frame_id.c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getPrintName().c_str(), msg->header.frame_id.c_str());
   }
 
   Correction::measurement_t measurement;
@@ -634,7 +642,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -653,7 +661,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -661,13 +669,13 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
 
     case EstimatorType_t::HEADING: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getNamespacedName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getPrintName().c_str());
       return {};
       break;
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getNamespacedName().c_str());
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
@@ -678,7 +686,7 @@ void Correction<n_measurements>::timeoutCallback(const std::string& topic, const
   if (got_first_msg_) {
     is_dt_ok_ = false;
   }
-  ROS_ERROR_STREAM("[" << getNamespacedName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now() - last_msg).toSec()
+  ROS_ERROR_STREAM("[" << getPrintName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now() - last_msg).toSec()
                        << " seconds (" << n_pubs << " publishers on topic)");
 }
 /*//}*/
@@ -700,11 +708,11 @@ bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request&
 
   if (range_enabled_) {
 
-    ROS_INFO("[%s]: Range enabled.", getNamespacedName().c_str());
+    ROS_INFO("[%s]: Range enabled.", getPrintName().c_str());
 
   } else {
 
-    ROS_INFO("[%s]: Range disabled", getNamespacedName().c_str());
+    ROS_INFO("[%s]: Range disabled", getPrintName().c_str());
   }
 
   return true;
@@ -730,7 +738,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     measurement(0) = res.value().point.z;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getNamespacedName().c_str(), vel.header.frame_id.c_str(),
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getPrintName().c_str(), vel.header.frame_id.c_str(),
                       ch_->frames.ns_fcu_untilted.c_str());
     return {};
   }
@@ -758,7 +766,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     measurement(1)  = transformed_vel.vector.y;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getNamespacedName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
     return {};
   }
 }
@@ -775,7 +783,7 @@ std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu
   if (res1) {
     pose_tmp.pose.orientation = res1.value().transform.rotation;
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getNamespacedName().c_str(),
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
                        ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
     return {};
   }
@@ -796,7 +804,7 @@ std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu
   if (res2) {
     utm_in_fcu = res2.value();
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not using this correction.", getNamespacedName().c_str(), ch_->frames.ns_fcu.c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not using this correction.", getPrintName().c_str(), ch_->frames.ns_fcu.c_str());
     return {};
   }
 
@@ -814,7 +822,7 @@ void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
   const double delay = (ros::Time::now() - msg_time).toSec();
   if (delay > msg_delay_limit_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getNamespacedName().c_str(), delay);
+    ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getPrintName().c_str(), delay);
     is_delay_ok_ = false;
   } else {
     is_delay_ok_ = true;
@@ -831,7 +839,7 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
   } else if (name == "saturate") {
     return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, state_id_, fun_get_state_);
   } else {
-    ROS_ERROR("[%s]: requested invalid processor %s", getNamespacedName().c_str(), name.c_str());
+    ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     ros::shutdown();
   }
   return std::shared_ptr<Processor<n_measurements>>(nullptr);

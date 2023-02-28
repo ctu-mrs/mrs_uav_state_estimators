@@ -14,6 +14,7 @@ public:
 public:
   std::string getName() const;
   std::string getNamespacedName() const;
+  std::string getPrintName() const;
 
   void toggle(bool enable);
 
@@ -44,6 +45,13 @@ std::string Processor<n_measurements>::getName() const {
 template <int n_measurements>
 std::string Processor<n_measurements>::getNamespacedName() const {
   return correction_name_ + "/" + name_;
+}
+/*//}*/
+
+/*//{ getPrintName() */
+template <int n_measurements>
+std::string Processor<n_measurements>::getPrintName() const {
+  return ch_->nodelet_name + "/" + correction_name_ + "/" + name_;
 }
 /*//}*/
 

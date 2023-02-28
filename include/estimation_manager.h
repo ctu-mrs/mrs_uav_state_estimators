@@ -65,7 +65,7 @@ public:
   /*//}*/
 
 public:
-  StateMachine() {
+  StateMachine(const std::string& nodelet_name) : nodelet_name_(nodelet_name) {
   }
 
   bool isInState(const SMState_t &state) const {
@@ -109,14 +109,14 @@ public:
     switch (target_state) {
 
       case UNINITIALIZED_STATE: {
-        ROS_ERROR("[%s]: transition to %s is not possible from any state", getName().c_str(), getStateAsString(UNINITIALIZED_STATE).c_str());
+        ROS_ERROR("[%s]: transition to %s is not possible from any state", getPrintName().c_str(), getStateAsString(UNINITIALIZED_STATE).c_str());
         return false;
         break;
       }
 
       case INITIALIZED_STATE: {
         if (current_state_ != UNINITIALIZED_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(INITIALIZED_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getPrintName().c_str(), getStateAsString(INITIALIZED_STATE).c_str(),
                     getStateAsString(UNINITIALIZED_STATE).c_str());
           return false;
         }
@@ -125,7 +125,7 @@ public:
 
       case READY_FOR_TAKEOFF_STATE: {
         if (current_state_ != INITIALIZED_STATE && current_state_ != LANDED_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getName().c_str(), getStateAsString(READY_FOR_TAKEOFF_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getPrintName().c_str(), getStateAsString(READY_FOR_TAKEOFF_STATE).c_str(),
                     getStateAsString(INITIALIZED_STATE).c_str(), getStateAsString(LANDED_STATE).c_str());
           return false;
         }
@@ -134,7 +134,7 @@ public:
 
       case TAKING_OFF_STATE: {
         if (current_state_ != READY_FOR_TAKEOFF_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(TAKING_OFF_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getPrintName().c_str(), getStateAsString(TAKING_OFF_STATE).c_str(),
                     getStateAsString(READY_FOR_TAKEOFF_STATE).c_str());
           return false;
         }
@@ -143,7 +143,7 @@ public:
 
       case FLYING_STATE: {
         if (current_state_ != TAKING_OFF_STATE && current_state_ != HOVER_STATE && current_state_ != ESTIMATOR_SWITCHING_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s or %s", getName().c_str(), getStateAsString(FLYING_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s or %s", getPrintName().c_str(), getStateAsString(FLYING_STATE).c_str(),
                     getStateAsString(TAKING_OFF_STATE).c_str(), getStateAsString(HOVER_STATE).c_str(), getStateAsString(ESTIMATOR_SWITCHING_STATE).c_str());
           return false;
         }
@@ -152,7 +152,7 @@ public:
 
       case HOVER_STATE: {
         if (current_state_ != FLYING_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(HOVER_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getPrintName().c_str(), getStateAsString(HOVER_STATE).c_str(),
                     getStateAsString(FLYING_STATE).c_str());
           return false;
         }
@@ -161,7 +161,7 @@ public:
 
       case ESTIMATOR_SWITCHING_STATE: {
         if (current_state_ != FLYING_STATE && current_state_ != HOVER_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getName().c_str(), getStateAsString(ESTIMATOR_SWITCHING_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getPrintName().c_str(), getStateAsString(ESTIMATOR_SWITCHING_STATE).c_str(),
                     getStateAsString(FLYING_STATE).c_str(), getStateAsString(HOVER_STATE).c_str());
           return false;
         }
@@ -171,7 +171,7 @@ public:
 
       case LANDING_STATE: {
         if (current_state_ != FLYING_STATE && current_state_ != HOVER_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getName().c_str(), getStateAsString(LANDING_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s or %s", getPrintName().c_str(), getStateAsString(LANDING_STATE).c_str(),
                     getStateAsString(FLYING_STATE).c_str(), getStateAsString(HOVER_STATE).c_str());
           return false;
         }
@@ -180,7 +180,7 @@ public:
 
       case LANDED_STATE: {
         if (current_state_ != LANDING_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(LANDED_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getPrintName().c_str(), getStateAsString(LANDED_STATE).c_str(),
                     getStateAsString(LANDING_STATE).c_str());
           return false;
         }
@@ -189,24 +189,24 @@ public:
 
       case DUMMY_STATE: {
         if (current_state_ != INITIALIZED_STATE) {
-          ROS_ERROR("[%s]: transition to %s is possible only from %s", getName().c_str(), getStateAsString(DUMMY_STATE).c_str(),
+          ROS_ERROR("[%s]: transition to %s is possible only from %s", getPrintName().c_str(), getStateAsString(DUMMY_STATE).c_str(),
                     getStateAsString(INITIALIZED_STATE).c_str());
           return false;
         }
         break;
       }
       case EMERGENCY_STATE: {
-        ROS_WARN("[%s]: transition to %s", getName().c_str(), getStateAsString(EMERGENCY_STATE).c_str());
+        ROS_WARN("[%s]: transition to %s", getPrintName().c_str(), getStateAsString(EMERGENCY_STATE).c_str());
         break;
       }
 
       case ERROR_STATE: {
-        ROS_WARN("[%s]: transition to %s", getName().c_str(), getStateAsString(ERROR_STATE).c_str());
+        ROS_WARN("[%s]: transition to %s", getPrintName().c_str(), getStateAsString(ERROR_STATE).c_str());
         break;
       }
 
       default: {
-        ROS_ERROR("[%s]: rejected transition to unknown state id %d", getName().c_str(), target_state);
+        ROS_ERROR("[%s]: rejected transition to unknown state id %d", getPrintName().c_str(), target_state);
         return false;
         break;
       }
@@ -218,7 +218,7 @@ public:
       current_state_  = target_state;
     }
 
-    ROS_INFO("[%s]: successfully changed states %s -> %s", getName().c_str(), getStateAsString(previous_state_).c_str(),
+    ROS_INFO("[%s]: successfully changed states %s -> %s", getPrintName().c_str(), getStateAsString(previous_state_).c_str(),
              getStateAsString(current_state_).c_str());
 
     return true;
@@ -233,6 +233,7 @@ public:
 
 private:
   const std::string name_ = "StateMachine";
+  const std::string nodelet_name_;
 
   SMState_t current_state_    = UNINITIALIZED_STATE;
   SMState_t previous_state_   = UNINITIALIZED_STATE;
@@ -242,6 +243,10 @@ private:
 
   std::string getName() const {
     return name_;
+  }
+
+  std::string getPrintName() const {
+    return nodelet_name_ + "/" + name_;
   }
 
   // clang-format off
@@ -268,12 +273,13 @@ class EstimationManager : public nodelet::Nodelet {
 
 private:
   const std::string nodelet_name_ = "EstimationManager";
+  const std::string package_name_ = "mrs_uav_state_estimation";
 
   std::string version_;
 
   std::shared_ptr<CommonHandlers_t> ch_;
 
-  StateMachine sm_;
+  std::shared_ptr<StateMachine> sm_;
 
   mrs_lib::PublisherHandler<mrs_uav_state_estimation::Diagnostics> ph_diagnostics_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>              ph_max_flight_altitude_agl_;
@@ -287,9 +293,9 @@ private:
 
   mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped> ph_orientation_;
 
-/*//{ FIXME: delete after merge with new uav system */
+  /*//{ FIXME: delete after merge with new uav system */
   mrs_lib::PublisherHandler<mrs_msgs::OdometryDiag> ph_diagnostics_legacy_;
-/*//}*/
+  /*//}*/
 
   ros::Timer timer_publish_;
   double     timer_rate_publish_;
@@ -305,7 +311,7 @@ private:
 
 
   ros::ServiceServer srvs_toggle_callbacks_;
-  bool callbackToggleServiceCallbacks(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
+  bool               callbackToggleServiceCallbacks(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
   bool               callbacks_enabled_             = false;
   bool               callbacks_disabled_by_service_ = false;
 

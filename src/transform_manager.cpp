@@ -11,41 +11,40 @@ void TransformManager::onInit() {
 
   ros::Time::waitForValid();
 
-  ROS_INFO("[%s]: initializing", getName().c_str());
+  ROS_INFO("[%s]: initializing", getPrintName().c_str());
 
   broadcaster_ = std::make_shared<mrs_lib::TransformBroadcaster>();
 
-  transformer_ = std::make_shared<mrs_lib::Transformer>(nh_, getName());
-  transformer_->retryLookupNewest(true);
+  ch_->transformer = std::make_shared<mrs_lib::Transformer>(nh_, getPrintName());
+  ch_->transformer->retryLookupNewest(true);
 
-  mrs_lib::ParamLoader param_loader(nh_, getName());
+  mrs_lib::ParamLoader param_loader(nh_, getPrintName());
 
   /*//{ check version */
   param_loader.loadParam("version", version_);
 
   if (version_ != VERSION) {
 
-    ROS_ERROR("[%s]: the version of the binary (%s) does not match the config file (%s), please build me!", getName().c_str(), VERSION, version_.c_str());
+    ROS_ERROR("[%s]: the version of the binary (%s) does not match the config file (%s), please build me!", getPrintName().c_str(), VERSION, version_.c_str());
     ros::shutdown();
   }
   /*//}*/
 
-  param_loader.loadParam("uav_name", uav_name_);
-
   bool   is_origin_param_ok = true;
   double world_origin_x, world_origin_y;
+  param_loader.loadParam("uav_name", ch_->uav_name);
   param_loader.loadParam("utm_origin_units", world_origin_units_);
   if (world_origin_units_ == 0) {
-    ROS_INFO("[Odometry]: Loading world origin in UTM units.");
+    ROS_INFO("[%s]: Loading world origin in UTM units.", getPrintName().c_str());
     is_origin_param_ok &= param_loader.loadParam("utm_origin_x", world_origin_x);
     is_origin_param_ok &= param_loader.loadParam("utm_origin_y", world_origin_y);
   } else {
     double lat, lon;
-    ROS_INFO("[Odometry]: Loading world origin in LatLon units.");
+    ROS_INFO("[%s]: Loading world origin in LatLon units.", getPrintName().c_str());
     is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat);
     is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon);
     mrs_lib::UTM(lat, lon, &world_origin_x, &world_origin_y);
-    ROS_INFO("[Odometry]: Converted to UTM x: %f, y: %f.", world_origin_x, world_origin_y);
+    ROS_INFO("[%s]: Converted to UTM x: %f, y: %f.", getPrintName().c_str(), world_origin_x, world_origin_y);
   }
 
   world_origin_.x = world_origin_x;
@@ -57,18 +56,18 @@ void TransformManager::onInit() {
   /*     is_origin_param_ok &= param_loader.loadParam("init_gps_offset_y", init_gps_offset_y_); */
 
   if (!is_origin_param_ok) {
-    ROS_ERROR("[Odometry]: Could not load all mandatory parameters from world file. Please check your world file.");
+    ROS_ERROR("[%s]: Could not load all mandatory parameters from world file. Please check your world file.", getPrintName().c_str());
     ros::shutdown();
   }
 
   /*//{ load local_origin parameters */
   std::string local_origin_parent_frame_id;
   param_loader.loadParam("local_origin_tf/parent", local_origin_parent_frame_id);
-  ns_local_origin_parent_frame_id_ = uav_name_ + "/" + local_origin_parent_frame_id;
+  ns_local_origin_parent_frame_id_ = ch_->uav_name + "/" + local_origin_parent_frame_id;
 
   std::string local_origin_child_frame_id;
   param_loader.loadParam("local_origin_tf/child", local_origin_child_frame_id);
-  ns_local_origin_child_frame_id_ = uav_name_ + "/" + local_origin_child_frame_id;
+  ns_local_origin_child_frame_id_ = ch_->uav_name + "/" + local_origin_child_frame_id;
 
   param_loader.loadParam("local_origin_tf/enabled", publish_local_origin_tf_);
   /*//}*/
@@ -76,11 +75,11 @@ void TransformManager::onInit() {
   /*//{ load stable_origin parameters */
   std::string stable_origin_parent_frame_id;
   param_loader.loadParam("stable_origin_tf/parent", stable_origin_parent_frame_id);
-  ns_stable_origin_parent_frame_id_ = uav_name_ + "/" + stable_origin_parent_frame_id;
+  ns_stable_origin_parent_frame_id_ = ch_->uav_name + "/" + stable_origin_parent_frame_id;
 
   std::string stable_origin_child_frame_id;
   param_loader.loadParam("stable_origin_tf/child", stable_origin_child_frame_id);
-  ns_stable_origin_child_frame_id_ = uav_name_ + "/" + stable_origin_child_frame_id;
+  ns_stable_origin_child_frame_id_ = ch_->uav_name + "/" + stable_origin_child_frame_id;
 
   param_loader.loadParam("stable_origin_tf/enabled", publish_stable_origin_tf_);
   /*//}*/
@@ -88,11 +87,11 @@ void TransformManager::onInit() {
   /*//{ load fixed_origin parameters */
   std::string fixed_origin_parent_frame_id;
   param_loader.loadParam("fixed_origin_tf/parent", fixed_origin_parent_frame_id);
-  ns_fixed_origin_parent_frame_id_ = uav_name_ + "/" + fixed_origin_parent_frame_id;
+  ns_fixed_origin_parent_frame_id_ = ch_->uav_name + "/" + fixed_origin_parent_frame_id;
 
   std::string fixed_origin_child_frame_id;
   param_loader.loadParam("fixed_origin_tf/child", fixed_origin_child_frame_id);
-  ns_fixed_origin_child_frame_id_ = uav_name_ + "/" + fixed_origin_child_frame_id;
+  ns_fixed_origin_child_frame_id_ = ch_->uav_name + "/" + fixed_origin_child_frame_id;
 
   param_loader.loadParam("fixed_origin_tf/enabled", publish_fixed_origin_tf_);
   /*//}*/
@@ -100,11 +99,11 @@ void TransformManager::onInit() {
   /*//{ load fcu_untilted parameters */
   std::string fcu_frame_id;
   param_loader.loadParam("fcu_untilted_tf/parent", fcu_frame_id);
-  ns_fcu_frame_id_ = uav_name_ + "/" + fcu_frame_id;
+  ch_->frames.ns_fcu = ch_->uav_name + "/" + fcu_frame_id;
 
   std::string fcu_untilted_frame_id;
   param_loader.loadParam("fcu_untilted_tf/child", fcu_untilted_frame_id);
-  ns_fcu_untilted_frame_id_ = uav_name_ + "/" + fcu_untilted_frame_id;
+  ch_->frames.ns_fcu_untilted = ch_->uav_name + "/" + fcu_untilted_frame_id;
 
   param_loader.loadParam("fcu_untilted_tf/enabled", publish_fcu_untilted_tf_);
   /*//}*/
@@ -113,12 +112,12 @@ void TransformManager::onInit() {
   param_loader.loadParam("tf_sources", tf_source_names_);
   for (size_t i = 0; i < tf_source_names_.size(); i++) {
     const std::string tf_source_name = tf_source_names_[i];
-    ROS_INFO("[%s]: loading tf source: %s", getName().c_str(), tf_source_name.c_str());
-    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name,ns_fcu_frame_id_, nh_, broadcaster_, transformer_));
+    ROS_INFO("[%s]: loading tf source: %s", getPrintName().c_str(), tf_source_name.c_str());
+    tf_sources_.push_back(std::make_unique<TfSource>(tf_source_name, nh_, broadcaster_, ch_));
   }
 
   // additionally publish tf of all available estimators
-  /* param_loader.loadParam("/" + uav_name_ + "/estimation_manager/state_estimators", estimator_names_); */
+  /* param_loader.loadParam("/" + ch_->uav_name + "/estimation_manager/state_estimators", estimator_names_); */
   /* for (int i = 0; i < int(estimator_names_.size()); i++) { */
   /*   const std::string estimator_name = estimator_names_[i]; */
   /*   ROS_INFO("[%s]: loading tf source of estimator: %s", getName().c_str(), estimator_name.c_str()); */
@@ -129,7 +128,7 @@ void TransformManager::onInit() {
   /*//{ initialize subscribers */
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh_;
-  shopts.node_name          = getName();
+  shopts.node_name          = getPrintName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -144,11 +143,11 @@ void TransformManager::onInit() {
   /*//}*/
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
 
-  ROS_INFO("[%s]: initialized", getName().c_str());
+  ROS_INFO("[%s]: initialized", getPrintName().c_str());
 }
 /*//}*/
 
@@ -179,11 +178,11 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     pose.pose   = msg->pose;
 
     if (pose.pose.orientation.w == 0 && pose.pose.orientation.z == 0 && pose.pose.orientation.y == 0 && pose.pose.orientation.x == 0) {
-      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getName().c_str(), pose.header.frame_id.c_str());
+      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getPrintName().c_str(), pose.header.frame_id.c_str());
       pose.pose.orientation.w = 1.0;
     }
 
-    auto res = transformer_->transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
+    auto res = ch_->transformer->transformSingle(pose, first_frame_id_.substr(0, first_frame_id_.find("_origin")) + "_local_origin");
 
     if (res) {
       const tf2::Transform      tf       = Support::tf2FromPose(res->pose);
@@ -200,13 +199,13 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
           ROS_ERROR("exception caught ");
         }
       } else {
-        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                           tf_msg.child_frame_id.c_str());
       }
-      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                     tf_msg.child_frame_id.c_str());
     } else {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getName().c_str(), first_frame_id_.c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing local_origin transform.", getPrintName().c_str(), first_frame_id_.c_str());
       return;
     }
     /*//}*/
@@ -224,11 +223,11 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
     pose.header = msg->header;
     pose.pose   = msg->pose;
     if (pose.pose.orientation.w == 0 && pose.pose.orientation.z == 0 && pose.pose.orientation.y == 0 && pose.pose.orientation.x == 0) {
-      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getName().c_str(), pose.header.frame_id.c_str());
+      ROS_WARN_ONCE("[%s]: Uninitialized quaternion detected during publishing stable_origin tf of %s. Setting w=1", getPrintName().c_str(), pose.header.frame_id.c_str());
       pose.pose.orientation.w = 1.0;
     }
 
-    auto res = transformer_->transformSingle(pose, first_frame_id_);
+    auto res = ch_->transformer->transformSingle(pose, first_frame_id_);
 
     if (res) {
       const tf2::Transform      tf       = Support::tf2FromPose(res->pose);
@@ -245,13 +244,13 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
           ROS_ERROR("exception caught ");
         }
       } else {
-        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+        ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                           tf_msg.child_frame_id.c_str());
       }
-      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+      ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                     tf_msg.child_frame_id.c_str());
     } else {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing stable_origin transform.", getName().c_str(), first_frame_id_.c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not publishing stable_origin transform.", getPrintName().c_str(), first_frame_id_.c_str());
       return;
     }
     /*//}*/
@@ -260,7 +259,7 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
   if (publish_fixed_origin_tf_) {
     /*//{ publish fixed_origin tf*/
     if (msg->header.frame_id != last_frame_id_) {
-      ROS_WARN("[%s]: Detected estimator change from %s to %s. Updating offset for fixed origin.", getName().c_str(), last_frame_id_.c_str(),
+      ROS_WARN("[%s]: Detected estimator change from %s to %s. Updating offset for fixed origin.", getPrintName().c_str(), last_frame_id_.c_str(),
                msg->header.frame_id.c_str());
 
       last_frame_id_ = msg->header.frame_id;
@@ -288,10 +287,10 @@ void TransformManager::callbackUavState(mrs_lib::SubscribeHandler<mrs_msgs::UavS
         ROS_ERROR("exception caught ");
       }
     } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getName().c_str(), tf_msg.header.frame_id.c_str(),
+      ROS_WARN_THROTTLE(1.0, "[%s]: NaN detected in transform from %s to %s. Not publishing tf.", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                         tf_msg.child_frame_id.c_str());
     }
-    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getName().c_str(), tf_msg.header.frame_id.c_str(),
+    ROS_INFO_ONCE("[%s]: Broadcasting transform from parent frame: %s to child frame: %s", getPrintName().c_str(), tf_msg.header.frame_id.c_str(),
                   tf_msg.child_frame_id.c_str());
     /*//}*/
   }
@@ -336,7 +335,7 @@ void TransformManager::callbackMavrosUtm(mrs_lib::SubscribeHandler<sensor_msgs::
     utm_origin.y = out_y;
     utm_origin.z = msg->altitude;
 
-    ROS_INFO("[%s]: utm_origin position calculated as: x: %.2f, y: %.2f, z: %.2f", getName().c_str(), utm_origin.x, utm_origin.y, utm_origin.z);
+    ROS_INFO("[%s]: utm_origin position calculated as: x: %.2f, y: %.2f, z: %.2f", getPrintName().c_str(), utm_origin.x, utm_origin.y, utm_origin.z);
 
     for (size_t i = 0; i < tf_sources_.size(); i++) {
       tf_sources_[i]->setUtmOrigin(utm_origin);
@@ -356,7 +355,7 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
     heading = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
   }
   catch (...) {
-    ROS_ERROR("[%s]: Exception caught during getting heading", getName().c_str());
+    ROS_ERROR("[%s]: Exception caught during getting heading", getPrintName().c_str());
     return;
   }
 
@@ -368,8 +367,8 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
 
   geometry_msgs::TransformStamped tf;
   tf.header.stamp            = msg->header.stamp;  // TODO(petrlmat) ros::Time::now()?
-  tf.header.frame_id         = ns_fcu_frame_id_;
-  tf.child_frame_id          = ns_fcu_untilted_frame_id_;
+  tf.header.frame_id         = ch_->frames.ns_fcu;
+  tf.child_frame_id          = ch_->frames.ns_fcu_untilted;
   tf.transform.translation.x = 0.0;
   tf.transform.translation.y = 0.0;
   tf.transform.translation.z = 0.0;
@@ -378,7 +377,7 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
   if (Support::noNans(tf)) {
     broadcaster_->sendTransform(tf);
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN encountered in fcu_untilted tf", getName().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN encountered in fcu_untilted tf", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -386,6 +385,12 @@ void TransformManager::publishFcuUntiltedTf(const nav_msgs::OdometryConstPtr& ms
 /*//{ getName() */
 std::string TransformManager::getName() const {
   return name_;
+}
+/*//}*/
+
+/*//{ getPrintName() */
+std::string TransformManager::getPrintName() const {
+  return nodelet_name_;
 }
 /*//}*/
 

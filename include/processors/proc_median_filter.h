@@ -36,14 +36,14 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const st
     : Processor<n_measurements>(nh, correction_name, name, ch) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getName());
+  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
   param_loader.setPrefix(Processor<n_measurements>::getNamespacedName() + "/");
 
   param_loader.loadParam("buffer_size", buffer_size_);
   param_loader.loadParam("max_diff", max_diff_);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getNamespacedName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
     ros::shutdown();
   }
 
@@ -75,11 +75,11 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
         ss_measurement_string << measurement(i);
         ss_measurement_string << " ";
         ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, max_diff: %.2f).",
-                          Processor<n_measurements>::correction_name_.c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
+                          Processor<n_measurements>::getPrintName().c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
         ok_flag = false;
       }
     } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: median filter not full yet", Processor<n_measurements>::correction_name_.c_str());
+      ROS_WARN_THROTTLE(1.0, "[%s]: median filter not full yet", Processor<n_measurements>::getPrintName().c_str());
       ok_flag = false;
     }
   }

@@ -62,6 +62,7 @@ public:
   // implemented methods
   // access methods
   std::string getName(void) const;
+  std::string getPrintName(void) const;
   std::string getType(void) const;
   std::string getFrameId(void) const;
   double      getMaxFlightAltitudeAgl(void) const;

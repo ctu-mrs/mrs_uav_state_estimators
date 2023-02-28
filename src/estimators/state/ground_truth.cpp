@@ -17,7 +17,7 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   // | --------------- param loader initialization -------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
 
-  mrs_lib::ParamLoader param_loader(nh, getName());
+  mrs_lib::ParamLoader param_loader(nh, getPrintName());
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
@@ -34,7 +34,7 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getName();
+  shopts.node_name          = getPrintName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -76,9 +76,9 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator initialized", getPrintName().c_str());
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -94,12 +94,12 @@ bool GroundTruth::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getName().c_str());
+    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     ros::Duration(1.0).sleep();
   }
   return false;
 
-  ROS_ERROR("[%s]: Failed to start", getName().c_str());
+  ROS_ERROR("[%s]: Failed to start", getPrintName().c_str());
   return false;
 }
 /*//}*/
@@ -121,13 +121,13 @@ bool GroundTruth::pause(void) {
 bool GroundTruth::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getName().c_str());
+    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
   changeState(STOPPED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getName().c_str());
+  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
@@ -216,9 +216,9 @@ void GroundTruth::timerCheckHealth(const ros::TimerEvent &event) {
 
     if (sh_gt_odom_.hasMsg()) {
       changeState(READY_STATE);
-      ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+      ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_gt_odom_.topicName().c_str());
+      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_gt_odom_.topicName().c_str());
       return;
     }
   }
@@ -273,11 +273,11 @@ std::vector<double> GroundTruth::getTwistCovariance() const {
 bool GroundTruth::setUavState(const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
-    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", ros::this_node::getName().c_str());
+    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
     return false;
   }
 
-  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", ros::this_node::getName().c_str());
+  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
   return false;
 }
 /*//}*/

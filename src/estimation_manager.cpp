@@ -13,9 +13,12 @@ void EstimationManager::onInit() {
 
   ROS_INFO("[%s]: initializing", getName().c_str());
 
+  sm_ = std::make_shared<StateMachine>(nodelet_name_);
+
   ch_ = std::make_shared<CommonHandlers_t>();
 
-  ch_->package_name = "mrs_uav_state_estimation";
+  ch_->package_name = package_name_;
+  ch_->nodelet_name = nodelet_name_;
 
   mrs_lib::ParamLoader param_loader(nh, getName());
 
@@ -161,7 +164,7 @@ void EstimationManager::onInit() {
     ros::shutdown();
   }
 
-  sm_.changeState(StateMachine::INITIALIZED_STATE);
+  sm_->changeState(StateMachine::INITIALIZED_STATE);
 
   ROS_INFO("[%s]: initialized", getName().c_str());
 }
@@ -170,11 +173,11 @@ void EstimationManager::onInit() {
 /*//{ timerPublish() */
 void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
-  if (!sm_.isInitialized()) {
+  if (!sm_->isInitialized()) {
     return;
   }
 
-  if (!sm_.isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
+  if (!sm_->isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
 
     double max_flight_altitude_agl = max_safety_area_altitude_;
     if (active_estimator_ && active_estimator_->isInitialized()) {
@@ -188,7 +191,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 
     mrs_uav_state_estimation::Diagnostics diagnostics;
     diagnostics.header.stamp                = ros::Time::now();
-    diagnostics.current_sm_state            = sm_.getCurrentStateString();
+    diagnostics.current_sm_state            = sm_->getCurrentStateString();
     diagnostics.running_state_estimators    = estimator_names_;
     diagnostics.switchable_state_estimators = switchable_estimator_names_;
     diagnostics.max_flight_altitude_agl     = max_flight_altitude_agl;
@@ -229,7 +232,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
     /*//}*/
   }
 
-  if (sm_.isInPublishableState()) {
+  if (sm_->isInPublishableState()) {
 
     mrs_msgs::UavState uav_state = active_estimator_->getUavState();
 
@@ -263,7 +266,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
     ph_altitude_agl_.publish(alt_agl_msg);
 
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: not publishing uav state in %s", getName().c_str(), sm_.getCurrentStateString().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: not publishing uav state in %s", getName().c_str(), sm_->getCurrentStateString().c_str());
   }
 }
 /*//}*/
@@ -271,7 +274,7 @@ void EstimationManager::timerPublish(const ros::TimerEvent& event) {
 /*//{ timerCheckHealth() */
 void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
 
-  if (!sm_.isInitialized()) {
+  if (!sm_->isInitialized()) {
     return;
   }
 
@@ -300,7 +303,7 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
 
   /*//}*/
 
-  if (!callbacks_disabled_by_service_ && (sm_.isInState(StateMachine::FLYING_STATE) || sm_.isInState(StateMachine::HOVER_STATE))) {
+  if (!callbacks_disabled_by_service_ && (sm_->isInState(StateMachine::FLYING_STATE) || sm_->isInState(StateMachine::HOVER_STATE))) {
     callbacks_enabled_ = true;
   } else {
     callbacks_enabled_ = false;
@@ -308,40 +311,40 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
 
   // TODO fuj if, zmenit na switch
   // activate initial estimator
-  if (sm_.isInState(StateMachine::INITIALIZED_STATE) && initial_estimator_->isRunning()) {
+  if (sm_->isInState(StateMachine::INITIALIZED_STATE) && initial_estimator_->isRunning()) {
     std::scoped_lock lock(mutex_active_estimator_);
     ROS_INFO("[%s]: activating the initial estimator %s", getName().c_str(), initial_estimator_->getName().c_str());
     active_estimator_ = initial_estimator_;
     if (active_estimator_->getName() == "dummy") {
-      sm_.changeState(StateMachine::DUMMY_STATE);
+      sm_->changeState(StateMachine::DUMMY_STATE);
     } else {
-      sm_.changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
+      sm_->changeState(StateMachine::READY_FOR_TAKEOFF_STATE);
     }
   }
 
   // active estimator is in faulty state, we need to switch to healthy estimator
-  if (sm_.isInTheAir() && active_estimator_->isError()) {
-    sm_.changeState(StateMachine::ESTIMATOR_SWITCHING_STATE);
+  if (sm_->isInTheAir() && active_estimator_->isError()) {
+    sm_->changeState(StateMachine::ESTIMATOR_SWITCHING_STATE);
   }
 
-  if (sm_.isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
+  if (sm_->isInState(StateMachine::ESTIMATOR_SWITCHING_STATE)) {
     if (switchToHealthyEstimator()) {
-      sm_.changeToPreSwitchState();
+      sm_->changeToPreSwitchState();
     } else {  // cannot switch to healthy estimator - failsafe necessary
       ROS_ERROR("[%s]: Cannot switch to any healthy estimator. Triggering failsafe.", getName().c_str());
       if (callFailsafeService()) {
         ROS_INFO("[%s]: failsafe called successfully", getName().c_str());
-        sm_.changeState(StateMachine::FAILSAFE_STATE);
+        sm_->changeState(StateMachine::FAILSAFE_STATE);
       }
     }
   }
 
-  if (sm_.isInState(StateMachine::READY_FOR_TAKEOFF_STATE)) {
-    sm_.changeState(StateMachine::TAKING_OFF_STATE);
+  if (sm_->isInState(StateMachine::READY_FOR_TAKEOFF_STATE)) {
+    sm_->changeState(StateMachine::TAKING_OFF_STATE);
   }
 
-  if (sm_.isInState(StateMachine::TAKING_OFF_STATE)) {
-    sm_.changeState(StateMachine::FLYING_STATE);
+  if (sm_->isInState(StateMachine::TAKING_OFF_STATE)) {
+    sm_->changeState(StateMachine::FLYING_STATE);
   }
 }
 /*//}*/
@@ -349,7 +352,7 @@ void EstimationManager::timerCheckHealth(const ros::TimerEvent& event) {
 /*//{ callbackChangeEstimator() */
 bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, mrs_msgs::String::Response& res) {
 
-  if (!sm_.isInitialized()) {
+  if (!sm_->isInitialized()) {
     return false;
   }
 
@@ -382,9 +385,9 @@ bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, 
   if (target_estimator_found) {
 
     if (target_estimator->isRunning()) {
-      sm_.changeState(StateMachine::ESTIMATOR_SWITCHING_STATE);
+      sm_->changeState(StateMachine::ESTIMATOR_SWITCHING_STATE);
       switchToEstimator(target_estimator);
-      sm_.changeToPreSwitchState();
+      sm_->changeToPreSwitchState();
     } else {
       ROS_WARN("[%s]: Not running estimator %s requested", getName().c_str(), req.value.c_str());
       res.success = false;
@@ -409,7 +412,7 @@ bool EstimationManager::callbackChangeEstimator(mrs_msgs::String::Request& req, 
 /* //{ callbackToggleServiceCallbacks() */
 bool EstimationManager::callbackToggleServiceCallbacks(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
 
-  if (!sm_.isInitialized()) {
+  if (!sm_->isInitialized()) {
     return false;
   }
 

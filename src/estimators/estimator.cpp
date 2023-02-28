@@ -10,7 +10,7 @@ bool Estimator::changeState(SMStates_t new_state) {
   previous_sm_state_ = current_sm_state_;
   current_sm_state_  = new_state;
 
-  ROS_INFO("[%s]: Switching sm state %s -> %s", getName().c_str(), getSmStateString(previous_sm_state_).c_str(), getSmStateString(current_sm_state_).c_str());
+  ROS_INFO("[%s]: Switching sm state %s -> %s", getPrintName().c_str(), getSmStateString(previous_sm_state_).c_str(), getSmStateString(current_sm_state_).c_str());
   return true;
 }
 /*//}*/
@@ -81,6 +81,12 @@ std::string Estimator::getName(void) const {
 }
 /*//}*/
 
+/*//{ getPrintName() */
+std::string Estimator::getPrintName(void) const {
+  return ch_->nodelet_name + "/" + name_;
+}
+/*//}*/
+
 /*//{ getType() */
 std::string Estimator::getType(void) const {
   return type_;
@@ -134,7 +140,7 @@ tf2::Vector3 Estimator::getAccGlobal(const mrs_msgs::AttitudeCommand::ConstPtr& 
     des_acc_untilted.y = response_acc.value().point.y;
     des_acc_untilted.z = response_acc.value().point.z;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getName().c_str(), des_acc.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getPrintName().c_str(), des_acc.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
   }
 
   // rotate the desired acceleration vector to global frame
@@ -152,12 +158,12 @@ std::optional<double> Estimator::getHeadingRate(const geometry_msgs::Quaternion&
     hdg_rate = mrs_lib::AttitudeConverter(att).getHeadingRate(att_rate);
   }
   catch (...) {
-    ROS_ERROR("[%s]: Exception caught during getting heading rate", getName().c_str());
+    ROS_ERROR("[%s]: Exception caught during getting heading rate", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(hdg_rate)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in variable \"hdg_rate_\"", getName().c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in variable \"hdg_rate_\"", getPrintName().c_str());
     return {};
   }
 

@@ -136,6 +136,8 @@ public:
   void generateB();
 
   std::string getNamespacedName() const;
+
+  std::string getPrintName() const;
 };
 }  // namespace mrs_uav_state_estimation
 

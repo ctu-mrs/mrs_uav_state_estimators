@@ -40,7 +40,7 @@ ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::strin
     : Processor<n_measurements>(nh, correction_name, name, ch), state_id_(state_id), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getNamespacedName());
+  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
   param_loader.setPrefix(Processor<n_measurements>::getNamespacedName() + "/");
 
   param_loader.loadParam("start_enabled", this->start_enabled_);
@@ -50,7 +50,7 @@ ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::strin
   param_loader.loadParam("max", saturate_max_);
 
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getNamespacedName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
     ros::shutdown();
   }
 }
@@ -71,12 +71,12 @@ bool ProcSaturate<n_measurements>::process(measurement_t& measurement) {
     ROS_INFO_ONCE("[%s]: first state[%d][%d]: %.2f", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state);
     if (measurement(i) > state + saturate_max_) {
       const double saturated = state + saturate_max_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state, i, measurement(i), saturated);
+      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
     } else if (measurement(i) < state + saturate_min_) {
       const double saturated = state + saturate_min_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state, i, measurement(i), saturated);
+      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
     }

@@ -33,7 +33,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // | --------------- initialize parameter loader -------------- |
   Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
-  mrs_lib::ParamLoader param_loader(nh, getNamespacedName());
+  mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
@@ -54,7 +54,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | ------- check if all parameters loaded successfully ------ |
   if (!param_loader.loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getNamespacedName().c_str());
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
 
@@ -72,7 +72,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = tmp_noise;
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getNamespacedName());
+  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
   drmgr_->config.pos = Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X));
   drmgr_->config.vel = Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X));
   drmgr_->config.acc = Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X));
@@ -109,7 +109,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // subscriber to odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getNamespacedName();
+  shopts.node_name          = getPrintName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -128,9 +128,9 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getNamespacedName().c_str(), VERSION);
+    ROS_INFO("[%s]: Estimator initialized, version %s", getPrintName().c_str(), VERSION);
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getNamespacedName().c_str());
+    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -144,7 +144,7 @@ bool LatGeneric::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getNamespacedName().c_str());
+    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }
@@ -167,7 +167,7 @@ bool LatGeneric::pause(void) {
 bool LatGeneric::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getNamespacedName().c_str());
+    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
@@ -188,7 +188,7 @@ bool LatGeneric::reset(void) {
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
   }
 
-  ROS_INFO("[%s]: Estimator reset", getNamespacedName().c_str());
+  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
@@ -234,7 +234,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
   }
   catch (const std::exception &e) {
-    ROS_ERROR("[%s]: LKF prediction failed: %s", getNamespacedName().c_str(), e.what());
+    ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
     changeState(ERROR_STATE);
   }
 
@@ -264,12 +264,12 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getNamespacedName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getPrintName().c_str());
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getNamespacedName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getPrintName().c_str());
       break;
     }
 
@@ -281,22 +281,22 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getNamespacedName().c_str(), measurement_stamped.value(AXIS_X),
+          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
                    measurement_stamped.value(AXIS_Y));
         } else {
-          ROS_INFO("[%s]: Waiting for correction %s", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO("[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getPrintName().c_str());
           return;
         }
       }
-      ROS_INFO("[%s]: Ready to start", getNamespacedName().c_str());
+      ROS_INFO("[%s]: Ready to start", getPrintName().c_str());
       changeState(READY_STATE);
       break;
     }
 
     case STARTED_STATE: {
-      ROS_INFO("[%s]: Waiting for convergence of LKF", getNamespacedName().c_str());
+      ROS_INFO("[%s]: Waiting for convergence of LKF", getPrintName().c_str());
       if (isConverged()) {
-        ROS_INFO("[%s]: LKF converged", getNamespacedName().c_str());
+        ROS_INFO("[%s]: LKF converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       }
       break;
@@ -305,7 +305,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -313,16 +313,16 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
 
     case STOPPED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getNamespacedName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getPrintName().c_str());
       break;
     }
 
     case ERROR_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getNamespacedName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getNamespacedName().c_str(), correction->getNamespacedName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -340,7 +340,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getNamespacedName().c_str(),
+    ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
              (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
@@ -352,7 +352,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of heading
   if (is_hdg_state_ready_ && (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getNamespacedName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
+    ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getPrintName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
     is_hdg_state_ready_ = false;
   }
 }
@@ -370,10 +370,10 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
       innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
 
       if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
-        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getNamespacedName().c_str(), innovation_(0));
+        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getPrintName().c_str(), innovation_(0));
       }
       if (innovation_(1) > 1.0 || innovation_(1) < -1.0) {
-        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getNamespacedName().c_str(), innovation_(1));
+        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getPrintName().c_str(), innovation_(1));
       }
     }
   }
@@ -396,7 +396,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
-    ROS_ERROR("[%s]: LKF correction failed: %s", getNamespacedName().c_str(), e.what());
+    ROS_ERROR("[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
   }
 }
 /*//}*/
@@ -552,6 +552,12 @@ LatGeneric::Q_t LatGeneric::getQ() {
 /*//{ getNamespacedName() */
 std::string LatGeneric::getNamespacedName() const {
   return parent_state_est_name_ + "/" + getName();
+}
+/*//}*/
+
+/*//{ getPrintName() */
+std::string LatGeneric::getPrintName() const {
+  return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
 

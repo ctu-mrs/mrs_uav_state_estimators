@@ -35,7 +35,7 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
-  shopts.node_name          = getName();
+  shopts.node_name          = getPrintName();
   shopts.no_message_timeout = ros::Duration(0.5);
   shopts.threadsafe         = true;
   shopts.autostart          = true;
@@ -85,9 +85,9 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator initialized", getPrintName().c_str());
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getName().c_str());
+    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -126,12 +126,12 @@ bool Aloam::start(void) {
     }
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getName().c_str());
+    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     ros::Duration(1.0).sleep();
   }
   return false;
 
-  ROS_ERROR("[%s]: Failed to start", getName().c_str());
+  ROS_ERROR("[%s]: Failed to start", getPrintName().c_str());
   return false;
 }
 /*//}*/
@@ -156,7 +156,7 @@ bool Aloam::pause(void) {
 bool Aloam::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getName().c_str());
+    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
@@ -165,7 +165,7 @@ bool Aloam::reset(void) {
   est_hdg_aloam_->pause();
   changeState(STOPPED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getName().c_str());
+  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
@@ -261,13 +261,13 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
       if (sh_mavros_odom_.hasMsg()) {
         if (est_lat_aloam_->isReady() && est_alt_aloam_->isReady() && est_hdg_aloam_->isReady()) {
           changeState(READY_STATE);
-          ROS_INFO("[%s]: Estimator is ready to start", getName().c_str());
+          ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
-          ROS_INFO("[%s]: Waiting for subestimators to be ready", getName().c_str());
+          ROS_INFO("[%s]: Waiting for subestimators to be ready", getPrintName().c_str());
           return;
         }
       } else {
-        ROS_INFO("[%s]: Waiting for msg on topic %s", getName().c_str(), sh_mavros_odom_.topicName().c_str());
+        ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_mavros_odom_.topicName().c_str());
         return;
       }
 
@@ -280,10 +280,10 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
 
     case STARTED_STATE: {
 
-      ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getName().c_str());
+      ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
 
       if (est_lat_aloam_->isRunning() && est_alt_aloam_->isRunning() && est_hdg_aloam_->isRunning()) {
-        ROS_INFO("[%s]: Subestimators converged", getName().c_str());
+        ROS_INFO("[%s]: Subestimators converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       } else {
         return;
@@ -370,11 +370,11 @@ std::vector<double> Aloam::getTwistCovariance() const {
 bool Aloam::setUavState(const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
-    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", ros::this_node::getName().c_str());
+    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
     return false;
   }
 
-  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", ros::this_node::getName().c_str());
+  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
   return false;
 }
 /*//}*/
