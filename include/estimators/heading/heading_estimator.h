@@ -7,7 +7,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace heading
@@ -33,6 +33,6 @@ private:
   static const int _n_measurements_;
 };
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_HEADING_HEADING_ESTIMATOR_H

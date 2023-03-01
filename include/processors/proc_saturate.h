@@ -9,8 +9,10 @@
 #include <limits>
 #include <functional>
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
+
+using namespace mrs_uav_managers::estimation_manager;
 
 template <int n_measurements>
 class ProcSaturate : public Processor<n_measurements> {
@@ -28,7 +30,7 @@ private:
   const StateId_t                 state_id_;
   std::function<double(int, int)> fun_get_state_;
 
-  bool keep_enabled_;
+  bool   keep_enabled_;
   double saturate_min_;
   double saturate_max_;
 };
@@ -36,7 +38,7 @@ private:
 /*//{ constructor */
 template <int n_measurements>
 ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
-                                           const std::shared_ptr<CommonHandlers_t>& ch, const StateId_t state_id, std::function<double(int,int)> fun_get_state)
+                                           const std::shared_ptr<CommonHandlers_t>& ch, const StateId_t state_id, std::function<double(int, int)> fun_get_state)
     : Processor<n_measurements>(nh, correction_name, name, ch), state_id_(state_id), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
@@ -60,7 +62,7 @@ ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::strin
 template <int n_measurements>
 bool ProcSaturate<n_measurements>::process(measurement_t& measurement) {
 
-// if no saturation is required, processing is successful
+  // if no saturation is required, processing is successful
   if (!this->enabled_) {
     return true;
   }
@@ -71,12 +73,14 @@ bool ProcSaturate<n_measurements>::process(measurement_t& measurement) {
     ROS_INFO_ONCE("[%s]: first state[%d][%d]: %.2f", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state);
     if (measurement(i) > state + saturate_max_) {
       const double saturated = state + saturate_max_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
+      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(),
+                        state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
     } else if (measurement(i) < state + saturate_min_) {
       const double saturated = state + saturate_min_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
+      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(),
+                        state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
     }
@@ -87,10 +91,10 @@ bool ProcSaturate<n_measurements>::process(measurement_t& measurement) {
     this->enabled_ = false;
   }
 
-  return true; // saturated measurement is valid
+  return true;  // saturated measurement is valid
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // PROCESSORS_PROC_MEDIAN_FILTER_H

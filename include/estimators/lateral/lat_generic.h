@@ -16,11 +16,11 @@
 #include "estimators/lateral/lateral_estimator.h"
 #include "estimators/correction.h"
 
-#include "mrs_uav_state_estimation/LateralEstimatorConfig.h"
+#include "mrs_uav_state_estimators/LateralEstimatorConfig.h"
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace lat_generic
@@ -76,11 +76,11 @@ private:
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
 
-  mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
+  /* mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_; */
   std::atomic<bool>                                    is_input_ready_ = false;
 
   std::string                                                          hdg_source_topic_;
-  mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput> sh_hdg_state_;
+  mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput> sh_hdg_state_;
   std::atomic<bool>                                                    is_hdg_state_ready_ = false;
 
   ros::Timer timer_update_;

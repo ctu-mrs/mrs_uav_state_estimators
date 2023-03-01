@@ -4,7 +4,10 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
+{
+
+namespace aloam
 {
 
 /* initialize() //{*/
@@ -28,7 +31,7 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Aloam::timerUpdate, this, false, false);  // not running after init
   _check_health_timer_rate_ = 1;                                                                                        // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Aloam::timerCheckHealth, this);
-  _pub_attitude_timer_rate_ = 100;                                                                                      // TODO(petrlmat): parametrize
+  _pub_attitude_timer_rate_ = 100;  // TODO(petrlmat): parametrize
   timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &Aloam::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -50,7 +53,7 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
   ph_attitude_         = mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>(nh, Support::toSnakeCase(getName()) + "/attitude", 1);
 
   // | ---------------- estimators initialization --------------- |
@@ -78,8 +81,8 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   uav_state_.estimator_vertical.name   = est_alt_name_;
   uav_state_.estimator_heading.name    = est_hdg_name_;
 
-  innovation_.header.frame_id      = ns_frame_id_;
-  innovation_.child_frame_id       = ch_->frames.ns_fcu;
+  innovation_.header.frame_id         = ns_frame_id_;
+  innovation_.child_frame_id          = ch_->frames.ns_fcu;
   innovation_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
@@ -292,9 +295,9 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
     }
 
     case RUNNING_STATE: {
-        if (est_lat_aloam_->isError() || est_alt_aloam_->isError() || est_hdg_aloam_->isError()) {
-          changeState(ERROR_STATE);
-        }
+      if (est_lat_aloam_->isError() || est_alt_aloam_->isError() || est_hdg_aloam_->isError()) {
+        changeState(ERROR_STATE);
+      }
       break;
     }
 
@@ -319,8 +322,8 @@ void Aloam::timerPubAttitude(const ros::TimerEvent &event) {
   const ros::Time time_now = ros::Time::now();
 
   geometry_msgs::QuaternionStamped att;
-  att.header.stamp          = time_now;
-  att.header.frame_id       = ns_frame_id_ + "_att_only";
+  att.header.stamp    = time_now;
+  att.header.frame_id = ns_frame_id_ + "_att_only";
 
   att.quaternion = rotateQuaternionByHeading(sh_mavros_odom_.getMsg()->pose.pose.orientation, est_hdg_aloam_->getState(POSITION));
 
@@ -379,7 +382,9 @@ bool Aloam::setUavState(const mrs_msgs::UavState &uav_state) {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+}  // namespace aloam
+
+}  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimation::Aloam, mrs_uav_state_estimation::StateEstimator)
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::aloam::Aloam, mrs_uav_managers::StateEstimator)

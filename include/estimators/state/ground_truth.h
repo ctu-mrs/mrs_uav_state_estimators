@@ -7,7 +7,7 @@
 
 #include <nav_msgs/Odometry.h>
 
-#include <mrs_msgs/AttitudeCommand.h>
+/* #include <mrs_msgs/AttitudeCommand.h> */
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
@@ -17,23 +17,23 @@
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 
-#include "estimators/state/state_estimator.h"
+#include <mrs_uav_managers/state_estimator.h>
+
 #include "estimators/lateral/lat_generic.h"
 #include "estimators/altitude/alt_generic.h"
 #include "estimators/heading/hdg_passthrough.h"
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace ground_truth
 {
 const char name[]     = "ground_truth";
 const char frame_id[] = "ground_truth_origin";
-}  // namespace ground_truth
 
-class GroundTruth : public StateEstimator {
+class GroundTruth : public mrs_uav_managers::StateEstimator {
 
 private:
   /* std::unique_ptr<LatGeneric>    est_lat_gps_; */
@@ -82,6 +82,9 @@ public:
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
-}  // namespace mrs_uav_state_estimation
+
+}  // namespace ground_truth
+
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_STATE_GROUND_TRUTH_H

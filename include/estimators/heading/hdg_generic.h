@@ -16,11 +16,11 @@
 #include "estimators/heading/heading_estimator.h"
 #include "estimators/correction.h"
 
-#include "mrs_uav_state_estimation/HeadingEstimatorConfig.h"
+#include <mrs_uav_state_estimators/HeadingEstimatorConfig.h>
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace hdg_generic
@@ -50,6 +50,8 @@ class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
 
   typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
 
+  using StateId_t = mrs_uav_managers::estimation_manager::StateId_t;
+
 private:
   std::string parent_state_est_name_;
 
@@ -77,7 +79,7 @@ private:
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
-  mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_;
+  /* mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_; */
   std::atomic<bool>                                    is_input_ready_ = false;
 
   ros::Timer timer_update_;
@@ -136,6 +138,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_HEADING_HDG_GENERIC_H

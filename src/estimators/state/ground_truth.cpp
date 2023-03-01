@@ -4,7 +4,10 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
+{
+
+namespace ground_truth
 {
 
 /* initialize() //{*/
@@ -49,7 +52,7 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
 
   // | ---------------- estimators initialization --------------- |
   /* est_lat_gps_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName()); */
@@ -69,8 +72,8 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   uav_state_.estimator_vertical.name   = est_alt_name_;
   uav_state_.estimator_heading.name    = est_hdg_name_;
 
-  innovation_.header.frame_id      = ns_frame_id_;
-  innovation_.child_frame_id       = ch_->frames.ns_fcu;
+  innovation_.header.frame_id         = ns_frame_id_;
+  innovation_.child_frame_id          = ch_->frames.ns_fcu;
   innovation_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
@@ -110,10 +113,8 @@ bool GroundTruth::pause(void) {
   if (isInState(RUNNING_STATE)) {
     changeState(STOPPED_STATE);
     return true;
-
-  } else {
-    return false;
   }
+  return false;
 }
 /*//}*/
 
@@ -282,7 +283,9 @@ bool GroundTruth::setUavState(const mrs_msgs::UavState &uav_state) {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+}  // namespace ground_truth
+
+}  // namespace mrs_uav_state_estimation
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimation::GroundTruth, mrs_uav_state_estimation::StateEstimator)
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::ground_truth::GroundTruth, mrs_uav_managers::StateEstimator)

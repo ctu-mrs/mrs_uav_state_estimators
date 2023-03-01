@@ -2,11 +2,14 @@
 #ifndef PROCESSORS_PROCESSOR_H
 #define PROCESSORS_PROCESSOR_H
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
+
+using namespace mrs_uav_managers::estimation_manager;
 
 template <int n_measurements>
 class Processor {
+
 
 public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
@@ -30,7 +33,7 @@ protected:
 
   const std::shared_ptr<CommonHandlers_t> ch_;
 
-  bool enabled_ = true;
+  bool enabled_       = true;
   bool start_enabled_ = true;
 };
 
@@ -62,6 +65,6 @@ void Processor<n_measurements>::toggle(bool enable) {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // PROCESSORS_PROCESSOR_H

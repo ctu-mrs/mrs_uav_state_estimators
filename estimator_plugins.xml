@@ -1,35 +1,35 @@
 <library path="lib/libGpsGarmin">
-  <class name="mrs_uav_state_estimation/GpsGarmin" type="mrs_uav_state_estimation::GpsGarmin" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/GpsGarmin" type="mrs_uav_state_estimators::gps_garmin::GpsGarmin" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GpsGarmin state estimator</description>
   </class>
 </library>
 
 <library path="lib/libGpsBaro">
-  <class name="mrs_uav_state_estimation/GpsBaro" type="mrs_uav_state_estimation::GpsBaro" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/GpsBaro" type="mrs_uav_state_estimators::gps_baro::GpsBaro" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GpsBaro state estimator</description>
   </class>
 </library>
 
 <library path="lib/libRtk">
-  <class name="mrs_uav_state_estimation/Rtk" type="mrs_uav_state_estimation::Rtk" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/Rtk" type="mrs_uav_state_estimators::rtk::Rtk" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Rtk state estimator</description>
   </class>
 </library>
 
 <library path="lib/libAloam">
-  <class name="mrs_uav_state_estimation/Aloam" type="mrs_uav_state_estimation::Aloam" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/Aloam" type="mrs_uav_state_estimators::aloam::Aloam" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Aloam state estimator</description>
   </class>
 </library>
 
 <library path="lib/libGroundTruth">
-  <class name="mrs_uav_state_estimation/GroundTruth" type="mrs_uav_state_estimation::GroundTruth" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/GroundTruth" type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GroundTruth state estimator</description>
   </class>
 </library>
 
 <library path="lib/libDummy">
-  <class name="mrs_uav_state_estimation/Dummy" type="mrs_uav_state_estimation::Dummy" base_class_type="mrs_uav_state_estimation::StateEstimator">
+  <class name="mrs_uav_state_estimators/Dummy" type="mrs_uav_state_estimators::dummy::Dummy" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Dummy state estimator</description>
   </class>
 </library>

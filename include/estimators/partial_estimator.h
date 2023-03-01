@@ -10,24 +10,24 @@
 #include <mrs_msgs/Float64Stamped.h>
 #include <mrs_msgs/Float64ArrayStamped.h>
 
-#include "mrs_uav_state_estimation/EstimatorOutput.h"
+#include <mrs_msgs/EstimatorOutput.h>
 
-#include "estimators/estimator.h"
+#include <estimation_manager/estimator.h>
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 template <int n_states, int n_axes>
-class PartialEstimator : public Estimator {
+class PartialEstimator : public mrs_uav_managers::Estimator {
 
 public:
   typedef Eigen::Matrix<double, n_states, 1>        states_t;
   typedef Eigen::Matrix<double, n_states, n_states> covariance_t;
 
 protected:
-  mutable mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput> ph_output_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput> ph_output_;
   mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>             ph_input_;
 
   bool first_iter_ = true;
@@ -121,7 +121,7 @@ int PartialEstimator<n_states, n_axes>::stateIdToIndex(const int &state_id_in, c
 template <int n_states, int n_axes>
 void PartialEstimator<n_states, n_axes>::publishOutput() const {
 
-  mrs_uav_state_estimation::EstimatorOutput msg;
+  mrs_msgs::EstimatorOutput msg;
   msg.header.stamp    = ros::Time::now();
   msg.header.frame_id = getFrameId();
   msg.state           = getStatesAsVector();
@@ -148,6 +148,6 @@ void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u) const {
 
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_PARTIAL_ESTIMATOR_H

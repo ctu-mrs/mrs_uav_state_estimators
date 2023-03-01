@@ -16,7 +16,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace hdg_passthrough
@@ -26,6 +26,7 @@ const int n_states = 2;
 
 class HdgPassthrough : public HeadingEstimator<hdg_passthrough::n_states> {
 
+  using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
   std::string parent_state_est_name_;
@@ -86,6 +87,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_HEADING_HDG_PASSTHROUGH_H

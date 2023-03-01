@@ -4,7 +4,10 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
+{
+
+namespace gps_baro
 {
 
 /* initialize() //{*/
@@ -18,11 +21,11 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   mrs_lib::ParamLoader param_loader(nh, getName());
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                          // TODO: parametrize
+  _update_timer_rate_       = 100;                                                                                        // TODO: parametrize
   timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GpsBaro::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                            // TODO: parametrize
+  _check_health_timer_rate_ = 1;                                                                                          // TODO: parametrize
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GpsBaro::timerCheckHealth, this);
-  _pub_attitude_timer_rate_ = 100;                                                                                      // TODO(petrlmat): parametrize
+  _pub_attitude_timer_rate_ = 100;  // TODO(petrlmat): parametrize
   timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &GpsBaro::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -44,7 +47,7 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
   ph_attitude_         = mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>(nh, Support::toSnakeCase(getName()) + "/attitude", 1);
 
   // | ---------------- estimators initialization --------------- |
@@ -72,8 +75,8 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   uav_state_.estimator_vertical.name   = est_alt_name_;
   uav_state_.estimator_heading.name    = est_hdg_name_;
 
-  innovation_.header.frame_id      = ns_frame_id_;
-  innovation_.child_frame_id       = ch_->frames.ns_fcu;
+  innovation_.header.frame_id         = ns_frame_id_;
+  innovation_.child_frame_id          = ch_->frames.ns_fcu;
   innovation_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
@@ -189,11 +192,11 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.velocity.linear.x = est_lat_gps_->getState(VELOCITY, AXIS_X);  // in global frame
     uav_state_.velocity.linear.y = est_lat_gps_->getState(VELOCITY, AXIS_Y);  // in global frame
-    uav_state_.velocity.linear.z = est_alt_baro_->getState(VELOCITY);       // in global frame
+    uav_state_.velocity.linear.z = est_alt_baro_->getState(VELOCITY);         // in global frame
 
     uav_state_.acceleration.linear.x = est_lat_gps_->getState(ACCELERATION, AXIS_X);  // in global frame
     uav_state_.acceleration.linear.y = est_lat_gps_->getState(ACCELERATION, AXIS_Y);  // in global frame
-    uav_state_.acceleration.linear.z = est_alt_baro_->getState(ACCELERATION);       // in global frame
+    uav_state_.acceleration.linear.z = est_alt_baro_->getState(ACCELERATION);         // in global frame
   }
 
   {
@@ -284,9 +287,9 @@ void GpsBaro::timerPubAttitude(const ros::TimerEvent &event) {
   const ros::Time time_now = ros::Time::now();
 
   geometry_msgs::QuaternionStamped att;
-  att.header.stamp          = time_now;
-  att.header.frame_id       = ns_frame_id_ + "_att_only";
-  att.quaternion = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+  att.header.stamp    = time_now;
+  att.header.frame_id = ns_frame_id_ + "_att_only";
+  att.quaternion      = sh_mavros_odom_.getMsg()->pose.pose.orientation;
 
   ph_attitude_.publish(att);
 }
@@ -343,7 +346,9 @@ bool GpsBaro::setUavState(const mrs_msgs::UavState &uav_state) {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+}  // namespace gps_baro
+
+}  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimation::GpsBaro, mrs_uav_state_estimation::StateEstimator)
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::gps_baro::GpsBaro, mrs_uav_managers::StateEstimator)

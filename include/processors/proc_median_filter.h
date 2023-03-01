@@ -9,8 +9,10 @@
 
 #include <limits>
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
+
+using namespace mrs_uav_managers::estimation_manager;
 
 template <int n_measurements>
 class ProcMedianFilter : public Processor<n_measurements> {
@@ -88,6 +90,6 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // PROCESSORS_PROC_MEDIAN_FILTER_H

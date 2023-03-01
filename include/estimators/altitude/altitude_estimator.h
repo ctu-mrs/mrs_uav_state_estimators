@@ -8,7 +8,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace altitude
@@ -41,6 +41,6 @@ private:
   static const int _n_measurements_;
 };
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H

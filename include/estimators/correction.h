@@ -12,6 +12,7 @@
 #include <mrs_lib/gps_conversions.h>
 
 #include <mrs_msgs/RtkGps.h>
+#include <mrs_msgs/EstimatorCorrection.h>
 
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
@@ -20,17 +21,18 @@
 
 #include <functional>
 
-#include "types.h"
-#include "support.h"
-#include "common_handlers.h"
+#include <estimation_manager/types.h>
+#include <estimation_manager/support.h>
+#include <estimation_manager/common_handlers.h>
+
 #include "processors/processor.h"
 #include "processors/proc_median_filter.h"
 #include "processors/proc_saturate.h"
 
-#include "mrs_uav_state_estimation/EstimatorCorrection.h"
-#include "mrs_uav_state_estimation/CorrectionConfig.h"
+#include "mrs_uav_state_estimators/CorrectionConfig.h"
 
-namespace mrs_uav_state_estimation
+
+namespace mrs_uav_state_estimators
 {
 
 // TODO is needed?
@@ -54,6 +56,9 @@ const int n_MessageType_t = 5;
 
 template <int n_measurements>
 class Correction {
+
+  using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
+  using StateId_t = mrs_uav_managers::estimation_manager::StateId_t;
 
 public:
   typedef Eigen::Matrix<double, n_measurements, 1>         measurement_t;
@@ -101,8 +106,8 @@ private:
 
   void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
-  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_raw_;
-  mrs_lib::PublisherHandler<EstimatorCorrection> ph_correction_proc_;
+  mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_raw_;
+  mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
 
   const std::string                 est_name_;
   const std::string                 name_;
@@ -141,7 +146,7 @@ private:
 
   std::function<double(int, int)> fun_get_state_;
 
-  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr);
+  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
 };
 
 /*//{ constructor */
@@ -236,8 +241,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | --------------- initialize publish handlers -------------- |
-  ph_correction_raw_  = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
-  ph_correction_proc_ = mrs_lib::PublisherHandler<EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_proc", 1);
+  ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
+  ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_proc", 1);
 }
 /*//}*/
 
@@ -862,8 +867,8 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
 
 /*//{ publishCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<EstimatorCorrection>& ph_corr) {
-  EstimatorCorrection msg;
+void Correction<n_measurements>::publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr) {
+  mrs_msgs::EstimatorCorrection msg;
   msg.header.stamp    = measurement_stamped.stamp;
   msg.header.frame_id = ns_frame_id_;
   msg.name            = name_;
@@ -879,6 +884,6 @@ void Correction<n_measurements>::publishCorrection(const MeasurementStamped& mea
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_CORRECTION_H

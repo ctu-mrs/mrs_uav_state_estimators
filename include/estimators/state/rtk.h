@@ -7,7 +7,7 @@
 
 #include <nav_msgs/Odometry.h>
 
-#include <mrs_msgs/AttitudeCommand.h>
+/* #include <mrs_msgs/AttitudeCommand.h> */
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
@@ -22,23 +22,23 @@
 #include <vector>
 #include <memory>
 
-#include "estimators/state/state_estimator.h"
+#include <mrs_uav_managers/state_estimator.h>
+
 #include "estimators/lateral/lat_generic.h"
 #include "estimators/altitude/alt_generic.h"
 #include "estimators/heading/hdg_passthrough.h"
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 namespace rtk
 {
 const char name[]     = "rtk";
 const char frame_id[] = "rtk_origin";
-}  // namespace rtk
 
-class Rtk : public StateEstimator {
+class Rtk : public mrs_uav_managers::StateEstimator {
 
 private:
   std::unique_ptr<LatGeneric> est_lat_rtk_;
@@ -96,6 +96,9 @@ public:
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
+
+}  // namespace rtk
+
 }  // namespace mrs_uav_state_estimation
 
-#endif // ESTIMATORS_STATE_RTK_H
+#endif  // ESTIMATORS_STATE_RTK_H
