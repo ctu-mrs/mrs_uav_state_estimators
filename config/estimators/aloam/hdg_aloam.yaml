@@ -19,7 +19,7 @@ aloam: # namespace of the state estimator
       state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 0.0001 # measurement noise covariance (R)
       message:
-        type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
+        type: "nav_msgs/Odometry"
         topic: "slam/odom" # without uav namespace
         limit: 
           delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy

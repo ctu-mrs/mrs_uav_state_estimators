@@ -14,6 +14,7 @@ namespace gps_garmin
 void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
+  nh_ = nh;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 

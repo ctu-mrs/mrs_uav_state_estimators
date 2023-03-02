@@ -73,6 +73,7 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
+
 };
 
 }  // namespace dummy

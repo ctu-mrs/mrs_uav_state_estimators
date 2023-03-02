@@ -20,8 +20,8 @@ gps_baro: # namespace of the state estimator
       state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
       message:
-        type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
-        topic: "mavros/local_position/odom" # without uav namespace
+        type: "geometry_msgs/PointStamped"
+        topic: "hw_api/position" # without uav namespace
         limit: 
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
@@ -31,8 +31,8 @@ gps_baro: # namespace of the state estimator
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
       message:
-        type: 0 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range
-        topic: "mavros/local_position/odom" # without uav namespace
+        type: "geometry_msgs/Vector3Stamped"
+        topic: "hw_api/velocity" # without uav namespace
         limit: 
           delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy

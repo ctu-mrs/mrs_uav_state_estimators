@@ -1,0 +1,14 @@
+gps_baro: # namespace of the state estimator
+  requires: # data required from the hw api
+    gnss: true
+    imu: false
+    distance_sensor: false
+    altitude: true
+    magnetometer_heading: false
+    position: true
+    orientation: true
+    velocity: true
+    angular_velocity: false
+
+
+

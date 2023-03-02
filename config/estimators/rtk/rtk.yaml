@@ -1,0 +1,14 @@
+gps_garmin: # namespace of the state estimator
+  requires: # data required from the hw api
+    gnss: false
+    imu: false
+    distance_sensor: false
+    altitude: false
+    magnetometer_heading: false
+    position: false
+    orientation: true
+    velocity: true
+    angular_velocity: false
+
+
+
