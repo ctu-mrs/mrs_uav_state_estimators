@@ -107,12 +107,12 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in");
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -200,11 +200,10 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
   ros::Time input_stamp;
   if (is_input_ready_) {
 
-    auto res = getHeadingRate(sh_attitude_command_.getMsg());
     if (res) {
-      input_stamp = sh_attitude_command_.getMsg()->header.stamp;
+      input_stamp = sh_control_input_.getMsg()->header.stamp;
       setInputCoeff(default_input_coeff_);
-      u(0) = res.value();
+      u(0) = sh_control_input_.getMsg()->control_hdg_rate;
     } else {
       input_stamp = ros::Time::now();
       setInputCoeff(0);
@@ -328,14 +327,14 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
   }
 
-  if (sh_attitude_command_.newMsg()) {
+  if (sh_control_input_.newMsg()) {
     is_input_ready_ = true;
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
+  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
     ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-             (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
+             (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }

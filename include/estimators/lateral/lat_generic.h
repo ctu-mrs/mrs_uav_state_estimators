@@ -16,7 +16,7 @@
 #include "estimators/lateral/lateral_estimator.h"
 #include "estimators/correction.h"
 
-#include "mrs_uav_state_estimators/LateralEstimatorConfig.h"
+#include <mrs_uav_state_estimators/LateralEstimatorConfig.h>
 
 //}
 
@@ -76,7 +76,7 @@ private:
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
 
-  /* mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_; */
+  mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput> sh_control_input_;
   std::atomic<bool>                                    is_input_ready_ = false;
 
   std::string                                                          hdg_source_topic_;

@@ -19,16 +19,18 @@
 namespace mrs_uav_state_estimators
 {
 
+using namespace mrs_uav_managers::estimation_manager;
+
 template <int n_states, int n_axes>
-class PartialEstimator : public mrs_uav_managers::Estimator {
+class PartialEstimator : public mrs_uav_managers::estimation_manager::Estimator {
 
 public:
   typedef Eigen::Matrix<double, n_states, 1>        states_t;
   typedef Eigen::Matrix<double, n_states, n_states> covariance_t;
 
 protected:
-  mutable mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput> ph_output_;
-  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>             ph_input_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>     ph_output_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_input_;
 
   bool first_iter_ = true;
 

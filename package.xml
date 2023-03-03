@@ -36,9 +36,8 @@
   <test_depend>rostest</test_depend>
 
   <export>
-    generate_messages_cpp
     <nodelet plugin="${prefix}/nodelets.xml" />
-    <mrs_uav_state_estimation plugin="${prefix}/estimator_plugins.xml" />
+    <mrs_uav_managers plugin="${prefix}/estimator_plugins.xml" />
   </export>
 
 </package>

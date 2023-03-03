@@ -112,6 +112,9 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
   mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
+  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>              sh_point_;
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>            sh_vector_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>         sh_quat_;
 
   ros::ServiceServer ser_toggle_range_;
   bool               callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
@@ -141,6 +144,9 @@ private:
   std::optional<measurement_t> getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
   std::optional<measurement_t> getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
   std::optional<measurement_t> getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
   std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel, const std_msgs::Header& header, const std::string frame);
 
@@ -175,11 +181,12 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   std::string msg_type_string;
   param_loader.loadParam("message/type", msg_type_string);
-  msg_type_ = map_msg_type[msg_type_string];
-  if (map_msg_type[msg_type_string] == 0) {
-    ROS_ERROR("[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string, getName().c_str());
+  if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
+    ROS_ERROR("[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(), getName().c_str());
     ros::shutdown();
   }
+  msg_type_ = map_msg_type.at(msg_type_string);
+
   param_loader.loadParam("message/topic", msg_topic_);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
   param_loader.loadParam("message/limit/delay", msg_delay_limit_);
@@ -226,12 +233,12 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Correction::timeoutCallback, this);
       break;
     }
-    case MessageType_t::POSE_S: {
+    case MessageType_t::POSE: {
       // TODO implement
       /* sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_); */
       break;
     }
-    case MessageType_t::POSE_WCS: {
+    case MessageType_t::POSECOV: {
       // TODO implement
       /* sh_pose_wcs_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped>(shopts, msg_topic_); */
       break;
@@ -249,6 +256,25 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     case MessageType_t::RTK_GPS: {
       sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::timeoutCallback, this);
       break;
+    }
+    case MessageType_t::POINT: {
+      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      break;
+    }
+    case MessageType_t::VECTOR: {
+      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      break;
+    }
+    case MessageType_t::QUAT: {
+      sh_quat_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      break;
+    }
+    case MessageType_t::UNKNOWN: {
+      ROS_ERROR("[%s]: UNKNOWN message type of correction", getPrintName().c_str());
+      break;
+    }
+    default: {
+      ROS_ERROR("[%s]: unhandled message type", getPrintName().c_str());
     }
   }
 
@@ -343,7 +369,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       break;
     }
 
-    case MessageType_t::POSE_S: {
+    case MessageType_t::POSE: {
       // TODO implement
       /* return getCorrectionFromPoseS(msg); */
       is_healthy_ = false;
@@ -351,7 +377,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       break;
     }
 
-    case MessageType_t::POSE_WCS: {
+    case MessageType_t::POSECOV: {
       // TODO implement
       /* return getCorrectionFromPoseWCS(msg); */
       is_healthy_ = false;
@@ -414,7 +440,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::POINT: {
 
-      if (!sh_point_) {
+      if (!sh_point_.newMsg()) {
         return {};
       }
 
@@ -436,7 +462,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::VECTOR: {
 
-      if (!sh_vector_) {
+      if (!sh_vector_.newMsg()) {
         return {};
       }
 
@@ -458,7 +484,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::QUAT: {
 
-      if (!sh_quat_) {
+      if (!sh_quat_.newMsg()) {
         return {};
       }
 
@@ -577,9 +603,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         case StateId_t::VELOCITY: {
-                                    std_msgs::Header header = msg->header;
-                                    header.frame_id = ch_->ns_fcu;
-          auto res = getZVelUntilted(msg->twist.twist.linear, header);
+          std_msgs::Header header = msg->header;
+          header.frame_id         = ch_->frames.ns_fcu;
+          auto res                = getZVelUntilted(msg->twist.twist.linear, header);
           if (res) {
             measurement_t measurement;
             measurement = res.value();
@@ -603,18 +629,18 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
       switch (state_id_) {
 
-        /* case StateId_t::VELOCITY: { */
-        /*   try { */
-        /*     measurement_t measurement; */
-        /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
-        /*     return measurement; */
-        /*   } */
-        /*   catch (...) { */
-        /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
-        /*     return {}; */
-        /*   } */
-        /*   break; */
-        /* } */
+          /* case StateId_t::VELOCITY: { */
+          /*   try { */
+          /*     measurement_t measurement; */
+          /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
+          /*     return measurement; */
+          /*   } */
+          /*   catch (...) { */
+          /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
+          /*     return {}; */
+          /*   } */
+          /*   break; */
+          /* } */
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
@@ -756,7 +782,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getCorrectionFromPoint() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoint(const geometry_msgs::PointConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoint(
+    const geometry_msgs::PointStampedConstPtr msg) {
 
   switch (est_type_) {
 
@@ -767,8 +794,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement_t measurement;
-          measurement(0) = msg->.x;
-          measurement(1) = msg->.y;
+          measurement(0) = msg->point.x;
+          measurement(1) = msg->point.y;
           return measurement;
           break;
         }
@@ -788,7 +815,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement_t measurement;
-          measurement(0) = msg->z;
+          measurement(0) = msg->point.z;
           return measurement;
           break;
         }
@@ -806,12 +833,10 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       return {};
     }
   }
-  break;
-}
-}  // namespace mrs_uav_state_estimators
 
-ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
-return {};
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
 }
 /*//}*/
 
@@ -877,31 +902,20 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
       switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          try {
-            measurement_t measurement;
-            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
-            return measurement;
-          }
-          catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading (getCorrectionFromOdometry())", getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
+          // TODO: needs orientation
 
-        case StateId_t::VELOCITY: {
-          try {
-            measurement_t measurement;
-            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular);
-            return measurement;
-          }
-          catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
+          /* case StateId_t::VELOCITY: { */
+          /*   try { */
+          /*     measurement_t measurement; */
+          /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
+          /*     return measurement; */
+          /*   } */
+          /*   catch (...) { */
+          /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
+          /*     return {}; */
+          /*   } */
+          /*   break; */
+          /* } */
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
@@ -909,6 +923,52 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
       }
       break;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
+/*//{ getCorrectionFromQuat() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromQuat(
+    const geometry_msgs::QuaternionStampedConstPtr msg) {
+
+  switch (est_type_) {
+
+      // handle lateral estimators
+      /* case EstimatorType_t::LATERAL: { */
+
+      /*   default: { */
+      /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+      /*     return {}; */
+      /*   } break; */
+      /* } */
+
+      /* // handle altitude estimators */
+      /* case EstimatorType_t::ALTITUDE: { */
+
+      /* default: { */
+      /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+      /*     return {}; */
+      /*   } break; */
+      /* } */
+
+      /* // handle heading estimators */
+      /* case EstimatorType_t::HEADING: { */
+
+      /*   switch (state_id_) { */
+
+      /*     /1* default: { *1/ */
+      /*       ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+      /*       return {}; */
+      /*     } */
+      /*   } */
+    default: {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      return {};
     }
   }
 
@@ -959,8 +1019,8 @@ bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request&
 
 /*//{ getZVelUntilted() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::Vector& msg,
-                                                                                                              const std_msgs::Header&      header) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::Vector3& msg,
+                                                                                                              const std_msgs::Header&       header) {
 
   // untilt the desired vector
   geometry_msgs::PointStamped vel;

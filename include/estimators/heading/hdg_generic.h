@@ -79,7 +79,7 @@ private:
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
-  /* mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand> sh_attitude_command_; */
+  mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput> sh_control_input_;
   std::atomic<bool>                                    is_input_ready_ = false;
 
   ros::Timer timer_update_;

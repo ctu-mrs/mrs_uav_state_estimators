@@ -116,14 +116,14 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_attitude_command_ = mrs_lib::SubscribeHandler<mrs_msgs::AttitudeCommand>(shopts, "attitude_command_in");
-  sh_hdg_state_        = mrs_lib::SubscribeHandler<mrs_uav_state_estimation::EstimatorOutput>(
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in");
+  sh_hdg_state_        = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(
       shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
-  ph_output_      = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_uav_state_estimation::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
@@ -210,8 +210,8 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_ && is_hdg_state_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_attitude_command_.getMsg(), sh_hdg_state_.getMsg()->state[0]);
-    input_stamp                       = sh_attitude_command_.getMsg()->header.stamp;
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input.getMsg(), sh_hdg_state_.getMsg()->state[0]);
+    input_stamp                       = sh_control_input_.getMsg()->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
@@ -334,14 +334,14 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
   }
 
-  if (sh_attitude_command_.newMsg()) {
+  if (sh_control_input_.newMsg()) {
     is_input_ready_ = true;
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec() > 0.1) {
+  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
     ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
-             (ros::Time::now() - sh_attitude_command_.lastMsgTime()).toSec());
+             (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 

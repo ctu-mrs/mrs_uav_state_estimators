@@ -6,7 +6,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 
 {
 
@@ -59,8 +59,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "/" + ch_->uav_name + "/" + odom_topic_);
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
+  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
 
   // | ------------------ finish initialization ----------------- |
 
