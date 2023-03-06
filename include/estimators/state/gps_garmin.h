@@ -30,8 +30,9 @@ namespace mrs_uav_state_estimators
 
 namespace gps_garmin
 {
-const char name[]     = "gps_garmin";
-const char frame_id[] = "gps_garmin_origin";
+const char name[]         = "gps_garmin";
+const char frame_id[]     = "gps_garmin_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class GpsGarmin : public mrs_uav_managers::StateEstimator {
 
@@ -45,8 +46,8 @@ private:
   std::unique_ptr<HdgPassthrough> est_hdg_mavros_;
   const std::string               est_hdg_name_ = "hdg_mavros";
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_mavros_odom_;
-  double                                        _critical_timeout_mavros_odom_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>    sh_hw_api_ang_vel_;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -65,7 +66,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GpsGarmin() : StateEstimator(gps_garmin::name, gps_garmin::frame_id) {
+  GpsGarmin() : StateEstimator(gps_garmin::name, gps_garmin::frame_id, gps_garmin::package_name) {
   }
 
   ~GpsGarmin(void) {
@@ -82,7 +83,6 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace gps_garmin

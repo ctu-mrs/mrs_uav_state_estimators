@@ -29,6 +29,9 @@ class HdgPassthrough : public HeadingEstimator<hdg_passthrough::n_states> {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
+
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   std::string parent_state_est_name_;
 
   states_t           hdg_state_;

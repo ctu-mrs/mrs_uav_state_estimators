@@ -6,7 +6,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
@@ -31,7 +31,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");
@@ -210,7 +210,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_ && is_hdg_state_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input.getMsg(), sh_hdg_state_.getMsg()->state[0]);
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input_.getMsg(), sh_hdg_state_.getMsg()->state[0]);
     input_stamp                       = sh_control_input_.getMsg()->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();

@@ -30,8 +30,9 @@ namespace mrs_uav_state_estimators
 
 namespace aloam
 {
-const char name[]     = "aloam";
-const char frame_id[] = "aloam_origin";
+const char name[]         = "aloam";
+const char frame_id[]     = "aloam_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class Aloam : public mrs_uav_managers::StateEstimator {
 
@@ -65,7 +66,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  Aloam() : StateEstimator(aloam::name, aloam::frame_id) {
+  Aloam() : StateEstimator(aloam::name, aloam::frame_id, aloam::package_name) {
   }
 
   ~Aloam(void) {
@@ -82,7 +83,6 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace aloam

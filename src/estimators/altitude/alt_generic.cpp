@@ -31,7 +31,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");

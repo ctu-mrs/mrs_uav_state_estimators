@@ -51,6 +51,9 @@ class LatGeneric : public LateralEstimator<lat_generic::n_states> {
   typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
 
 private:
+
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   std::string parent_state_est_name_;
 
   double                              dt_;

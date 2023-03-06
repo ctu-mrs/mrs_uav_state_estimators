@@ -37,6 +37,8 @@ const int n_measurements = 1;
 
 class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
 
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   typedef mrs_lib::DynamicReconfigureMgr<AltitudeEstimatorConfig> drmgr_t;
 
   using lkf_t      = mrs_lib::LKF<alt_generic::n_states, alt_generic::n_inputs, alt_generic::n_measurements>;

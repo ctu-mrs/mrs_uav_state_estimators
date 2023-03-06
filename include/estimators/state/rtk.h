@@ -35,12 +35,15 @@ namespace mrs_uav_state_estimators
 
 namespace rtk
 {
-const char name[]     = "rtk";
-const char frame_id[] = "rtk_origin";
+const char name[]         = "rtk";
+const char frame_id[]     = "rtk_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class Rtk : public mrs_uav_managers::StateEstimator {
 
 private:
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   std::unique_ptr<LatGeneric> est_lat_rtk_;
   const std::string           est_lat_name_ = "lat_rtk";
 
@@ -78,7 +81,7 @@ private:
   double utm_origin_x_, utm_origin_y_;
 
 public:
-  Rtk() : StateEstimator(rtk::name, rtk::frame_id) {
+  Rtk() : StateEstimator(rtk::name, rtk::frame_id, rtk::package_name) {
   }
 
   ~Rtk(void) {
@@ -95,11 +98,10 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace rtk
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_STATE_RTK_H

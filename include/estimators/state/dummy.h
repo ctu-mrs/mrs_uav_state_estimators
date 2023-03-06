@@ -30,12 +30,15 @@ namespace mrs_uav_state_estimators
 
 namespace dummy
 {
-const char name[]     = "dummy";
-const char frame_id[] = "dummy_origin";
+const char name[]         = "dummy";
+const char frame_id[]     = "dummy_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class Dummy : public mrs_uav_managers::StateEstimator {
 
 private:
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   const std::string est_lat_name_ = "lat_dummy";
 
   const std::string est_alt_name_ = "alt_dummy";
@@ -56,7 +59,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  Dummy() : StateEstimator(dummy::name, dummy::frame_id) {
+  Dummy() : StateEstimator(dummy::name, dummy::frame_id, dummy::package_name) {
   }
 
   ~Dummy(void) {
@@ -73,7 +76,6 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace dummy

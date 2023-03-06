@@ -30,12 +30,15 @@ namespace mrs_uav_state_estimators
 
 namespace ground_truth
 {
-const char name[]     = "ground_truth";
-const char frame_id[] = "ground_truth_origin";
+const char name[]         = "ground_truth";
+const char frame_id[]     = "ground_truth_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class GroundTruth : public mrs_uav_managers::StateEstimator {
 
 private:
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   /* std::unique_ptr<LatGeneric>    est_lat_gps_; */
   const std::string est_lat_name_ = "lat_gt";
 
@@ -64,7 +67,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id) {
+  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id, ground_truth::package_name) {
   }
 
   ~GroundTruth(void) {
@@ -81,7 +84,6 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace ground_truth

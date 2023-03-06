@@ -30,12 +30,15 @@ namespace mrs_uav_state_estimators
 
 namespace gps_baro
 {
-const char name[]     = "gps_baro";
-const char frame_id[] = "gps_baro_origin";
+const char name[]         = "gps_baro";
+const char frame_id[]     = "gps_baro_origin";
+const char package_name[] = "mrs_uav_state_estimators";
 
 class GpsBaro : public mrs_uav_managers::StateEstimator {
 
 private:
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   std::unique_ptr<LatGeneric> est_lat_gps_;
   const std::string           est_lat_name_ = "lat_gps";
 
@@ -65,7 +68,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GpsBaro() : StateEstimator(gps_baro::name, gps_baro::frame_id) {
+  GpsBaro() : StateEstimator(gps_baro::name, gps_baro::frame_id, gps_baro::package_name) {
   }
 
   ~GpsBaro(void) {
@@ -82,7 +85,6 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
-
 };
 
 }  // namespace gps_baro

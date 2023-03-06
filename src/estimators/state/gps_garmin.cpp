@@ -30,7 +30,6 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &GpsGarmin::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
-  // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
@@ -40,7 +39,9 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
+  // subscriber to attitude
+  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "orientation_in");
+  sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "ang_vel_in");
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
@@ -175,6 +176,16 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
+  
+  if (!sh_hw_api_orient_.hasMsg()) {
+    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    return;
+  }
+
+  if (!sh_hw_api_ang_vel_.hasMsg()) {
+    ROS_WARN("[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    return;
+  }
 
   const ros::Time time_now = ros::Time::now();
 
@@ -183,9 +194,9 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+    uav_state_.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
 
-    uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
+    uav_state_.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
 
     uav_state_.pose.position.x = est_lat_gps_->getState(POSITION, AXIS_X);
     uav_state_.pose.position.y = est_lat_gps_->getState(POSITION, AXIS_Y);
@@ -250,7 +261,7 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    if (sh_mavros_odom_.hasMsg()) {
+    if (sh_hw_api_orient_.hasMsg()) {
       if (est_lat_gps_->isReady() && est_alt_garmin_->isReady()) {
         changeState(READY_STATE);
         ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
@@ -259,7 +270,7 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
         return;
       }
     } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_mavros_odom_.topicName().c_str());
+      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
       return;
     }
   }
@@ -284,13 +295,17 @@ void GpsGarmin::timerPubAttitude(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
+  if (!sh_hw_api_orient_.hasMsg()) {
+    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    return;
+  }
 
   const ros::Time time_now = ros::Time::now();
 
   geometry_msgs::QuaternionStamped att;
   att.header.stamp    = time_now;
   att.header.frame_id = ns_frame_id_ + "_att_only";
-  att.quaternion      = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+  att.quaternion      = sh_hw_api_orient_.getMsg()->quaternion;
 
   ph_attitude_.publish(att);
 }

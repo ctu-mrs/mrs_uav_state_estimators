@@ -6,7 +6,7 @@
 
 //}
 
-namespace mrs_uav_state_estimation
+namespace mrs_uav_state_estimators
 
 {
 
@@ -31,7 +31,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");
@@ -199,17 +199,9 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_) {
-
-    if (res) {
-      input_stamp = sh_control_input_.getMsg()->header.stamp;
-      setInputCoeff(default_input_coeff_);
-      u(0) = sh_control_input_.getMsg()->control_hdg_rate;
-    } else {
-      input_stamp = ros::Time::now();
-      setInputCoeff(0);
-      u = u_t::Zero();
-    }
-
+    input_stamp = sh_control_input_.getMsg()->header.stamp;
+    setInputCoeff(default_input_coeff_);
+    u(0) = sh_control_input_.getMsg()->control_hdg_rate;
   } else {
     input_stamp = ros::Time::now();
     setInputCoeff(0);
@@ -333,8 +325,7 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-             (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
@@ -525,4 +516,4 @@ std::string HdgGeneric::getPrintName() const {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+};  // namespace mrs_uav_state_estimators

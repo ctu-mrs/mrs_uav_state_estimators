@@ -34,6 +34,8 @@ const int n_measurements = 1;
 
 class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
 
+  const std::string package_name_ = "mrs_uav_state_estimators";
+
   typedef mrs_lib::DynamicReconfigureMgr<HeadingEstimatorConfig> drmgr_t;
 
   using lkf_t      = mrs_lib::LKF<hdg_generic::n_states, hdg_generic::n_inputs, hdg_generic::n_measurements>;
