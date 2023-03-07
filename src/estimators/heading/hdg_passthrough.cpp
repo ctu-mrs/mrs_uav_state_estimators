@@ -32,7 +32,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
 
-  param_loader.loadParam("message/topic", odom_topic_);
+  param_loader.loadParam("topics/orientation", orient_topic_);
+  param_loader.loadParam("topics/angular_velocity", ang_vel_topic_);
 
   if (!param_loader.loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
@@ -56,7 +57,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "/" + ch_->uav_name + "/" + odom_topic_);
+  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_);
+  sh_ang_vel_     = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "/" + ch_->uav_name + "/" + ang_vel_topic_);
 
   // | ---------------- publishers initialization --------------- |
   ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
@@ -124,16 +126,11 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  auto msg = sh_odom_.getMsg();
-  double   hdg      = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
-  double   hdg_rate = 0;
-  auto     res      = getHeadingRate(msg);
-  if (res) {
-    hdg_rate = res.value();
-  } else {
-    ROS_ERROR("[%s]: could not get heading rate", getPrintName().c_str());
-  }
+  auto   msg = sh_orientation_.getMsg();
+  double hdg = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
 
+  auto   msg_ang_vel = sh_ang_vel_.getMsg();
+  double hdg_rate    = mrs_lib::AttitudeConverter(msg->quaternion).getHeadingRate(msg_ang_vel->vector);
   {
     std::scoped_lock lock(mtx_innovation_);
 
@@ -175,8 +172,12 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
     changeState(RUNNING_STATE);
   }
 
-  if (sh_odom_.hasMsg()) {
-    is_odom_ready_ = true;
+  if (sh_orientation_.hasMsg()) {
+    is_orient_ready_ = true;
+  }
+
+  if (sh_ang_vel_.hasMsg()) {
+    is_ang_vel_ready_ = true;
   }
 }
 /*//}*/
@@ -257,15 +258,15 @@ double HdgPassthrough::getInnovation(const int &state_id_in, const int &axis_in)
 /*//}*/
 
 /*//{ getNamespacedName() */
-  std::string HdgPassthrough::getNamespacedName() const {
+std::string HdgPassthrough::getNamespacedName() const {
   return parent_state_est_name_ + "/" + getName();
-  }
+}
 /*//}*/
 
 /*//{ getPrintName() */
-  std::string HdgPassthrough::getPrintName() const {
+std::string HdgPassthrough::getPrintName() const {
   return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
-  }
+}
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+};  // namespace mrs_uav_state_estimators

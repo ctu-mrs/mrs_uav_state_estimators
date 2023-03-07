@@ -46,7 +46,10 @@ private:
   std::unique_ptr<HdgPassthrough> est_hdg_mavros_;
   const std::string               est_hdg_name_ = "hdg_mavros";
 
+  std::string topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
+
+  std::string topic_angular_velocity_;
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>    sh_hw_api_ang_vel_;
 
   ros::Timer timer_update_;

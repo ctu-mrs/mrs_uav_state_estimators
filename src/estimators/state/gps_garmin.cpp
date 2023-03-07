@@ -18,8 +18,23 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO load parameters
+  // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getName());
+
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh_.getNamespace());
+  param_loader.setPrefix(getName() + "/");
+
+  std::string topic_orientation;
+  param_loader.loadParam("topics/orientation", topic_orientation);
+  topic_orientation_ = "/" + ch_->uav_name + "/" + topic_orientation;
+  std::string topic_angular_velocity;
+  param_loader.loadParam("topics/angular_velocity", topic_angular_velocity);
+  topic_angular_velocity_ = "/" + ch_->uav_name + "/" + topic_angular_velocity;
+
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    ros::shutdown();
+  }
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                          // TODO: parametrize
@@ -40,8 +55,8 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   // subscriber to attitude
-  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "orientation_in");
-  sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "ang_vel_in");
+  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);

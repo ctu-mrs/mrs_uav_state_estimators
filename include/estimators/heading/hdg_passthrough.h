@@ -43,9 +43,13 @@ private:
   states_t           innovation_;
   mutable std::mutex mtx_innovation_;
 
-  std::string                                   odom_topic_;
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  std::atomic<bool>                             is_odom_ready_ = false;
+  std::string                                   orient_topic_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
+  std::atomic<bool>                             is_orient_ready_ = false;
+
+  std::string                                   ang_vel_topic_;
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_ang_vel_;
+  std::atomic<bool>                             is_ang_vel_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;

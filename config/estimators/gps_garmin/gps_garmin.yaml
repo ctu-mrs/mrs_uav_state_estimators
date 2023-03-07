@@ -8,9 +8,11 @@ gps_garmin: # namespace of the state estimator
     position: true
     orientation: true
     velocity: true
-    angular_velocity: false
+    angular_velocity: true
 
-  orientation_topic: "hw_api/orientation" # without uav namespace
+  topics:
+    orientation: "hw_api/orientation" # orientation passthrough
+    angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
 
 
 
