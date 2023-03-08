@@ -43,7 +43,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy 
+  LIBRARIES Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy GarminAgl
   CATKIN_DEPENDS roscpp nodelet sensor_msgs std_msgs nav_msgs tf2_geometry_msgs geometry_msgs dynamic_reconfigure mrs_lib mrs_msgs mrs_uav_managers
   DEPENDS Eigen
   )
@@ -150,6 +150,18 @@ target_link_libraries(Dummy
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
+
+add_library(GarminAgl 
+  src/estimators/agl/garmin_agl.cpp 
+  )
+
+target_link_libraries(GarminAgl
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(GarminAgl ${PROJECT_NAME}_gencfg)
 
 if(CATKIN_ENABLE_TESTING)
 

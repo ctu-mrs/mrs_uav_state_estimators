@@ -33,3 +33,9 @@
     <description>Dummy state estimator</description>
   </class>
 </library>
+
+<library path="lib/libGarminAgl">
+  <class name="mrs_uav_state_estimators/GarminAgl" type="mrs_uav_state_estimators::garmin_agl::GarminAgl" base_class_type="mrs_uav_managers::AglEstimator">
+    <description>Garmin AGL height estimator</description>
+  </class>
+</library>
