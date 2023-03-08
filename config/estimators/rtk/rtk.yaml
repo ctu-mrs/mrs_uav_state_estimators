@@ -1,4 +1,4 @@
-gps_garmin: # namespace of the state estimator
+rtk: # namespace of the state estimator
   requires: # data required from the hw api
     gnss: false
     imu: false
@@ -9,6 +9,10 @@ gps_garmin: # namespace of the state estimator
     orientation: true
     velocity: true
     angular_velocity: false
+
+  topics:
+    orientation: "hw_api/orientation" # orientation passthrough
+    angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
 
 
 

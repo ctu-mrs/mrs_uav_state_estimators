@@ -276,7 +276,7 @@ void GpsGarmin::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    if (sh_hw_api_orient_.hasMsg()) {
+    if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
       if (est_lat_gps_->isReady() && est_alt_garmin_->isReady()) {
         changeState(READY_STATE);
         ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());

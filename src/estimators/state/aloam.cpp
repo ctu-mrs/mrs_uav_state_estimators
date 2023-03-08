@@ -14,14 +14,26 @@ namespace aloam
 void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
+  nh_ = nh;
 
-  // TODO load parameters
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
   mrs_lib::ParamLoader param_loader(nh, getName());
   param_loader.setPrefix(getName() + "/");
   param_loader.loadParam("override_frame_id/enabled", is_override_frame_id_);
   if (is_override_frame_id_) {
     param_loader.loadParam("override_frame_id/frame_id", frame_id_);
+  }
+
+  std::string topic_orientation;
+  param_loader.loadParam("topics/orientation", topic_orientation);
+  topic_orientation_ = "/" + ch_->uav_name + "/" + topic_orientation;
+  std::string topic_angular_velocity;
+  param_loader.loadParam("topics/angular_velocity", topic_angular_velocity);
+  topic_angular_velocity_ = "/" + ch_->uav_name + "/" + topic_angular_velocity;
+
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    ros::shutdown();
   }
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
@@ -45,7 +57,8 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
+  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
@@ -182,6 +195,16 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  if (!sh_hw_api_orient_.hasMsg()) {
+    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    return;
+  }
+
+  if (!sh_hw_api_ang_vel_.hasMsg()) {
+    ROS_WARN("[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    return;
+  }
+
   const ros::Time time_now = ros::Time::now();
 
   {
@@ -189,9 +212,9 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    uav_state_.pose.orientation = rotateQuaternionByHeading(sh_mavros_odom_.getMsg()->pose.pose.orientation, est_hdg_aloam_->getState(POSITION));
+    uav_state_.pose.orientation = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_aloam_->getState(POSITION));
 
-    uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
+    uav_state_.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
 
     uav_state_.pose.position.x = est_lat_aloam_->getState(POSITION, AXIS_X);
     uav_state_.pose.position.y = est_lat_aloam_->getState(POSITION, AXIS_Y);
@@ -261,7 +284,7 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
     }
     case INITIALIZED_STATE: {
 
-      if (sh_mavros_odom_.hasMsg()) {
+      if (sh_hw_api_orient_.hasMsg()  && sh_hw_api_ang_vel_.hasMsg()) {
         if (est_lat_aloam_->isReady() && est_alt_aloam_->isReady() && est_hdg_aloam_->isReady()) {
           changeState(READY_STATE);
           ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
@@ -270,7 +293,7 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
           return;
         }
       } else {
-        ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_mavros_odom_.topicName().c_str());
+        ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
         return;
       }
 
@@ -325,7 +348,7 @@ void Aloam::timerPubAttitude(const ros::TimerEvent &event) {
   att.header.stamp    = time_now;
   att.header.frame_id = ns_frame_id_ + "_att_only";
 
-  att.quaternion = rotateQuaternionByHeading(sh_mavros_odom_.getMsg()->pose.pose.orientation, est_hdg_aloam_->getState(POSITION));
+  att.quaternion = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_aloam_->getState(POSITION));
 
   ph_attitude_.publish(att);
 }

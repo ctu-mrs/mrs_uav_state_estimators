@@ -10,41 +10,31 @@ namespace mrs_uav_state_estimators
 namespace rtk
 {
 
-/* using namespace mrs_uav_managers::estimation_manager; */
-
 /* initialize() //{*/
 void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
+  nh_ = nh;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  // TODO(petrlmat) load parameters
+  // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getName());
 
-  /* coordinate frames origins //{ */
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh_.getNamespace());
+  param_loader.setPrefix(getName() + "/");
 
-  bool is_origin_param_ok = true;
-  /* param_loader.loadParam("utm_origin_units", utm_origin_units_); */
-  /* if (utm_origin_units_ == 0) { */
-  /*   ROS_INFO("[%s]: Loading UTM origin in UTM units.", getName().c_str()); */
-  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_x", utm_origin_x_); */
-  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_y", utm_origin_y_); */
-  /* } else { */
-  /*   double lat, lon; */
-  /*   ROS_INFO("[%s]: Loading UTM origin in LatLon units.", getName().c_str()); */
-  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_lat", lat); */
-  /*   is_origin_param_ok &= param_loader.loadParam("utm_origin_lon", lon); */
-  /*   ROS_INFO("[%s]: Converted to UTM x: %f, y: %f.", getName().c_str(), utm_origin_x_, utm_origin_y_); */
-  /*   mrs_lib::UTM(lat, lon, &utm_origin_x_, &utm_origin_y_); */
-  /* } */
+  std::string topic_orientation;
+  param_loader.loadParam("topics/orientation", topic_orientation);
+  topic_orientation_ = "/" + ch_->uav_name + "/" + topic_orientation;
+  std::string topic_angular_velocity;
+  param_loader.loadParam("topics/angular_velocity", topic_angular_velocity);
+  topic_angular_velocity_ = "/" + ch_->uav_name + "/" + topic_angular_velocity;
 
-  if (!is_origin_param_ok) {
-    ROS_ERROR("[%s]: Could not load all mandatory parameters from world file. Please check your world file.", getName().c_str());
+  if (!param_loader.loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
-
-  //}
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                    // TODO(petrlmat): parametrize
@@ -65,7 +55,9 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_mavros_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, "mavros_odom_in");
+  // subscriber to attitude
+  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
@@ -199,6 +191,15 @@ void Rtk::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  if (!sh_hw_api_orient_.hasMsg()) {
+    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    return;
+  }
+
+  if (!sh_hw_api_ang_vel_.hasMsg()) {
+    ROS_WARN("[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    return;
+  }
   const ros::Time time_now = ros::Time::now();
 
   {
@@ -206,11 +207,9 @@ void Rtk::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    // TODO(petrlmat) fill in estimator types
+    uav_state_.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
 
-    uav_state_.pose.orientation = sh_mavros_odom_.getMsg()->pose.pose.orientation;
-
-    uav_state_.velocity.angular = sh_mavros_odom_.getMsg()->twist.twist.angular;
+    uav_state_.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
 
     /* uav_state_.pose.position.x = est_lat_rtk_->getState(POSITION, AXIS_X) - utm_origin_x_; */
     /* uav_state_.pose.position.y = est_lat_rtk_->getState(POSITION, AXIS_Y) - utm_origin_y_; */
@@ -277,7 +276,7 @@ void Rtk::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    if (sh_mavros_odom_.hasMsg()) {
+    if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
       if (est_lat_rtk_->isReady() && est_alt_rtk_->isReady()) {
         if (got_rtk_avg_init_z_) {
           changeState(READY_STATE);
@@ -290,7 +289,7 @@ void Rtk::timerCheckHealth(const ros::TimerEvent &event) {
         return;
       }
     } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_mavros_odom_.topicName().c_str());
+      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
       return;
     }
   }
@@ -321,7 +320,7 @@ void Rtk::timerPubAttitude(const ros::TimerEvent &event) {
   geometry_msgs::QuaternionStamped att;
   att.header.stamp    = time_now;
   att.header.frame_id = ns_frame_id_ + "_att_only";
-  att.quaternion      = sh_mavros_odom_.getMsg()->pose.pose.orientation;
+  att.quaternion      = sh_hw_api_orient_.getMsg()->quaternion;
 
   ph_attitude_.publish(att);
 }

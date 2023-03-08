@@ -2,6 +2,7 @@ aloam: # namespace of the state estimator
   override_frame_id: # override the default frame_id with a custom one (e.g. slam_origin instead of aloam_origin)
     enabled: true
     frame_id: "slam_origin" # the desired frame_id without the UAV namespace
+
   requires: # data required from the hw api
     gnss: false
     imu: false
@@ -12,4 +13,8 @@ aloam: # namespace of the state estimator
     orientation: true
     velocity: true
     angular_velocity: false
+
+  topics:
+    orientation: "hw_api/orientation" # orientation passthrough
+    angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
 
