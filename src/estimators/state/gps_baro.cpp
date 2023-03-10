@@ -54,7 +54,7 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
@@ -192,12 +192,12 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
   }
 
   if (!sh_hw_api_orient_.hasMsg()) {
-    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
     return;
   }
 
   if (!sh_hw_api_ang_vel_.hasMsg()) {
-    ROS_WARN("[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
     return;
   }
 
@@ -275,7 +275,7 @@ void GpsBaro::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (isInState(INITIALIZED_STATE)) {
 
-    if (sh_hw_api_orient_.hasMsg()  && sh_hw_api_ang_vel_.hasMsg()) {
+    if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
       if (est_lat_gps_->isReady() && est_alt_baro_->isReady()) {
         changeState(READY_STATE);
         ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
@@ -307,6 +307,10 @@ void GpsBaro::timerCheckHealth(const ros::TimerEvent &event) {
 void GpsBaro::timerPubAttitude(const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
+    return;
+  }
+
+  if (!sh_hw_api_orient_.hasMsg()) {
     return;
   }
 

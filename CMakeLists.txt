@@ -117,6 +117,7 @@ add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
 add_library(Rtk 
   ${src_files_common}
   src/estimators/state/rtk.cpp 
+  src/estimators/heading/hdg_passthrough.cpp 
   )
 
 target_link_libraries(Rtk

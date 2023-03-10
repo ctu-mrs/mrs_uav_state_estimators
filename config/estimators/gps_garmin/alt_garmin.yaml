@@ -26,7 +26,7 @@ gps_garmin: # namespace of the state estimator
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
-      processors: ["median_filter", "saturate"] # types of processors attached to this measurement (the processors are called in exactly this order)
+      processors: ["excessive_tilt", "median_filter", "saturate"] # types of processors attached to this measurement (the processors are called in exactly this order)
       
       median_filter:
         buffer_size: 100 # [samples] number of historic values from which the median is calculated
@@ -37,6 +37,10 @@ gps_garmin: # namespace of the state estimator
         keep_enabled: true # keep enabled even after the corrections are near the value of state
         min: -0.1
         max: 0.1
+
+      excessive_tilt:
+        orientation_topic: "hw_api/orientation"
+        max_tilt: deg(30)
 
   # Parameters of altitude median filters - buffer_size , max_diff 
     vel_baro:

@@ -28,6 +28,7 @@
 #include "processors/processor.h"
 #include "processors/proc_median_filter.h"
 #include "processors/proc_saturate.h"
+#include "processors/proc_excessive_tilt.h"
 
 #include "mrs_uav_state_estimators/CorrectionConfig.h"
 
@@ -717,6 +718,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getPrintName().c_str(), msg->header.frame_id.c_str());
   }
 
+  rtk_pos.pose.position.x -= ch_->utm_origin.x;
+  rtk_pos.pose.position.y -= ch_->utm_origin.y;
+
   Correction::measurement_t measurement;
 
   // transform the RTK position from antenna to FCU
@@ -1137,6 +1141,8 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
     return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_);
   } else if (name == "saturate") {
     return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, state_id_, fun_get_state_);
+  } else if (name == "excessive_tilt") {
+    return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_);
   } else {
     ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     ros::shutdown();

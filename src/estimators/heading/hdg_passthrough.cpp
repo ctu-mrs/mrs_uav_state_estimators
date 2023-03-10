@@ -134,7 +134,7 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
   {
     std::scoped_lock lock(mtx_innovation_);
 
-    innovation_(0) = hdg - getState(POSITION);
+    innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(hdg), mrs_lib::geometry::radians(getState(POSITION)));
     innovation_(1) = hdg_rate - getState(VELOCITY);
 
     if (innovation_(0) > 1.0) {

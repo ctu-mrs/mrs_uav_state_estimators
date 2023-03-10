@@ -10,6 +10,7 @@ namespace mrs_uav_state_estimators
 
 {
 
+
 /* initialize() //{*/
 void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
@@ -338,7 +339,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
 
-    innovation_(0) = z(0) - getState(POSITION);
+    innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(z(0)), mrs_lib::geometry::radians(getState(POSITION)));
 
     if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getPrintName().c_str(), innovation_(0));

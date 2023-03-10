@@ -11,6 +11,7 @@
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/geometry/cyclic.h>
 
 #include "estimators/heading/heading_estimator.h"
 

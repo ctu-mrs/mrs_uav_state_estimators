@@ -196,12 +196,12 @@ void Aloam::timerUpdate(const ros::TimerEvent &event) {
   }
 
   if (!sh_hw_api_orient_.hasMsg()) {
-    ROS_WARN("[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
     return;
   }
 
   if (!sh_hw_api_ang_vel_.hasMsg()) {
-    ROS_WARN("[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
     return;
   }
 
@@ -339,6 +339,10 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
 void Aloam::timerPubAttitude(const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
+    return;
+  }
+
+  if (!sh_hw_api_orient_.hasMsg()) {
     return;
   }
 
