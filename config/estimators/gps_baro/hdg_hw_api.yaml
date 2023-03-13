@@ -1,9 +1,10 @@
 # passthrough estimator - no estimation on its own
-gps_garmin: # namespace of the state estimator
-  hdg_mavros: # namespace of the heading estimator
+gps_baro: # namespace of the state estimator
+  hdg_hw_api: # namespace of the heading estimator
 
     max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
 
     topics:
       orientation: "hw_api/orientation" # without uav namespace
       angular_velocity: "hw_api/angular_velocity" # without uav namespace
+

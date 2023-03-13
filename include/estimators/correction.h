@@ -987,8 +987,8 @@ void Correction<n_measurements>::timeoutCallback(const std::string& topic, const
   if (got_first_msg_) {
     is_dt_ok_ = false;
   }
-  ROS_ERROR_STREAM("[" << getPrintName() << "]: not received message from topic '" << topic << "' for " << (ros::Time::now() - last_msg).toSec() << " seconds ("
-                       << n_pubs << " publishers on topic)");
+  ROS_WARN_THROTTLE(5.0, "[%s]: Did not receive message from topic '%s' for %.2f seconds (%d publishers on topic)", getPrintName().c_str(), topic.c_str(),
+                    (ros::Time::now() - last_msg).toSec(), n_pubs);
 }
 /*//}*/
 

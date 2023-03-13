@@ -51,7 +51,6 @@ class LatGeneric : public LateralEstimator<lat_generic::n_states> {
   typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
 
 private:
-
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   std::string parent_state_est_name_;
@@ -80,11 +79,12 @@ private:
   std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput> sh_control_input_;
-  std::atomic<bool>                                    is_input_ready_ = false;
+  void                                                  timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
+  std::atomic<bool>                                     is_input_ready_ = false;
 
-  std::string                                                          hdg_source_topic_;
+  std::string                                          hdg_source_topic_;
   mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput> sh_hdg_state_;
-  std::atomic<bool>                                                    is_hdg_state_ready_ = false;
+  std::atomic<bool>                                    is_hdg_state_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -142,6 +142,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_LATERAL_LAT_GENERIC_H

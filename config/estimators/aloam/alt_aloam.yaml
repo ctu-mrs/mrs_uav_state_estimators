@@ -14,7 +14,7 @@ aloam: # namespace of the state estimator
 
     corrections: [
       "pos_aloam",
-      "vel_baro"
+      "vel_hw_api"
     ]
 
     pos_aloam:
@@ -29,7 +29,7 @@ aloam: # namespace of the state estimator
 
       processors: [] # types of processors attached to this measurement
 
-    vel_baro:
+    vel_hw_api:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
       message:

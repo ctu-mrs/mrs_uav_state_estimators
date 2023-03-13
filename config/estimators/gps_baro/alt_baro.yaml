@@ -13,7 +13,7 @@ gps_baro: # namespace of the state estimator
 
     corrections: [
       "pos_baro",
-      "vel_baro"
+      "vel_hw_api"
     ]
 
     pos_baro:
@@ -27,7 +27,7 @@ gps_baro: # namespace of the state estimator
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
       processors: [] # types of processors attached to this measurement
 
-    vel_baro:
+    vel_hw_api:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
       message:

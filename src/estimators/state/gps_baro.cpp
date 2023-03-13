@@ -73,13 +73,13 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   est_lat_gps_->initialize(nh, ch_);
   max_altitudes.push_back(est_lat_gps_->getMaxFlightAltitudeAgl());
 
-  est_alt_baro_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
-  est_alt_baro_->initialize(nh, ch_);
-  max_altitudes.push_back(est_alt_baro_->getMaxFlightAltitudeAgl());
+  est_alt_hw_api_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
+  est_alt_hw_api_->initialize(nh, ch_);
+  max_altitudes.push_back(est_alt_hw_api_->getMaxFlightAltitudeAgl());
 
-  est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
-  est_hdg_mavros_->initialize(nh, ch_);
-  max_altitudes.push_back(est_hdg_mavros_->getMaxFlightAltitudeAgl());
+  est_hdg_hw_api_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
+  est_hdg_hw_api_->initialize(nh, ch_);
+  max_altitudes.push_back(est_hdg_hw_api_->getMaxFlightAltitudeAgl());
 
   max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
@@ -111,13 +111,13 @@ bool GpsBaro::start(void) {
 
   if (isInState(READY_STATE)) {
 
-    bool est_lat_gps_start_successful, est_alt_baro_start_successful, est_hdg_mavros_start_successful;
+    bool est_lat_gps_start_successful, est_alt_hw_api_start_successful, est_hdg_hw_api_start_successful;
 
-    if (est_hdg_mavros_->isStarted() || est_hdg_mavros_->isRunning()) {
-      est_hdg_mavros_start_successful = true;
+    if (est_hdg_hw_api_->isStarted() || est_hdg_hw_api_->isRunning()) {
+      est_hdg_hw_api_start_successful = true;
       timer_pub_attitude_.start();
     } else {
-      est_hdg_mavros_start_successful = est_hdg_mavros_->start();
+      est_hdg_hw_api_start_successful = est_hdg_hw_api_->start();
     }
 
     if (est_lat_gps_->isStarted() || est_lat_gps_->isRunning()) {
@@ -127,13 +127,13 @@ bool GpsBaro::start(void) {
     }
 
 
-    if (est_alt_baro_->isStarted() || est_alt_baro_->isRunning()) {
-      est_alt_baro_start_successful = true;
+    if (est_alt_hw_api_->isStarted() || est_alt_hw_api_->isRunning()) {
+      est_alt_hw_api_start_successful = true;
     } else {
-      est_alt_baro_start_successful = est_alt_baro_->start();
+      est_alt_hw_api_start_successful = est_alt_hw_api_->start();
     }
 
-    if (est_lat_gps_start_successful && est_alt_baro_start_successful && est_hdg_mavros_start_successful) {
+    if (est_lat_gps_start_successful && est_alt_hw_api_start_successful && est_hdg_hw_api_start_successful) {
       timer_update_.start();
       changeState(STARTED_STATE);
       return true;
@@ -155,7 +155,7 @@ bool GpsBaro::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
     est_lat_gps_->pause();
-    est_alt_baro_->pause();
+    est_alt_hw_api_->pause();
     changeState(STOPPED_STATE);
     return true;
 
@@ -174,7 +174,7 @@ bool GpsBaro::reset(void) {
   }
 
   est_lat_gps_->pause();
-  est_alt_baro_->pause();
+  est_alt_hw_api_->pause();
   changeState(STOPPED_STATE);
 
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
@@ -214,15 +214,15 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.pose.position.x = est_lat_gps_->getState(POSITION, AXIS_X);
     uav_state_.pose.position.y = est_lat_gps_->getState(POSITION, AXIS_Y);
-    uav_state_.pose.position.z = est_alt_baro_->getState(POSITION);
+    uav_state_.pose.position.z = est_alt_hw_api_->getState(POSITION);
 
     uav_state_.velocity.linear.x = est_lat_gps_->getState(VELOCITY, AXIS_X);  // in global frame
     uav_state_.velocity.linear.y = est_lat_gps_->getState(VELOCITY, AXIS_Y);  // in global frame
-    uav_state_.velocity.linear.z = est_alt_baro_->getState(VELOCITY);         // in global frame
+    uav_state_.velocity.linear.z = est_alt_hw_api_->getState(VELOCITY);         // in global frame
 
     uav_state_.acceleration.linear.x = est_lat_gps_->getState(ACCELERATION, AXIS_X);  // in global frame
     uav_state_.acceleration.linear.y = est_lat_gps_->getState(ACCELERATION, AXIS_Y);  // in global frame
-    uav_state_.acceleration.linear.z = est_alt_baro_->getState(ACCELERATION);         // in global frame
+    uav_state_.acceleration.linear.z = est_alt_hw_api_->getState(ACCELERATION);         // in global frame
   }
 
   {
@@ -237,7 +237,7 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
 
     innovation_.pose.pose.position.x = est_lat_gps_->getInnovation(POSITION, AXIS_X);
     innovation_.pose.pose.position.y = est_lat_gps_->getInnovation(POSITION, AXIS_Y);
-    innovation_.pose.pose.position.z = est_alt_baro_->getInnovation(POSITION);
+    innovation_.pose.pose.position.z = est_alt_hw_api_->getInnovation(POSITION);
   }
 
   {
@@ -250,12 +250,12 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
     pose_covariance_.values.resize(n_states * n_states);
     pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(POSITION, AXIS_X);
     pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(POSITION, AXIS_Y);
-    pose_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_baro_->getCovariance(POSITION);
+    pose_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_hw_api_->getCovariance(POSITION);
 
     twist_covariance_.values.resize(n_states * n_states);
     twist_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_gps_->getCovariance(VELOCITY, AXIS_X);
     twist_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_gps_->getCovariance(VELOCITY, AXIS_Y);
-    twist_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_baro_->getCovariance(VELOCITY);
+    twist_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_hw_api_->getCovariance(VELOCITY);
   }
 
   publishUavState();
@@ -276,7 +276,7 @@ void GpsBaro::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(INITIALIZED_STATE)) {
 
     if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
-      if (est_lat_gps_->isReady() && est_alt_baro_->isReady()) {
+      if (est_lat_gps_->isReady() && est_alt_hw_api_->isReady()) {
         changeState(READY_STATE);
         ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
       } else {
@@ -293,7 +293,7 @@ void GpsBaro::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(STARTED_STATE)) {
     ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
 
-    if (est_lat_gps_->isRunning() && est_alt_baro_->isRunning()) {
+    if (est_lat_gps_->isRunning() && est_alt_hw_api_->isRunning()) {
       ROS_INFO("[%s]: Subestimators converged", getPrintName().c_str());
       changeState(RUNNING_STATE);
     } else {

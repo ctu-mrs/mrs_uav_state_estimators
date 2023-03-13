@@ -13,7 +13,7 @@ gps_garmin: # namespace of the state estimator
 
     corrections: [
       "pos_garmin",
-      "vel_baro"
+      "vel_hw_api"
     ]
 
     pos_garmin:
@@ -43,7 +43,7 @@ gps_garmin: # namespace of the state estimator
         max_tilt: deg(30)
 
   # Parameters of altitude median filters - buffer_size , max_diff 
-    vel_baro:
+    vel_hw_api:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
       message:

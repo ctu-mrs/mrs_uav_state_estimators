@@ -34,7 +34,6 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GroundTruth::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
-  // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
@@ -53,16 +52,6 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
   ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
   ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
-
-  // | ---------------- estimators initialization --------------- |
-  /* est_lat_gps_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName()); */
-  /* est_lat_gps_->initialize(nh, ch_); */
-
-  /* est_alt_garmin_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName()); */
-  /* est_alt_garmin_->initialize(nh, ch_); */
-
-  /* est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName()); */
-  /* est_hdg_mavros_->initialize(nh, ch_); */
 
   // | ------------------ initialize published messages ------------------ |
   uav_state_.header.frame_id = ns_frame_id_;

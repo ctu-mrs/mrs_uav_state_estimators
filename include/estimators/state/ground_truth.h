@@ -39,13 +39,10 @@ class GroundTruth : public mrs_uav_managers::StateEstimator {
 private:
   const std::string package_name_ = "mrs_uav_state_estimators";
 
-  /* std::unique_ptr<LatGeneric>    est_lat_gps_; */
   const std::string est_lat_name_ = "lat_gt";
 
-  /* std::unique_ptr<AltGeneric> est_alt_garmin_; */
   const std::string est_alt_name_ = "alt_gt";
 
-  /* std::unique_ptr<HdgPassthrough> est_hdg_mavros_; */
   const std::string est_hdg_name_ = "hdg_gt";
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_gt_odom_;

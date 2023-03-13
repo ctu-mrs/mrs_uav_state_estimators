@@ -45,7 +45,6 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &Rtk::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
-  // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
@@ -55,7 +54,6 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  // subscriber to attitude
   sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
@@ -79,9 +77,9 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   est_alt_rtk_->initialize(nh, ch_);
   max_altitudes.push_back(est_alt_rtk_->getMaxFlightAltitudeAgl());
 
-  est_hdg_mavros_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
-  est_hdg_mavros_->initialize(nh, ch_);
-  max_altitudes.push_back(est_hdg_mavros_->getMaxFlightAltitudeAgl());
+  est_hdg_hw_api_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
+  est_hdg_hw_api_->initialize(nh, ch_);
+  max_altitudes.push_back(est_hdg_hw_api_->getMaxFlightAltitudeAgl());
 
   max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
@@ -113,13 +111,13 @@ bool Rtk::start(void) {
 
   if (isInState(READY_STATE)) {
 
-    bool est_lat_rtk_start_successful, est_alt_rtk_start_successful, est_hdg_mavros_start_successful;
+    bool est_lat_rtk_start_successful, est_alt_rtk_start_successful, est_hdg_hw_api_start_successful;
 
-    if (est_hdg_mavros_->isStarted() || est_hdg_mavros_->isRunning()) {
-      est_hdg_mavros_start_successful = true;
+    if (est_hdg_hw_api_->isStarted() || est_hdg_hw_api_->isRunning()) {
+      est_hdg_hw_api_start_successful = true;
       timer_pub_attitude_.start();
     } else {
-      est_hdg_mavros_start_successful = est_hdg_mavros_->start();
+      est_hdg_hw_api_start_successful = est_hdg_hw_api_->start();
     }
 
     if (est_lat_rtk_->isStarted() || est_lat_rtk_->isRunning()) {
@@ -135,7 +133,7 @@ bool Rtk::start(void) {
       est_alt_rtk_start_successful = est_alt_rtk_->start();
     }
 
-    if (est_lat_rtk_start_successful && est_alt_rtk_start_successful && est_hdg_mavros_start_successful) {
+    if (est_lat_rtk_start_successful && est_alt_rtk_start_successful && est_hdg_hw_api_start_successful) {
       timer_update_.start();
       changeState(STARTED_STATE);
       return true;

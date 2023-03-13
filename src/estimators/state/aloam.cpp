@@ -47,7 +47,6 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &Aloam::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
-  // subscriber to mavros odometry
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();

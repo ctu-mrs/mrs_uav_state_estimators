@@ -83,7 +83,8 @@ private:
   std::vector<std::shared_ptr<Correction<hdg_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput> sh_control_input_;
-  std::atomic<bool>                                    is_input_ready_ = false;
+  void                                                  timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
+  std::atomic<bool>                                     is_input_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;

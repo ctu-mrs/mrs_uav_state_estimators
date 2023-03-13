@@ -1,5 +1,5 @@
 lat_rtk: # namespace of the estimator
-  hdg_source_topic: "hdg_mavros/output" # [mrs_uav_state_estimation/EstimatorOutput]
+  hdg_source_topic: "hdg_hw_api/output" # [mrs_uav_state_estimation/EstimatorOutput]
 
   process_noise: # process noise covariance (Q)
     pos: 0.001 # position state

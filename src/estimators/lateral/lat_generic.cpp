@@ -116,9 +116,9 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in");
-  sh_hdg_state_        = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(
-      shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in", &LatGeneric::timeoutCallback, this);
+  sh_hdg_state_     = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(shopts, hdg_source_topic_, &LatGeneric::timeoutCallback,
+                                                                       this);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
@@ -281,8 +281,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
-                   measurement_stamped.value(AXIS_Y));
+          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
         } else {
           ROS_INFO("[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getPrintName().c_str());
           return;
@@ -340,8 +339,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
-             (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 
@@ -355,6 +353,13 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getPrintName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
     is_hdg_state_ready_ = false;
   }
+}
+/*//}*/
+
+/*//{ timeoutCallback() */
+void LatGeneric::timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs) {
+  ROS_WARN_THROTTLE(5.0, "[%s]: Did not receive message from topic '%s' for %.2f seconds (%d publishers on topic)", getPrintName().c_str(), topic.c_str(),
+                    (ros::Time::now() - last_msg).toSec(), n_pubs);
 }
 /*//}*/
 
@@ -561,4 +566,4 @@ std::string LatGeneric::getPrintName() const {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimation
+};  // namespace mrs_uav_state_estimators

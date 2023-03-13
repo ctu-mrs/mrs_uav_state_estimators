@@ -43,8 +43,8 @@ private:
   std::unique_ptr<AltGeneric> est_alt_garmin_;
   const std::string           est_alt_name_ = "alt_garmin";
 
-  std::unique_ptr<HdgPassthrough> est_hdg_mavros_;
-  const std::string               est_hdg_name_ = "hdg_mavros";
+  std::unique_ptr<HdgPassthrough> est_hdg_hw_api_;
+  const std::string               est_hdg_name_ = "hdg_hw_api";
 
   std::string topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
