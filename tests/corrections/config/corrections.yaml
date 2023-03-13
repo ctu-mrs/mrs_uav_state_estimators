@@ -1,0 +1,21 @@
+lat_rtk: # namespace of the estimator
+  hdg_source_topic: "hdg_hw_api/output" # [mrs_uav_state_estimation/EstimatorOutput]
+
+  process_noise: # process noise covariance (Q)
+    pos: 0.001 # position state
+    vel: 1.0 # velocity state
+    acc: 0.01 # acceleration state
+
+  corrections: [
+    "pos_rtk"
+  ]
+
+  pos_rtk:
+    state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+    noise: 1.0 # measurement noise covariance (R)
+    message:
+      type: 4 # 0 - nav_msgs/Odometry, 1 - geometry_msgs/PoseStamped, 2 - geometry_msgs/PoseWithCovarianceStamped, 3 - sensor_msgs/Range, 4 - mrs_msgs/RtkGps
+      topic: "rtk_test/rtk_msg" # without uav namespace
+      limit: 
+        delay: 10.0 # [s] messages with higher delay will flag correction as unhealthy
+        time_since_last: 10.0 # [s] larger time step between messages will flag correction as unhealthy

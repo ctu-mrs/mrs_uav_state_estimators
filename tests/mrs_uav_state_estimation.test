@@ -1,0 +1,6 @@
+<launch>
+
+  <include file="$(find mrs_uav_state_estimation)/tests/corrections/corrections.test">
+  </include>
+
+</launch>

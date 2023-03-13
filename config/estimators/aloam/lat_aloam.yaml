@@ -1,0 +1,32 @@
+aloam: # namespace of the state estimator
+  lat_aloam: # namespace of the lateral estimator
+
+    hdg_source_topic: "aloam/hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
+
+    max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
+
+    repredictor: # repredictor for correct fusion of delayed measurements
+      enabled: true
+      buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
+
+    process_noise: # process noise covariance (Q)
+      pos: 1.0 # position state
+      vel: 1.0 # velocity state
+      acc: 1.0 # acceleration state
+
+    corrections: [
+      "pos_aloam"
+    ]
+
+    pos_aloam:
+      state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+      noise: 1.0 # measurement noise covariance (R)
+      message:
+        type: "nav_msgs/Odometry"
+        topic: "slam/odom" # without uav namespace
+        limit: 
+          delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy
+          time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [] # types of processors attached to this measurement
+

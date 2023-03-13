@@ -1,0 +1,41 @@
+rtk: # namespace of the state estimator
+  alt_rtk: # namespace of the altitude estimator
+
+    max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
+
+    repredictor: # repredictor for correct fusion of delayed measurements
+      enabled: false
+
+    process_noise: # process noise covariance (Q)
+      pos: 1.0 # position state
+      vel: 1.0 # velocity state
+      acc: 1.0 # acceleration state
+
+    corrections: [
+      "pos_rtk",
+      "vel_hw_api"
+    ]
+
+    pos_rtk:
+      state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+      noise: 1.0 # measurement noise covariance (R)
+      message:
+        type: "mrs_msgs/RtkGps"
+        topic: "rtk_gps/global" # without uav namespace
+        limit: 
+          delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
+          time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [] # types of processors attached to this measurement
+
+    vel_hw_api:
+      state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
+      noise: 1.0 # measurement noise covariance (R)
+      message:
+        type: "geometry_msgs/Vector3Stamped"
+        topic: "hw_api/velocity" # without uav namespace
+        limit: 
+          delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
+          time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+
+      processors: [] # types of processors attached to this measurement
