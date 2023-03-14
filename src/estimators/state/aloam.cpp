@@ -17,8 +17,10 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   nh_ = nh;
 
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
-  mrs_lib::ParamLoader param_loader(nh, getName());
+
+  mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getName() + "/");
+
   param_loader.loadParam("override_frame_id/enabled", is_override_frame_id_);
   if (is_override_frame_id_) {
     param_loader.loadParam("override_frame_id/frame_id", frame_id_);

@@ -19,7 +19,7 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, getName());
+  mrs_lib::ParamLoader param_loader(nh, getPrintName());
 
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh_.getNamespace());
   param_loader.setPrefix(getName() + "/");

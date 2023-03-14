@@ -18,9 +18,10 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | --------------- param loader initialization -------------- |
-  Support::loadParamFile(ros::package::getPath(ch_->package_name) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
-
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
+
+  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
+  param_loader.setPrefix(getName() + "/");
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
