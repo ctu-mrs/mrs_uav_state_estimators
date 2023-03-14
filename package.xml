@@ -36,7 +36,6 @@
   <test_depend>rostest</test_depend>
 
   <export>
-    <nodelet plugin="${prefix}/nodelets.xml" />
     <mrs_uav_managers plugin="${prefix}/estimator_plugins.xml" />
   </export>
 
