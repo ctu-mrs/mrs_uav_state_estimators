@@ -116,7 +116,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in", &LatGeneric::timeoutCallback, this);
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in", &LatGeneric::timeoutCallback, this);
   sh_hdg_state_     = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(shopts, hdg_source_topic_, &LatGeneric::timeoutCallback,
                                                                        this);  // for transformation of desired accelerations from body to global frame
 

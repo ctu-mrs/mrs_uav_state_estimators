@@ -54,7 +54,7 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
@@ -87,9 +87,9 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   innovation_.header.frame_id         = ns_frame_id_;
   innovation_.child_frame_id          = ch_->frames.ns_fcu;
@@ -415,7 +415,7 @@ void Rtk::getAvgRtkInitZ() {
 
 }  // namespace rtk
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::rtk::Rtk, mrs_uav_managers::StateEstimator)

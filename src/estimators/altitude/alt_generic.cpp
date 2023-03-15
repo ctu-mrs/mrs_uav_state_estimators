@@ -111,7 +111,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::MrsOdometryInput>(shopts, "control_input_in", &AltGeneric::timeoutCallback, this);
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in", &AltGeneric::timeoutCallback, this);
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
@@ -204,7 +204,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_) {
-    mrs_msgs::MrsOdometryInputConstPtr msg            = sh_control_input_.getMsg();
+    mrs_msgs::EstimatorInputConstPtr msg            = sh_control_input_.getMsg();
     const tf2::Vector3                 des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
     input_stamp                                       = msg->header.stamp;
     setInputCoeff(default_input_coeff_);

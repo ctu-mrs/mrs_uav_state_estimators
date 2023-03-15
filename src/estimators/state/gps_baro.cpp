@@ -87,9 +87,9 @@ void GpsBaro::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandle
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   innovation_.header.frame_id         = ns_frame_id_;
   innovation_.child_frame_id          = ch_->frames.ns_fcu;
@@ -218,11 +218,11 @@ void GpsBaro::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.velocity.linear.x = est_lat_gps_->getState(VELOCITY, AXIS_X);  // in global frame
     uav_state_.velocity.linear.y = est_lat_gps_->getState(VELOCITY, AXIS_Y);  // in global frame
-    uav_state_.velocity.linear.z = est_alt_hw_api_->getState(VELOCITY);         // in global frame
+    uav_state_.velocity.linear.z = est_alt_hw_api_->getState(VELOCITY);       // in global frame
 
     uav_state_.acceleration.linear.x = est_lat_gps_->getState(ACCELERATION, AXIS_X);  // in global frame
     uav_state_.acceleration.linear.y = est_lat_gps_->getState(ACCELERATION, AXIS_Y);  // in global frame
-    uav_state_.acceleration.linear.z = est_alt_hw_api_->getState(ACCELERATION);         // in global frame
+    uav_state_.acceleration.linear.z = est_alt_hw_api_->getState(ACCELERATION);       // in global frame
   }
 
   {

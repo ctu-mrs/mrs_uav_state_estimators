@@ -54,7 +54,7 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_hw_api_orient_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
@@ -87,9 +87,9 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   innovation_.header.frame_id         = ns_frame_id_;
   innovation_.child_frame_id          = ch_->frames.ns_fcu;
@@ -190,7 +190,7 @@ void GpsGarmin::timerUpdate(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
-  
+
   if (!sh_hw_api_orient_.hasMsg()) {
     ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
     return;

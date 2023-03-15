@@ -58,9 +58,9 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   innovation_.header.frame_id         = ns_frame_id_;
   innovation_.child_frame_id          = ch_->frames.ns_fcu;
@@ -275,7 +275,7 @@ bool GroundTruth::setUavState(const mrs_msgs::UavState &uav_state) {
 
 }  // namespace ground_truth
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::ground_truth::GroundTruth, mrs_uav_managers::StateEstimator)

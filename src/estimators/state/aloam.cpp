@@ -91,9 +91,9 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   innovation_.header.frame_id         = ns_frame_id_;
   innovation_.child_frame_id          = ch_->frames.ns_fcu;
@@ -285,7 +285,7 @@ void Aloam::timerCheckHealth(const ros::TimerEvent &event) {
     }
     case INITIALIZED_STATE: {
 
-      if (sh_hw_api_orient_.hasMsg()  && sh_hw_api_ang_vel_.hasMsg()) {
+      if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
         if (est_lat_aloam_->isReady() && est_alt_aloam_->isReady() && est_hdg_aloam_->isReady()) {
           changeState(READY_STATE);
           ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());

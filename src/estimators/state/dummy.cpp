@@ -35,9 +35,9 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   uav_state_.header.frame_id = ns_frame_id_;
   uav_state_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal.name = est_lat_name_;
-  uav_state_.estimator_vertical.name   = est_alt_name_;
-  uav_state_.estimator_heading.name    = est_hdg_name_;
+  uav_state_.estimator_horizontal = est_lat_name_;
+  uav_state_.estimator_vertical   = est_alt_name_;
+  uav_state_.estimator_heading    = est_hdg_name_;
 
   uav_state_.pose.position.x = 0.0;
   uav_state_.pose.position.y = 0.0;
