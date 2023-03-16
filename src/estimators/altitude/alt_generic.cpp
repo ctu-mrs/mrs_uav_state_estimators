@@ -105,13 +105,13 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = ros::Duration(0.5);
+  shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in", &AltGeneric::timeoutCallback, this);
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in");
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
@@ -337,13 +337,6 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
-}
-/*//}*/
-
-/*//{ timeoutCallback() */
-void AltGeneric::timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs) {
-  ROS_WARN_THROTTLE(5.0, "[%s]: Did not receive message from topic '%s' for %.2f seconds (%d publishers on topic)", getPrintName().c_str(), topic.c_str(),
-                    (ros::Time::now() - last_msg).toSec(), n_pubs);
 }
 /*//}*/
 

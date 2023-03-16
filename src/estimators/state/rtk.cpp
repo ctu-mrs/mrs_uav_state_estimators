@@ -48,7 +48,7 @@ void Rtk::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = ros::Duration(0.5);
+  shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
   shopts.queue_size         = 10;

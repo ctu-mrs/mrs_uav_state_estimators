@@ -110,15 +110,15 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = ros::Duration(0.5);
+  shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in", &LatGeneric::timeoutCallback, this);
-  sh_hdg_state_     = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(shopts, hdg_source_topic_, &LatGeneric::timeoutCallback,
-                                                                       this);  // for transformation of desired accelerations from body to global frame
+  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in");
+  sh_hdg_state_ =
+      mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
   ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
@@ -353,13 +353,6 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getPrintName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
     is_hdg_state_ready_ = false;
   }
-}
-/*//}*/
-
-/*//{ timeoutCallback() */
-void LatGeneric::timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs) {
-  ROS_WARN_THROTTLE(5.0, "[%s]: Did not receive message from topic '%s' for %.2f seconds (%d publishers on topic)", getPrintName().c_str(), topic.c_str(),
-                    (ros::Time::now() - last_msg).toSec(), n_pubs);
 }
 /*//}*/
 

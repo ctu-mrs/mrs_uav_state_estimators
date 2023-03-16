@@ -223,7 +223,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
   shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = ros::Duration(time_since_last_msg_limit_);
+  shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
   shopts.queue_size         = 10;
@@ -231,7 +231,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   switch (msg_type_) {
     case MessageType_t::ODOMETRY: {
-      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::POSE: {
@@ -245,7 +245,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RANGE: {
-      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_);
       const std::size_t found     = ros::this_node::getName().find_last_of("/");
       std::string       node_name = ros::this_node::getName().substr(found + 1);
       /* ser_toggle_range_ = nh.advertiseService("/" + ch_->uav_name + "/" + node_name + "/" + getNamespacedName() + "/toggle_range_in",
@@ -255,19 +255,19 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RTK_GPS: {
-      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::POINT: {
-      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::VECTOR: {
-      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::QUAT: {
-      sh_quat_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, msg_topic_, &Correction::timeoutCallback, this);
+      sh_quat_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::UNKNOWN: {
