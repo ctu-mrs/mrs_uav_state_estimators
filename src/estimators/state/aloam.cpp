@@ -41,12 +41,9 @@ void Aloam::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                      // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Aloam::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                        // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Aloam::timerCheckHealth, this);
-  _pub_attitude_timer_rate_ = 100;  // TODO(petrlmat): parametrize
-  timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &Aloam::timerPubAttitude, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Aloam::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Aloam::timerCheckHealth, this);
+  timer_pub_attitude_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Aloam::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;

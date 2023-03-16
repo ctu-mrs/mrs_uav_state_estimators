@@ -37,12 +37,9 @@ void GpsGarmin::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   }
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                          // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                            // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GpsGarmin::timerCheckHealth, this);
-  _pub_attitude_timer_rate_ = 100;  // TODO(petrlmat): parametrize
-  timer_pub_attitude_       = nh.createTimer(ros::Rate(_pub_attitude_timer_rate_), &GpsGarmin::timerPubAttitude, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GpsGarmin::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GpsGarmin::timerCheckHealth, this);
+  timer_pub_attitude_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GpsGarmin::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;

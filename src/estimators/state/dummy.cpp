@@ -18,10 +18,8 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                      // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &Dummy::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                        // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &Dummy::timerCheckHealth, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerCheckHealth, this);
 
   // | ---------------- publishers initialization --------------- |
   ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);

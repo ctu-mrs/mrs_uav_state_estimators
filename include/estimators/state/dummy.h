@@ -46,12 +46,10 @@ private:
   const std::string est_hdg_name_ = "hdg_dummy";
 
   ros::Timer timer_update_;
-  int        _update_timer_rate_;
   void       timerUpdate(const ros::TimerEvent &event);
   bool       first_iter_ = true;
 
   ros::Timer timer_check_health_;
-  int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   bool isConverged();

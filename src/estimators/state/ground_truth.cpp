@@ -29,10 +29,8 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                            // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GroundTruth::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                              // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GroundTruth::timerCheckHealth, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;

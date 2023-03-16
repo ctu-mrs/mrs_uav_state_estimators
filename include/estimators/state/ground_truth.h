@@ -50,13 +50,11 @@ private:
   std::string                                   msg_topic_;
 
   ros::Timer                 timer_update_;
-  int                        _update_timer_rate_;
   void                       timerUpdate(const ros::TimerEvent &event);
   nav_msgs::OdometryConstPtr prev_msg_;
   bool                       first_iter_ = true;
 
   ros::Timer timer_check_health_;
-  int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   bool isConverged();
