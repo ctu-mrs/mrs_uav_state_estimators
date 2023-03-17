@@ -63,9 +63,11 @@ include_directories(
   )
 
 set(src_files_common 
+  src/estimators/state/state_generic.cpp 
   src/estimators/altitude/alt_generic.cpp 
   src/estimators/lateral/lat_generic.cpp 
   src/estimators/heading/hdg_generic.cpp 
+  src/estimators/heading/hdg_passthrough.cpp 
   )
 
 set(ROSLINT_CPP_OPTS "--filter=-whitespace/comments,-whitespace/braces,-legal/copyright,-readability/multiline_comment,-whitespace/blank_line,-whitespace/line_length,-readability/todo,-build/include_what_you_use,-runtime/references,-build/include")
@@ -74,7 +76,6 @@ roslint_cpp()
 add_library(GpsGarmin 
   ${src_files_common}
   src/estimators/state/gps_garmin.cpp 
-  src/estimators/heading/hdg_passthrough.cpp 
   )
 
 ## Specify libraries to link a library or executable target against
@@ -89,7 +90,6 @@ add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
 add_library(GpsBaro 
   ${src_files_common}
   src/estimators/state/gps_baro.cpp 
-  src/estimators/heading/hdg_passthrough.cpp 
   )
 
 ## Specify libraries to link a library or executable target against
@@ -117,7 +117,6 @@ add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
 add_library(Rtk 
   ${src_files_common}
   src/estimators/state/rtk.cpp 
-  src/estimators/heading/hdg_passthrough.cpp 
   )
 
 target_link_libraries(Rtk

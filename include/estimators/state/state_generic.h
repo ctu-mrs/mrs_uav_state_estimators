@@ -1,5 +1,5 @@
-#ifndef ESTIMATORS_STATE_ALOAM_H
-#define ESTIMATORS_STATE_ALOAM_H
+#ifndef ESTIMATORS_STATE_STATE_GENERIC_H
+#define ESTIMATORS_STATE_STATE_GENERIC_H
 
 /* includes //{ */
 
@@ -21,36 +21,46 @@
 
 #include "estimators/lateral/lat_generic.h"
 #include "estimators/altitude/alt_generic.h"
+#include "estimators/heading/heading_estimator.h"
 #include "estimators/heading/hdg_generic.h"
+#include "estimators/heading/hdg_passthrough.h"
 
 //}
 
 namespace mrs_uav_state_estimators
 {
 
-namespace aloam
+namespace hdg_estimator
 {
-const char name[]         = "aloam";
-const char frame_id[]     = "aloam_origin";
-const char package_name[] = "mrs_uav_state_estimators";
+const int n_states = 2;
+}  // namespace hdg_estimator
 
-class Aloam : public mrs_uav_managers::StateEstimator {
+namespace state_generic
+{
+const char package_name[] = "mrs_uav_state_estimators";
+}
+
+class StateGeneric : public mrs_uav_managers::StateEstimator {
 
 private:
-  std::unique_ptr<LatGeneric> est_lat_aloam_;
-  const std::string           est_lat_name_ = "lat_aloam";
+  std::unique_ptr<LatGeneric> est_lat_;
+  std::string                 est_lat_name_;
 
-  std::unique_ptr<AltGeneric> est_alt_aloam_;
-  const std::string           est_alt_name_ = "alt_aloam";
+  std::unique_ptr<AltGeneric> est_alt_;
+  std::string                 est_alt_name_;
 
-  std::unique_ptr<HdgGeneric> est_hdg_aloam_;
-  const std::string           est_hdg_name_ = "hdg_aloam";
+  bool                                                       is_hdg_passthrough_;
+  std::unique_ptr<HeadingEstimator<hdg_estimator::n_states>> est_hdg_;
+  /* std::unique_ptr<HdgPassthrough> est_hdg_passthrough_; */
+  std::string est_hdg_name_;
 
-  std::string topic_orientation_;
+  bool is_override_frame_id_;
+
+  std::string                                                 topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
 
-  std::string topic_angular_velocity_;
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>    sh_hw_api_ang_vel_;
+  std::string                                              topic_angular_velocity_;
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_hw_api_ang_vel_;
 
   ros::Timer timer_update_;
   void       timerUpdate(const ros::TimerEvent &event);
@@ -66,10 +76,10 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  Aloam() : StateEstimator(aloam::name, aloam::frame_id, aloam::package_name) {
+  StateGeneric(const std::string &name) : StateEstimator(name, name + "_origin", state_generic::package_name) {
   }
 
-  ~Aloam(void) {
+  ~StateGeneric(void) {
   }
 
   void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
@@ -85,8 +95,6 @@ public:
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };
 
-}  // namespace aloam
-
 }  // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_STATE_ALOAM_H
+#endif  // ESTIMATORS_STATE_STATE_GENERIC_H

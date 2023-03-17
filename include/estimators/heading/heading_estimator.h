@@ -22,8 +22,8 @@ protected:
   HeadingEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(heading::type, name, frame_id) {
   }
 
-  virtual ~HeadingEstimator(void) {
-  }
+  /* virtual ~HeadingEstimator(void) { */
+  /* } */
 
 
 private:

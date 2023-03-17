@@ -10,9 +10,23 @@ rtk: # namespace of the state estimator
     velocity: true
     angular_velocity: false
 
+  estimators: # the names of the partial estimators
+    lateral:
+      name: "lat_rtk"
+    altitude:
+      name: "alt_rtk"
+    heading:
+      name: "hdg_hw_api"
+      passthrough: true # if true, then heading is not estimated but passed through from the orientation topic
+
   topics:
     orientation: "hw_api/orientation" # orientation passthrough
     angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
+
+  override_frame_id:
+    enabled: false # if true, custom frame_id can be provided instead of the default "[estimator_name]_origin"
+    frame_id: ""
+
 
 
 
