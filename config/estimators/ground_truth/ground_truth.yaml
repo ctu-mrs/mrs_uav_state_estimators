@@ -2,7 +2,7 @@ ground_truth:
   max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
 
   message:
-    topic: "ground_truth"
+    topic: "hw_api/ground_truth"
 
   requires: # data required from the hw api
     gnss: false
