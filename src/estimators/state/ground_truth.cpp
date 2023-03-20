@@ -29,8 +29,8 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerCheckHealth, this);
+  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &GroundTruth::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
@@ -205,9 +205,9 @@ void GroundTruth::timerCheckHealth(const ros::TimerEvent &event) {
 
     if (sh_gt_odom_.hasMsg()) {
       changeState(READY_STATE);
-      ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
-      ROS_INFO("[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_gt_odom_.topicName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_gt_odom_.topicName().c_str());
       return;
     }
   }
