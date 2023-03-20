@@ -153,6 +153,7 @@ add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
 
 add_library(GarminAgl 
   src/estimators/agl/garmin_agl.cpp 
+  ${src_files_common}
   )
 
 target_link_libraries(GarminAgl
