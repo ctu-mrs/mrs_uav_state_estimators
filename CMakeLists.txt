@@ -43,7 +43,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy GarminAgl
+  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy GarminAgl
   CATKIN_DEPENDS roscpp nodelet sensor_msgs std_msgs nav_msgs tf2_geometry_msgs geometry_msgs dynamic_reconfigure mrs_lib mrs_msgs mrs_uav_managers
   DEPENDS Eigen
   )
@@ -62,7 +62,10 @@ include_directories(
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   )
 
-set(src_files_common 
+set(ROSLINT_CPP_OPTS "--filter=-whitespace/comments,-whitespace/braces,-legal/copyright,-readability/multiline_comment,-whitespace/blank_line,-whitespace/line_length,-readability/todo,-build/include_what_you_use,-runtime/references,-build/include")
+roslint_cpp()
+
+add_library(Common 
   src/estimators/state/state_generic.cpp 
   src/estimators/altitude/alt_generic.cpp 
   src/estimators/lateral/lat_generic.cpp 
@@ -70,16 +73,19 @@ set(src_files_common
   src/estimators/heading/hdg_passthrough.cpp 
   )
 
-set(ROSLINT_CPP_OPTS "--filter=-whitespace/comments,-whitespace/braces,-legal/copyright,-readability/multiline_comment,-whitespace/blank_line,-whitespace/line_length,-readability/todo,-build/include_what_you_use,-runtime/references,-build/include")
-roslint_cpp()
+## Specify libraries to link a library or executable target against
+target_link_libraries(Common
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
 
 add_library(GpsGarmin 
-  ${src_files_common}
   src/estimators/state/gps_garmin.cpp 
   )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(GpsGarmin
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -88,12 +94,12 @@ target_link_libraries(GpsGarmin
 add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
 
 add_library(GpsBaro 
-  ${src_files_common}
   src/estimators/state/gps_baro.cpp 
   )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(GpsBaro
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -102,11 +108,11 @@ target_link_libraries(GpsBaro
 add_dependencies(GpsBaro ${PROJECT_NAME}_gencfg)
 
 add_library(Aloam 
-  ${src_files_common}
   src/estimators/state/aloam.cpp 
   )
 
 target_link_libraries(Aloam
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -115,11 +121,11 @@ target_link_libraries(Aloam
 add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
 
 add_library(Rtk 
-  ${src_files_common}
   src/estimators/state/rtk.cpp 
   )
 
 target_link_libraries(Rtk
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -153,10 +159,10 @@ add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
 
 add_library(GarminAgl 
   src/estimators/agl/garmin_agl.cpp 
-  ${src_files_common}
   )
 
 target_link_libraries(GarminAgl
+  Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
