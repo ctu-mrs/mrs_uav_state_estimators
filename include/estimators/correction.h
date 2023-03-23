@@ -630,6 +630,19 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
       switch (state_id_) {
 
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          try {
+            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
+            return measurement;
+          }
+          catch (...) {
+            ROS_ERROR_THROTTLE(1.0, "[%s]: failed to obtain heading", getPrintName().c_str());
+            return {};
+          }
+          break;
+        }
+
           /* case StateId_t::VELOCITY: { */
           /*   try { */
           /*     measurement_t measurement; */

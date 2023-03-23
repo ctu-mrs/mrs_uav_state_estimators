@@ -227,7 +227,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
+      lkf_rep_->addInputChangeWithNoise(u, getQ(), input_stamp, lkf_);
       /* sc_ = lkf_rep_->predictTo(ros::Time::now()); */
     } else {
       sc_ = lkf_->predict(sc_, u, getQ(), dt_);

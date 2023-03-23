@@ -6,6 +6,7 @@ ground_truth:
 
   requires: # data required from the hw api
     gnss: false
+    rtk: false
     imu: false
     distance_sensor: false
     altitude: false
@@ -14,3 +15,4 @@ ground_truth:
     orientation: false
     velocity: false
     angular_velocity: false
+    ground_truth: true

@@ -6,13 +6,13 @@ aloam: # namespace of the state estimator
     max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
 
     repredictor: # repredictor for correct fusion of delayed measurements
-      enabled: true
+      enabled: false
       buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
 
     process_noise: # process noise covariance (Q)
-      pos: 1.0 # position state
-      vel: 1.0 # velocity state
-      acc: 1.0 # acceleration state
+      pos: 0.1 # position state
+      vel: 0.1 # velocity state
+      acc: 0.001 # acceleration state
 
     corrections: [
       "pos_aloam"
@@ -20,7 +20,7 @@ aloam: # namespace of the state estimator
 
     pos_aloam:
       state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
-      noise: 1.0 # measurement noise covariance (R)
+      noise: 0.1 # measurement noise covariance (R)
       message:
         type: "nav_msgs/Odometry"
         topic: "slam/odom" # without uav namespace
