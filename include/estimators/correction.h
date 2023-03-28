@@ -125,6 +125,7 @@ private:
 
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_raw_;
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
+  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>      ph_delay_;
 
   const std::string                 est_name_;
   const std::string                 name_;
@@ -155,6 +156,7 @@ private:
 
   void   checkMsgDelay(const ros::Time& msg_time);
   double msg_delay_limit_;
+  double msg_delay_warn_limit_;
 
   double time_since_last_msg_limit_;
 
@@ -167,6 +169,7 @@ private:
   std::function<double(int, int)> fun_get_state_;
 
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
+  void publishDelay(const double delay);
 };
 
 /*//{ constructor */
@@ -191,6 +194,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   param_loader.loadParam("message/topic", msg_topic_);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
   param_loader.loadParam("message/limit/delay", msg_delay_limit_);
+  msg_delay_warn_limit_ = msg_delay_limit_ / 2;  // maybe specify this as a param?
   param_loader.loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
 
   int state_id_tmp;
@@ -282,6 +286,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   // | --------------- initialize publish handlers -------------- |
   ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
   ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_proc", 1);
+  ph_delay_           = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/" + "delay", 1);
 }
 /*//}*/
 
@@ -1137,12 +1142,18 @@ template <int n_measurements>
 void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
   const double delay = (ros::Time::now() - msg_time).toSec();
-  if (delay > msg_delay_limit_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getPrintName().c_str(), delay);
-    is_delay_ok_ = false;
+  if (delay > msg_delay_warn_limit_) {
+    if (delay > msg_delay_limit_) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getPrintName().c_str(), delay);
+      is_delay_ok_ = false;
+    } else {
+      ROS_WARN_THROTTLE(5.0, "[%s]: message delayed (%.4f s)", getPrintName().c_str(), delay);
+      is_delay_ok_ = true;
+    }
   } else {
     is_delay_ok_ = true;
   }
+  publishDelay(delay);
 }
 /*//}*/
 
@@ -1195,6 +1206,18 @@ void Correction<n_measurements>::publishCorrection(const MeasurementStamped&    
   }
 
   ph_corr.publish(msg);
+}
+/*//}*/
+
+/*//{ publishDelay() */
+template <int n_measurements>
+void Correction<n_measurements>::publishDelay(const double delay) {
+  mrs_msgs::Float64Stamped msg;
+  msg.header.stamp    = ros::Time::now();
+  msg.header.frame_id = ns_frame_id_;
+  msg.value           = delay;
+
+  ph_delay_.publish(msg);
 }
 /*//}*/
 

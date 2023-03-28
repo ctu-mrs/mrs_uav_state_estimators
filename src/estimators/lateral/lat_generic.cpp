@@ -206,6 +206,8 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  setDt((event.current_real - event.last_real).toSec());
+
   // prediction step
   u_t       u;
   ros::Time input_stamp;
@@ -221,23 +223,6 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     u = u_t::Zero();
   }
 
-  setDt((event.current_real - event.last_real).toSec());
-
-  try {
-    // Apply the prediction step
-    std::scoped_lock lock(mutex_lkf_);
-    if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, getQ(), input_stamp, lkf_);
-      /* sc_ = lkf_rep_->predictTo(ros::Time::now()); */
-    } else {
-      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
-    }
-  }
-  catch (const std::exception &e) {
-    ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
-    changeState(ERROR_STATE);
-  }
-
   // go through available corrections and apply them
   for (auto correction : corrections_) {
     auto res = correction->getProcessedCorrection();
@@ -245,6 +230,21 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       auto measurement_stamped = res.value();
       doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
     }
+  }
+
+  try {
+    // Apply the prediction step
+    std::scoped_lock lock(mutex_lkf_);
+    if (is_repredictor_enabled_) {
+      lkf_rep_->addInputChangeWithNoise(u, getQ(), input_stamp, lkf_);
+      sc_ = lkf_rep_->predictTo(ros::Time::now());
+    } else {
+      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
+    }
+  }
+  catch (const std::exception &e) {
+    ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
+    changeState(ERROR_STATE);
   }
 
   // publishing
@@ -387,7 +387,6 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
     if (is_repredictor_enabled_) {
 
       lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[state_id]);
-      sc_ = lkf_rep_->predictTo(ros::Time::now());
     } else {
       sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
     }
