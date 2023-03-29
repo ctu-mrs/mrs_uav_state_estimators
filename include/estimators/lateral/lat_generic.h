@@ -79,8 +79,8 @@ private:
   std::vector<std::shared_ptr<Correction<lat_generic::n_measurements>>> corrections_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput> sh_control_input_;
-  void                                                  timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
-  std::atomic<bool>                                     is_input_ready_ = false;
+  void                                                timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
+  std::atomic<bool>                                   is_input_ready_ = false;
 
   std::string                                          hdg_source_topic_;
   mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput> sh_hdg_state_;

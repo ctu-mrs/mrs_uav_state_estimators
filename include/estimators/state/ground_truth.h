@@ -7,8 +7,6 @@
 
 #include <nav_msgs/Odometry.h>
 
-/* #include <mrs_msgs/AttitudeCommand.h> */
-
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>

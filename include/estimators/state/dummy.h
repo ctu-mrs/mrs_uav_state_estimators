@@ -7,8 +7,6 @@
 
 #include <nav_msgs/Odometry.h>
 
-/* #include <mrs_msgs/AttitudeCommand.h> */
-
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
@@ -33,6 +31,8 @@ namespace dummy
 const char name[]         = "dummy";
 const char frame_id[]     = "dummy_origin";
 const char package_name[] = "mrs_uav_state_estimators";
+
+using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 class Dummy : public mrs_uav_managers::StateEstimator {
 

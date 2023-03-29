@@ -235,7 +235,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   {
     std::scoped_lock lock(mtx_uav_state_, mtx_odom_);
-    odom_ = Support::uavStateToOdom(uav_state_, ch_->transformer);
+    odom_ = Support::uavStateToOdom(uav_state_);
   }
 
   {

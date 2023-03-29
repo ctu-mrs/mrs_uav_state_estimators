@@ -19,8 +19,6 @@
 namespace mrs_uav_state_estimators
 {
 
-using namespace mrs_uav_managers::estimation_manager;
-
 template <int n_states, int n_axes>
 class PartialEstimator : public mrs_uav_managers::Estimator {
 

@@ -7,8 +7,6 @@
 
 #include <nav_msgs/Odometry.h>
 
-/* #include <mrs_msgs/AttitudeCommand.h> */
-
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
@@ -51,8 +49,7 @@ private:
 
   bool                                                       is_hdg_passthrough_;
   std::unique_ptr<HeadingEstimator<hdg_estimator::n_states>> est_hdg_;
-  /* std::unique_ptr<HdgPassthrough> est_hdg_passthrough_; */
-  std::string est_hdg_name_;
+  std::string                                                est_hdg_name_;
 
   bool is_override_frame_id_;
 

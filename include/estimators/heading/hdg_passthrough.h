@@ -25,6 +25,8 @@ namespace hdg_passthrough
 const int n_states = 2;
 }  // namespace hdg_passthrough
 
+using namespace mrs_uav_managers::estimation_manager;
+
 class HdgPassthrough : public HeadingEstimator<hdg_passthrough::n_states> {
 
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;

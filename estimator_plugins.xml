@@ -22,6 +22,12 @@
   </class>
 </library>
 
+<library path="lib/libPassthrough">
+  <class name="mrs_uav_state_estimators/Passthrough" type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
+    <description>Passthrough state estimator</description>
+  </class>
+</library>
+
 <library path="lib/libGroundTruth">
   <class name="mrs_uav_state_estimators/GroundTruth" type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GroundTruth state estimator</description>

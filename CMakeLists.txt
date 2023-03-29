@@ -43,7 +43,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk GroundTruth Dummy GarminAgl
+  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk Passthrough GroundTruth Dummy GarminAgl
   CATKIN_DEPENDS roscpp nodelet sensor_msgs std_msgs nav_msgs tf2_geometry_msgs geometry_msgs dynamic_reconfigure mrs_lib mrs_msgs mrs_uav_managers
   DEPENDS Eigen
   )
@@ -132,6 +132,18 @@ target_link_libraries(Rtk
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(Rtk ${PROJECT_NAME}_gencfg)
+
+add_library(Passthrough 
+  src/estimators/state/passthrough.cpp 
+  )
+
+target_link_libraries(Passthrough
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(Passthrough ${PROJECT_NAME}_gencfg)
 
 add_library(GroundTruth 
   src/estimators/state/ground_truth.cpp 
