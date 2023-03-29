@@ -163,6 +163,10 @@ private:
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
   bool                                       process(measurement_t& measurement);
 
+  bool             isTimestampOk(const ros::Time& msg_time);
+  std::atomic_bool first_timestamp_ = true;
+  ros::Time        prev_msg_time_;
+
   std::vector<std::string>                                                    processor_names_;
   std::unordered_map<std::string, std::shared_ptr<Processor<n_measurements>>> processors_;
 
@@ -222,6 +226,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   // | ------------- initialize dynamic reconfigure ------------- |
   drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
   drmgr_->config.noise = R_;
+  drmgr_->update_config(drmgr_->config);
 
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
@@ -284,9 +289,9 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | --------------- initialize publish handlers -------------- |
-  ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_raw", 1);
-  ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/" + getName() + "_proc", 1);
-  ph_delay_           = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/" + "delay", 1);
+  ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/raw", 1);
+  ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/proc", 1);
+  ph_delay_           = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 1);
 }
 /*//}*/
 
@@ -355,13 +360,20 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::ODOMETRY: {
 
-      if (!sh_odom_.newMsg()) {
+      /* if (!sh_odom_.newMsg()) { */
+      /*   return {}; */
+      /* } */
+
+      if (!sh_odom_.hasMsg()) {
         return {};
       }
 
       auto msg                  = sh_odom_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
       checkMsgDelay(measurement_stamped.stamp);
+      if (!isTimestampOk(measurement_stamped.stamp)) {
+        return {};
+      }
 
       if (!is_delay_ok_) {
         return {};
@@ -1155,6 +1167,50 @@ void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
   }
   publishDelay(delay);
 }
+/*//}*/
+
+/*//{ isTimestampOk() */
+template <int n_measurements>
+bool Correction<n_measurements>::isTimestampOk(const ros::Time& msg_time) {
+
+  const double delta_tol = 100;
+
+  if (first_timestamp_) {
+    if (msg_time.toSec() > 0.0) {
+      prev_msg_time_   = msg_time;
+      first_timestamp_ = false;
+      return true;
+    } else {
+      ROS_WARN_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+      return false;
+    }
+  }
+
+  const double delta = msg_time.toSec() - prev_msg_time_.toSec();
+  prev_msg_time_     = msg_time;
+
+  if (msg_time.toSec() < 0.0) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+    return false;
+  }
+
+  if (delta < 0.0) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: time delta negative: %f", getPrintName().c_str(), delta);
+    return false;
+  }
+
+  if (fabs(delta) < 0.001) {
+    ROS_DEBUG_THROTTLE(1.0, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
+    return false;
+  }
+
+  if (delta > delta_tol) {
+    ROS_DEBUG_THROTTLE(1.0, "[%s]: time delta %f > %f", getPrintName().c_str(), delta, delta_tol);
+    return false;
+  }
+
+  return true;
+}  // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ createProcessorFromName() */

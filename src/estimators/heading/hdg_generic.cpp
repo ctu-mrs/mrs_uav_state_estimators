@@ -20,8 +20,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format off
   dt_ = 0.01;
-  input_coeff_ = 0.1;
-  default_input_coeff_ = 0.1;
+  input_coeff_ = 0.2;
+  default_input_coeff_ = 0.2;
 
   generateA();
   generateB();
@@ -70,6 +70,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
   drmgr_->config.pos = Q_(POSITION, POSITION);
   drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
+  drmgr_->update_config(drmgr_->config);
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
@@ -196,6 +197,17 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  /* setDt((event.current_real - event.last_real).toSec()); */
+
+  // go through available corrections and apply them
+  for (auto correction : corrections_) {
+    auto res = correction->getProcessedCorrection();
+    if (res) {
+      auto measurement_stamped = res.value();
+      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
+    }
+  }
+
   // prediction step
   u_t       u;
   ros::Time input_stamp;
@@ -208,8 +220,6 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     setInputCoeff(0);
     u = u_t::Zero();
   }
-
-  setDt((event.current_real - event.last_real).toSec());
 
   try {
     // Apply the prediction step
@@ -224,15 +234,6 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
   catch (const std::exception &e) {
     // In case of error, alert the user
     ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
-  }
-
-  // go through available corrections and apply them
-  for (auto correction : corrections_) {
-    auto res = correction->getProcessedCorrection();
-    if (res) {
-      auto measurement_stamped = res.value();
-      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
-    }
   }
 
   // publishing
@@ -356,7 +357,6 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       if (is_repredictor_enabled_) {
 
         lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[H_idx]);
-        sc_ = lkf_rep_->predictTo(ros::Time::now());
       } else {
         sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
       }

@@ -206,7 +206,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  setDt((event.current_real - event.last_real).toSec());
+  /* setDt((event.current_real - event.last_real).toSec()); */
 
   // prediction step
   u_t       u;
