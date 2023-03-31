@@ -86,7 +86,8 @@ public:
 
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
-             const std::shared_ptr<CommonHandlers_t>& ch, std::function<double(int, int)> fun_get_state);
+             const std::shared_ptr<CommonHandlers_t>& ch, std::function<double(int, int)> fun_get_state,
+             std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
 
   std::string getName() const;
   std::string getNamespacedName() const;
@@ -109,11 +110,13 @@ public:
 
 private:
   mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
+  void                                                                callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
   mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
   mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
   mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>              sh_point_;
+  void                                                                callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>            sh_vector_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>         sh_quat_;
 
@@ -144,6 +147,7 @@ private:
   std::unique_ptr<drmgr_t> drmgr_;
 
   std::optional<measurement_t> getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
+  std::optional<measurement_t> getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
   std::optional<measurement_t> getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
   std::optional<measurement_t> getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
   std::optional<measurement_t> getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
@@ -170,7 +174,8 @@ private:
   std::vector<std::string>                                                    processor_names_;
   std::unordered_map<std::string, std::shared_ptr<Processor<n_measurements>>> processors_;
 
-  std::function<double(int, int)> fun_get_state_;
+  std::function<double(int, int)>                            fun_get_state_;
+  std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction_;
 
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
@@ -180,8 +185,14 @@ private:
 template <int n_measurements>
 Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
                                        const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
-                                       std::function<double(int, int)> fun_get_state)
-    : est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch), fun_get_state_(fun_get_state) {
+                                       std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
+    : est_name_(est_name),
+      name_(name),
+      ns_frame_id_(ns_frame_id),
+      est_type_(est_type),
+      ch_(ch),
+      fun_get_state_(fun_get_state),
+      fun_apply_correction_(fun_apply_correction) {
 
   // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
@@ -240,12 +251,11 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   switch (msg_type_) {
     case MessageType_t::ODOMETRY: {
-      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_);
+      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Correction::callbackOdometry, this);
       break;
     }
     case MessageType_t::POSE: {
-      // TODO implement
-      /* sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_); */
+      sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::POSECOV: {
@@ -268,7 +278,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::POINT: {
-      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_);
+      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
       break;
     }
     case MessageType_t::VECTOR: {
@@ -370,10 +380,10 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_odom_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
       if (!isTimestampOk(measurement_stamped.stamp)) {
         return {};
       }
+      checkMsgDelay(measurement_stamped.stamp);
 
       if (!is_delay_ok_) {
         return {};
@@ -388,10 +398,31 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     }
 
     case MessageType_t::POSE: {
-      // TODO implement
-      /* return getCorrectionFromPoseS(msg); */
-      is_healthy_ = false;
-      return {};
+
+      /* if (!sh_pose_s_.newMsg()) { */
+      /*   return {}; */
+      /* } */
+
+      if (!sh_pose_s_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_pose_s_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      if (!isTimestampOk(measurement_stamped.stamp)) {
+        return {};
+      }
+      checkMsgDelay(measurement_stamped.stamp);
+
+      if (!is_delay_ok_) {
+        return {};
+      }
+      auto res = getCorrectionFromPoseStamped(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
       break;
     }
 
@@ -458,7 +489,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::POINT: {
 
-      if (!sh_point_.newMsg()) {
+      /* if (!sh_point_.newMsg()) { */
+      /*   return {}; */
+      /* } */
+
+      if (!sh_point_.hasMsg()) {
         return {};
       }
 
@@ -565,6 +600,22 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     return {};  // invalid correction
   }
 }  // namespace mrs_uav_state_estimation
+/*//}*/
+
+/*//{ callbackOdometry() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+  auto res = getCorrectionFromOdometry(wrp.getMsg());
+  if (res) {
+    MeasurementStamped measurement_stamped;
+    measurement_stamped.value = res.value();
+    measurement_stamped.stamp = wrp.getMsg()->header.stamp;
+    if (process(measurement_stamped.value)) {
+      publishCorrection(measurement_stamped, ph_correction_proc_);
+      fun_apply_correction_(measurement_stamped, getR(), getStateId());
+    }
+  }
+}
 /*//}*/
 
 /*//{ getCorrectionFromOdometry() */
@@ -675,6 +726,86 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         default: {
           ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
+/*//{ getCorrectionFromPoseStamped() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoseStamped(
+    const geometry_msgs::PoseStampedConstPtr msg) {
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          measurement(0) = msg->pose.position.x;
+          measurement(1) = msg->pose.position.y;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          measurement(0) = msg->pose.position.z;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle heading estimators
+    case EstimatorType_t::HEADING: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          try {
+            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
+            return measurement;
+          }
+          catch (...) {
+            ROS_ERROR_THROTTLE(1.0, "[%s]: failed to obtain heading", getPrintName().c_str());
+            return {};
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -811,6 +942,22 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
+}
+/*//}*/
+
+/*//{ callbackPoint() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp) {
+  auto res = getCorrectionFromPoint(wrp.getMsg());
+  if (res) {
+    MeasurementStamped measurement_stamped;
+    measurement_stamped.value = res.value();
+    measurement_stamped.stamp = wrp.getMsg()->header.stamp;
+    if (process(measurement_stamped.value)) {
+      publishCorrection(measurement_stamped, ph_correction_proc_);
+      fun_apply_correction_(measurement_stamped, getR(), getStateId());
+    }
+  }
 }
 /*//}*/
 

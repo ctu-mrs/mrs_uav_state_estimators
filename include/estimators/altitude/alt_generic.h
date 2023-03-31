@@ -95,6 +95,7 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
+  void doCorrection(const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id);
   void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp);
 
   bool isConverged();

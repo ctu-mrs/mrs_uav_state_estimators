@@ -126,11 +126,17 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  auto   msg = sh_orientation_.getMsg();
-  double hdg = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
+  double hdg, hdg_rate;
+  try {
+    auto msg = sh_orientation_.getMsg();
+    hdg      = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
 
-  auto   msg_ang_vel = sh_ang_vel_.getMsg();
-  double hdg_rate    = mrs_lib::AttitudeConverter(msg->quaternion).getHeadingRate(msg_ang_vel->vector);
+    auto msg_ang_vel = sh_ang_vel_.getMsg();
+    hdg_rate         = mrs_lib::AttitudeConverter(msg->quaternion).getHeadingRate(msg_ang_vel->vector);
+  }
+  catch (...) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
+  }
   {
     std::scoped_lock lock(mtx_innovation_);
 

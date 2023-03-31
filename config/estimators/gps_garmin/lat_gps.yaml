@@ -9,8 +9,11 @@ gps_garmin: # namespace of the state estimator
       enabled: false
 
     process_noise: # process noise covariance (Q)
-      pos: 1 # position state
-      vel: 10 # velocity state
+      # pos: 1 # position state
+      # vel: 10 # velocity state
+      # acc: 0.01 # acceleration state
+      pos: 0.001 # position state
+      vel: 0.01 # velocity state
       acc: 0.01 # acceleration state
 
     corrections: [

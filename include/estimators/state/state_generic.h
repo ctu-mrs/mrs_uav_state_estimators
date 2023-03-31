@@ -90,6 +90,8 @@ public:
   std::vector<double> getTwistCovariance() const override;
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
+
+  std::optional<double> getHeading() const;
 };
 
 }  // namespace mrs_uav_state_estimators

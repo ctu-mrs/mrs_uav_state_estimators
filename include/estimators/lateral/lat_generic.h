@@ -82,6 +82,8 @@ private:
   void                                                timeoutCallback(const std::string &topic, const ros::Time &last_msg, const int n_pubs);
   std::atomic<bool>                                   is_input_ready_ = false;
 
+
+  std::function<std::optional<double>()>               fun_get_hdg_;
   std::string                                          hdg_source_topic_;
   mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput> sh_hdg_state_;
   std::atomic<bool>                                    is_hdg_state_ready_ = false;
@@ -94,6 +96,8 @@ private:
   int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
+
+  void doCorrection(const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id);
   void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp);
 
   bool isConverged();
@@ -102,8 +106,9 @@ private:
   mutable std::mutex mtx_Q_;
 
 public:
-  LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
-      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name) {
+  LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name,
+             std::function<std::optional<double>()> fun_get_hdg)
+      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), fun_get_hdg_(fun_get_hdg) {
   }
 
   ~LatGeneric(void) {

@@ -48,7 +48,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
-        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); }));
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<alt_generic::n_measurements>::MeasurementStamped& meas, const double R, const StateId_t state) {return this->doCorrection(meas, R, state);} ));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -200,7 +200,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  /* setDt((event.current_real - event.last_real).toSec()); */
+  setDt((event.current_real - event.last_real).toSec());
 
   // prediction step
   u_t       u;
@@ -337,6 +337,12 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
+}
+/*//}*/
+
+/*//{ doCorrection() */
+void AltGeneric::doCorrection(const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id) {
+  doCorrection(meas.value, R, state_id, meas.stamp);
 }
 /*//}*/
 

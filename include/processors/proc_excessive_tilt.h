@@ -65,7 +65,7 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(ros::NodeHandle& nh, const 
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch->uav_name + "/" +orientation_topic_);
+  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch->uav_name + "/" + orientation_topic_);
 }
 /*//}*/
 
@@ -78,20 +78,25 @@ bool ProcExcessiveTilt<n_measurements>::process(measurement_t& measurement) {
   }
 
   if (!sh_orientation_.hasMsg()) {
-    return false; 
+    return false;
   }
 
-  Eigen::Matrix3d orientation_R     = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion);
+  try {
+    Eigen::Matrix3d orientation_R = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion);
 
-  const double tilt = mrs_lib::geometry::angleBetween(Eigen::Vector3d(0, 0, 1), orientation_R.col(2));
+    const double tilt = mrs_lib::geometry::angleBetween(Eigen::Vector3d(0, 0, 1), orientation_R.col(2));
 
-  const bool is_excessive_tilt = std::pow(tilt, 2) > max_tilt_sq_;
+    const bool is_excessive_tilt = std::pow(tilt, 2) > max_tilt_sq_;
 
-  if (is_excessive_tilt) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: excessive tilt of %.2f deg. Not fusing correction.", Processor<n_measurements>::getPrintName().c_str(), tilt/M_PI*180);
+    if (is_excessive_tilt) {
+      ROS_WARN_THROTTLE(1.0, "[%s]: excessive tilt of %.2f deg. Not fusing correction.", Processor<n_measurements>::getPrintName().c_str(), tilt / M_PI * 180);
+    }
+    return !is_excessive_tilt;
   }
-
-  return !is_excessive_tilt;
+  catch (...) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: failed obtaining tilt value", Processor<n_measurements>::getPrintName().c_str());
+    return false;
+  }
 }
 /*//}*/
 

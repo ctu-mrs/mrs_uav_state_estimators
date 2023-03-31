@@ -49,7 +49,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL,
-                                                                                     ch_, [this](int a, int b) { return this->getState(a, b); }));
+                                                                                     ch_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<lat_generic::n_measurements>::MeasurementStamped& meas, const double R, const StateId_t state) {return this->doCorrection(meas, R, state);} ));
   }
 
   // | ------- check if all parameters loaded successfully ------ |
@@ -206,13 +206,18 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  /* setDt((event.current_real - event.last_real).toSec()); */
+  setDt((event.current_real - event.last_real).toSec());
 
   // prediction step
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_ && is_hdg_state_ready_) {
-    const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input_.getMsg(), sh_hdg_state_.getMsg()->state[0]);
+    auto res = fun_get_hdg_();
+    if (!res) {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: could not obtain heading", getPrintName().c_str());
+      return;
+    }
+    const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input_.getMsg(), res.value());
     input_stamp                       = sh_control_input_.getMsg()->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
@@ -224,13 +229,13 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   // go through available corrections and apply them
-  for (auto correction : corrections_) {
-    auto res = correction->getProcessedCorrection();
-    if (res) {
-      auto measurement_stamped = res.value();
-      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
-    }
-  }
+  /* for (auto correction : corrections_) { */
+  /*   auto res = correction->getProcessedCorrection(); */
+  /*   if (res) { */
+  /*     auto measurement_stamped = res.value(); */
+  /*     doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp); */
+  /*   } */
+  /* } */
 
   try {
     // Apply the prediction step
@@ -343,16 +348,16 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     is_input_ready_ = false;
   }
 
-  if (sh_hdg_state_.newMsg()) {
+  if (fun_get_hdg_()) {
     is_hdg_state_ready_ = true;
   }
 
+}
+/*//}*/
 
-  // check age of heading
-  if (is_hdg_state_ready_ && (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: hdg state too old (%.4f s), using zero input", getPrintName().c_str(), (ros::Time::now() - sh_hdg_state_.lastMsgTime()).toSec());
-    is_hdg_state_ready_ = false;
-  }
+/*//{ doCorrection() */
+void LatGeneric::doCorrection(const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id) {
+  doCorrection(meas.value, R, state_id, meas.stamp);
 }
 /*//}*/
 

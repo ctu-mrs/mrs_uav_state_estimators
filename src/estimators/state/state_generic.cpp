@@ -72,14 +72,6 @@ void StateGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonH
   // | ---------------- estimators initialization --------------- |
   std::vector<double> max_altitudes;
 
-  est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName());
-  est_lat_->initialize(nh, ch_);
-  max_altitudes.push_back(est_lat_->getMaxFlightAltitudeAgl());
-
-  est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
-  est_alt_->initialize(nh, ch_);
-  max_altitudes.push_back(est_alt_->getMaxFlightAltitudeAgl());
-
   if (is_hdg_passthrough_) {
     est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
   } else {
@@ -87,6 +79,14 @@ void StateGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonH
   }
   est_hdg_->initialize(nh, ch_);
   max_altitudes.push_back(est_hdg_->getMaxFlightAltitudeAgl());
+
+  est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), [this](void) { return this->getHeading(); });
+  est_lat_->initialize(nh, ch_);
+  max_altitudes.push_back(est_lat_->getMaxFlightAltitudeAgl());
+
+  est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
+  est_alt_->initialize(nh, ch_);
+  max_altitudes.push_back(est_alt_->getMaxFlightAltitudeAgl());
 
   max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
@@ -216,7 +216,13 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
 
     uav_state_.header.stamp = time_now;
 
-    uav_state_.pose.orientation = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+    if (res) {
+      uav_state_.pose.orientation = res.value();
+    } else {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: could not rotate orientation by heading", getPrintName().c_str());
+      return;
+    }
 
     uav_state_.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
 
@@ -351,13 +357,28 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
     return;
   }
 
+  if (!est_hdg_->isRunning()) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: heading estimator not ready yet", getPrintName().c_str());
+    return;
+  }
+
   const ros::Time time_now = ros::Time::now();
 
   geometry_msgs::QuaternionStamped att;
   att.header.stamp    = time_now;
   att.header.frame_id = ns_frame_id_ + "_att_only";
 
-  att.quaternion = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+  auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+  if (res) {
+    att.quaternion = res.value();
+  } else {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: could not rotate orientation by heading", getPrintName().c_str());
+    return;
+  }
+
+  if (!Support::noNans(att.quaternion)) {
+    return;
+  }
 
   ph_attitude_.publish(att);
 }
@@ -398,6 +419,15 @@ std::vector<double> StateGeneric::getPoseCovariance() const {
 std::vector<double> StateGeneric::getTwistCovariance() const {
   std::scoped_lock lock(mtx_covariance_);
   return twist_covariance_.values;
+}
+/*//}*/
+
+/*//{ getHeading() */
+std::optional<double> StateGeneric::getHeading() const {
+  if (!est_hdg_->isRunning()) {
+    return {};
+  }
+  return est_hdg_->getState(POSITION);
 }
 /*//}*/
 

@@ -147,14 +147,7 @@ void GroundTruth::timerUpdate(const ros::TimerEvent &event) {
     uav_state_.pose.position    = msg->pose.pose.position;
     uav_state_.pose.orientation = msg->pose.pose.orientation;
 
-    // | -------------------- body vel to world ------------------- |
-    Eigen::Matrix3d R = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
-    Eigen::Vector3d lin_vel_body(msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z);
-    Eigen::Vector3d lin_vel_world = R * lin_vel_body;
-
-    uav_state_.velocity.linear.x = lin_vel_world[0];
-    uav_state_.velocity.linear.y = lin_vel_world[1];
-    uav_state_.velocity.linear.z = lin_vel_world[2];
+    uav_state_.velocity.linear = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
 
     uav_state_.velocity.angular = msg->twist.twist.angular;
   }

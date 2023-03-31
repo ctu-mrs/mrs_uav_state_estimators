@@ -43,7 +43,7 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk Passthrough GroundTruth Dummy GarminAgl
+  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk HectorGarmin Passthrough GroundTruth Dummy GarminAgl
   CATKIN_DEPENDS roscpp nodelet sensor_msgs std_msgs nav_msgs tf2_geometry_msgs geometry_msgs dynamic_reconfigure mrs_lib mrs_msgs mrs_uav_managers
   DEPENDS Eigen
   )
@@ -119,6 +119,19 @@ target_link_libraries(Aloam
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
+
+add_library(HectorGarmin 
+  src/estimators/state/hector_garmin.cpp 
+  )
+
+target_link_libraries(HectorGarmin
+  Common
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(HectorGarmin ${PROJECT_NAME}_gencfg)
 
 add_library(Rtk 
   src/estimators/state/rtk.cpp 

@@ -22,6 +22,12 @@
   </class>
 </library>
 
+<library path="lib/libHectorGarmin">
+  <class name="mrs_uav_state_estimators/HectorGarmin" type="mrs_uav_state_estimators::hector_garmin::HectorGarmin" base_class_type="mrs_uav_managers::StateEstimator">
+    <description>HectorGarmin state estimator</description>
+  </class>
+</library>
+
 <library path="lib/libPassthrough">
   <class name="mrs_uav_state_estimators/Passthrough" type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Passthrough state estimator</description>
