@@ -8,10 +8,11 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void StateGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
-  nh_ = nh;
+  /* nh_ = nh; */
+  ros::NodeHandle nh(parent_nh);
 
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
 
@@ -61,13 +62,22 @@ void StateGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonH
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
-  ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
-  ph_odom_             = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 1);
-  ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
-  ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
-  ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
-  ph_attitude_         = mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>(nh, Support::toSnakeCase(getName()) + "/attitude", 1);
+  ph_odom_     = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10);
+  ph_attitude_ = mrs_lib::PublisherHandler<geometry_msgs::QuaternionStamped>(nh, Support::toSnakeCase(getName()) + "/attitude", 10);
+
+  if (ch_->debug_topics.state) {
+    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 10);
+  }
+  if (ch_->debug_topics.covariance) {
+    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 10);
+    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 10);
+  }
+  if (ch_->debug_topics.innovation) {
+    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 10);
+  }
 
   // | ---------------- estimators initialization --------------- |
   std::vector<double> max_altitudes;
@@ -91,16 +101,16 @@ void StateGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonH
   max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
   // | ------------------ initialize published messages ------------------ |
-  uav_state_.header.frame_id = ns_frame_id_;
-  uav_state_.child_frame_id  = ch_->frames.ns_fcu;
+  uav_state_init_.header.frame_id = ns_frame_id_;
+  uav_state_init_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal = est_lat_name_;
-  uav_state_.estimator_vertical   = est_alt_name_;
-  uav_state_.estimator_heading    = est_hdg_name_;
+  uav_state_init_.estimator_horizontal = est_lat_name_;
+  uav_state_init_.estimator_vertical   = est_alt_name_;
+  uav_state_init_.estimator_heading    = est_hdg_name_;
 
-  innovation_.header.frame_id         = ns_frame_id_;
-  innovation_.child_frame_id          = ch_->frames.ns_fcu;
-  innovation_.pose.pose.orientation.w = 1.0;
+  innovation_init_.header.frame_id         = ns_frame_id_;
+  innovation_init_.child_frame_id          = ch_->frames.ns_fcu;
+  innovation_init_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
 
@@ -199,78 +209,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  if (!sh_hw_api_orient_.hasMsg()) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
-    return;
-  }
-
-  if (!sh_hw_api_ang_vel_.hasMsg()) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
-    return;
-  }
-
-  const ros::Time time_now = ros::Time::now();
-
-  {
-    std::scoped_lock lock(mtx_uav_state_);
-
-    uav_state_.header.stamp = time_now;
-
-    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
-    if (res) {
-      uav_state_.pose.orientation = res.value();
-    } else {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: could not rotate orientation by heading", getPrintName().c_str());
-      return;
-    }
-
-    uav_state_.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
-
-    uav_state_.pose.position.x = est_lat_->getState(POSITION, AXIS_X);
-    uav_state_.pose.position.y = est_lat_->getState(POSITION, AXIS_Y);
-    uav_state_.pose.position.z = est_alt_->getState(POSITION);
-
-    uav_state_.velocity.linear.x = est_lat_->getState(VELOCITY, AXIS_X);  // in global frame
-    uav_state_.velocity.linear.y = est_lat_->getState(VELOCITY, AXIS_Y);  // in global frame
-    uav_state_.velocity.linear.z = est_alt_->getState(VELOCITY);          // in global frame
-
-    uav_state_.acceleration.linear.x = est_lat_->getState(ACCELERATION, AXIS_X);  // in global frame
-    uav_state_.acceleration.linear.y = est_lat_->getState(ACCELERATION, AXIS_Y);  // in global frame
-    uav_state_.acceleration.linear.z = est_alt_->getState(ACCELERATION);          // in global frame
-  }
-
-  {
-    std::scoped_lock lock(mtx_uav_state_, mtx_odom_);
-    odom_ = Support::uavStateToOdom(uav_state_);
-  }
-
-  {
-    std::scoped_lock lock(mtx_innovation_);
-
-    innovation_.header.stamp = time_now;
-
-    innovation_.pose.pose.position.x = est_lat_->getInnovation(POSITION, AXIS_X);
-    innovation_.pose.pose.position.y = est_lat_->getInnovation(POSITION, AXIS_Y);
-    innovation_.pose.pose.position.z = est_alt_->getInnovation(POSITION);
-  }
-
-  {
-    std::scoped_lock lock(mtx_covariance_);
-
-    pose_covariance_.header.stamp  = time_now;
-    twist_covariance_.header.stamp = time_now;
-
-    const int n_states = 6;  // TODO this should be defined somewhere else
-    pose_covariance_.values.resize(n_states * n_states);
-    pose_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_->getCovariance(POSITION, AXIS_X);
-    pose_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_->getCovariance(POSITION, AXIS_Y);
-    pose_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_->getCovariance(POSITION);
-
-    twist_covariance_.values.resize(n_states * n_states);
-    twist_covariance_.values.at(n_states * AXIS_X + AXIS_X) = est_lat_->getCovariance(VELOCITY, AXIS_X);
-    twist_covariance_.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_->getCovariance(VELOCITY, AXIS_Y);
-    twist_covariance_.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_->getCovariance(VELOCITY);
-  }
+  updateUavState();
 
   publishUavState();
   publishOdom();
@@ -286,6 +225,8 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
+
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::timerCheckHealth", ch_->scope_timer.logger, ch_->scope_timer.enabled);
 
   switch (getCurrentSmState()) {
 
@@ -352,6 +293,8 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
     return;
   }
 
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::timerPubAttitude", ch_->scope_timer.logger, ch_->scope_timer.enabled);
+
   if (!sh_hw_api_orient_.hasMsg()) {
     ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
     return;
@@ -361,6 +304,8 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
     ROS_WARN_THROTTLE(1.0, "[%s]: heading estimator not ready yet", getPrintName().c_str());
     return;
   }
+
+  scope_timer.checkpoint("checks");
 
   const ros::Time time_now = ros::Time::now();
 
@@ -376,11 +321,16 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
     return;
   }
 
+  scope_timer.checkpoint("rotate");
+
   if (!Support::noNans(att.quaternion)) {
     return;
   }
 
+  scope_timer.checkpoint("nan check");
+
   ph_attitude_.publish(att);
+  scope_timer.checkpoint("publish");
 }
 /*//}*/
 
@@ -394,31 +344,90 @@ bool StateGeneric::isConverged() {
 }
 /*//}*/
 
-/*//{ getUavState() */
-mrs_msgs::UavState StateGeneric::getUavState() const {
-  std::scoped_lock lock(mtx_uav_state_);
-  return uav_state_;
-}
-/*//}*/
+/*//{ updateUavState() */
+void StateGeneric::updateUavState() {
 
-/*//{ getInnovation() */
-nav_msgs::Odometry StateGeneric::getInnovation() const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_;
-}
-/*//}*/
+  if (!sh_hw_api_orient_.hasMsg()) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+    return;
+  }
 
-/*//{ getPoseCovariance() */
-std::vector<double> StateGeneric::getPoseCovariance() const {
-  std::scoped_lock lock(mtx_covariance_);
-  return pose_covariance_.values;
-}
-/*//}*/
+  if (!sh_hw_api_ang_vel_.hasMsg()) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity on topic %s yet", getPrintName().c_str(), sh_hw_api_ang_vel_.topicName().c_str());
+    return;
+  }
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::updateUavState", ch_->scope_timer.logger, ch_->scope_timer.enabled);
 
-/*//{ getTwistCovariance() */
-std::vector<double> StateGeneric::getTwistCovariance() const {
-  std::scoped_lock lock(mtx_covariance_);
-  return twist_covariance_.values;
+  const ros::Time time_now = ros::Time::now();
+
+  mrs_msgs::UavState uav_state = uav_state_init_;
+  uav_state.header.stamp       = time_now;
+
+  // do not do if passthrough hdg
+  if (est_hdg_name_ == "hdg_passthrough") {
+    uav_state.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
+  } else {
+    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+    if (res) {
+      uav_state.pose.orientation = res.value();
+    } else {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: could not rotate orientation by heading", getPrintName().c_str());
+      return;
+    }
+  }
+
+  scope_timer.checkpoint("rotate orientation");
+
+  uav_state.velocity.angular = sh_hw_api_ang_vel_.getMsg()->vector;
+
+  uav_state.pose.position.x = est_lat_->getState(POSITION, AXIS_X);
+  uav_state.pose.position.y = est_lat_->getState(POSITION, AXIS_Y);
+  uav_state.pose.position.z = est_alt_->getState(POSITION);
+
+  uav_state.velocity.linear.x = est_lat_->getState(VELOCITY, AXIS_X);  // in global frame
+  uav_state.velocity.linear.y = est_lat_->getState(VELOCITY, AXIS_Y);  // in global frame
+  uav_state.velocity.linear.z = est_alt_->getState(VELOCITY);          // in global frame
+
+  uav_state.acceleration.linear.x = est_lat_->getState(ACCELERATION, AXIS_X);  // in global frame
+  uav_state.acceleration.linear.y = est_lat_->getState(ACCELERATION, AXIS_Y);  // in global frame
+  uav_state.acceleration.linear.z = est_alt_->getState(ACCELERATION);          // in global frame
+
+  scope_timer.checkpoint("fill uav state");
+
+  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
+  scope_timer.checkpoint("uav state to odom");
+
+  nav_msgs::Odometry innovation = innovation_init_;
+  innovation.header.stamp       = time_now;
+
+  innovation.pose.pose.position.x = est_lat_->getInnovation(POSITION, AXIS_X);
+  innovation.pose.pose.position.y = est_lat_->getInnovation(POSITION, AXIS_Y);
+  innovation.pose.pose.position.z = est_alt_->getInnovation(POSITION);
+
+  scope_timer.checkpoint("innovation");
+
+  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  pose_covariance.header.stamp  = time_now;
+  twist_covariance.header.stamp = time_now;
+
+  const int n_states = 6;  // TODO this should be defined somewhere else
+  pose_covariance.values.resize(n_states * n_states);
+  pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = est_lat_->getCovariance(POSITION, AXIS_X);
+  pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_->getCovariance(POSITION, AXIS_Y);
+  pose_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_->getCovariance(POSITION);
+
+  twist_covariance.values.resize(n_states * n_states);
+  twist_covariance.values.at(n_states * AXIS_X + AXIS_X) = est_lat_->getCovariance(VELOCITY, AXIS_X);
+  twist_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_->getCovariance(VELOCITY, AXIS_Y);
+  twist_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = est_alt_->getCovariance(VELOCITY);
+
+  scope_timer.checkpoint("covariance");
+
+  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
+  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
+  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
+  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
+  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 }
 /*//}*/
 

@@ -46,9 +46,13 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   // | ---------------- publishers initialization --------------- |
-  ph_agl_height_     = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, Support::toSnakeCase(getName()) + "/agl_height", 1);
-  ph_agl_height_cov_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/agl_height_cov", 1);
-  ph_diagnostics_    = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_agl_height_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, Support::toSnakeCase(getName()) + "/agl_height", 10);
+  if (ch_->debug_topics.covariance) {
+    ph_agl_height_cov_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/agl_height_cov", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 10);
+  }
 
   // | ---------------- estimators initialization --------------- |
 
@@ -58,9 +62,8 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   max_flight_altitude_agl_ = est_agl_garmin_->getMaxFlightAltitudeAgl();
 
   // | ------------------ initialize published messages ------------------ |
-  agl_height_.header.frame_id = ns_frame_id_;
-
-  agl_height_cov_.header.frame_id = ns_frame_id_;
+  agl_height_init_.header.frame_id     = ns_frame_id_;
+  agl_height_cov_init_.header.frame_id = ns_frame_id_;
 
   // | ------------------ finish initialization ----------------- |
 
@@ -137,30 +140,26 @@ bool GarminAgl::reset(void) {
 /* timerUpdate() //{*/
 void GarminAgl::timerUpdate(const ros::TimerEvent &event) {
 
-
   if (!isInitialized()) {
     return;
   }
 
   const ros::Time time_now = ros::Time::now();
 
-  {
-    std::scoped_lock lock(mtx_agl_height_);
+  mrs_msgs::Float64Stamped agl_height = agl_height_init_;
+  agl_height.header.stamp             = time_now;
+  agl_height.value                    = est_agl_garmin_->getState(POSITION);
 
-    agl_height_.header.stamp = time_now;
-    agl_height_.value        = est_agl_garmin_->getState(POSITION);
-  }
+  mrs_msgs::Float64ArrayStamped agl_height_cov;
+  agl_height_cov.header.stamp = time_now;
 
-  {
-    std::scoped_lock lock(mtx_agl_height_cov_);
+  const int n_states = 2;  // TODO this should be defined somewhere else
+  agl_height_cov.values.resize(n_states * n_states);
+  agl_height_cov.values.at(n_states * POSITION + POSITION) = est_agl_garmin_->getCovariance(POSITION);
+  agl_height_cov.values.at(n_states * VELOCITY + VELOCITY) = est_agl_garmin_->getCovariance(VELOCITY);
 
-    agl_height_cov_.header.stamp = time_now;
-
-    const int n_states = 2;  // TODO this should be defined somewhere else
-    agl_height_cov_.values.resize(n_states * n_states);
-    agl_height_cov_.values.at(n_states * POSITION + POSITION) = est_agl_garmin_->getCovariance(POSITION);
-    agl_height_cov_.values.at(n_states * VELOCITY + VELOCITY) = est_agl_garmin_->getCovariance(VELOCITY);
-  }
+  mrs_lib::set_mutexed(mtx_agl_height_, agl_height, agl_height_);
+  mrs_lib::set_mutexed(mtx_agl_height_cov_, agl_height_cov, agl_height_cov_);
 
   publishAglHeight();
   publishCovariance();
@@ -212,15 +211,13 @@ bool GarminAgl::isConverged() {
 
 /*//{ getUavAglHeight() */
 mrs_msgs::Float64Stamped GarminAgl::getUavAglHeight() const {
-  std::scoped_lock lock(mtx_agl_height_);
-  return agl_height_;
+  return mrs_lib::get_mutexed(mtx_agl_height_, agl_height_);
 }
 /*//}*/
 
 /*//{ getHeightCovariance() */
 std::vector<double> GarminAgl::getHeightCovariance() const {
-  std::scoped_lock lock(mtx_agl_height_cov_);
-  return agl_height_cov_.values;
+  return mrs_lib::get_mutexed(mtx_agl_height_cov_, agl_height_cov_.values);
 }
 /*//}*/
 

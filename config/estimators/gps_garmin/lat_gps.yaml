@@ -12,9 +12,9 @@ gps_garmin: # namespace of the state estimator
       # pos: 1 # position state
       # vel: 10 # velocity state
       # acc: 0.01 # acceleration state
-      pos: 0.001 # position state
-      vel: 0.01 # velocity state
-      acc: 0.01 # acceleration state
+      pos: 0.1 # position state
+      vel: 1 # velocity state
+      acc: 1 # acceleration state
 
     corrections: [
       "pos_hw_api"

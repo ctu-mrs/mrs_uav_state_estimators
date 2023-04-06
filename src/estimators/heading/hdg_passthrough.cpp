@@ -17,11 +17,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
-  {
-    std::scoped_lock lock(mtx_hdg_state_);
-    hdg_state_      = states_t::Zero();
-    hdg_covariance_ = covariance_t::Zero();
-  }
+  hdg_state_      = states_t::Zero();
+  hdg_covariance_ = covariance_t::Zero();
 
   // | --------------- param loader initialization --------------- |
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
@@ -57,12 +54,18 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_);
-  sh_ang_vel_     = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "/" + ch_->uav_name + "/" + ang_vel_topic_);
+  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_,
+                                                                                &HdgPassthrough::callbackOrientation, this);
+  sh_ang_vel_     = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "/" + ch_->uav_name + "/" + ang_vel_topic_,
+                                                                         &HdgPassthrough::callbackAngularVelocity, this);
 
   // | ---------------- publishers initialization --------------- |
-  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  if (ch_->debug_topics.output) {
+    ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+  }
 
   // | ------------------ finish initialization ----------------- |
 
@@ -77,7 +80,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 /*//{ start() */
 bool HdgPassthrough::start(void) {
 
-  if (isInState(READY_STATE)) {
+  if (isInState(READY_STATE) && is_orient_ready_ && is_ang_vel_ready_) {
     timer_update_.start();
     changeState(STARTED_STATE);
     return true;
@@ -118,6 +121,38 @@ bool HdgPassthrough::reset(void) {
 }
 /*//}*/
 
+/*//{ callbackOrientation() */
+void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> &wrp) {
+
+  double hdg;
+  try {
+    auto msg = wrp.getMsg();
+    hdg      = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
+  }
+  catch (...) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
+  }
+
+  setState(hdg, POSITION);
+}
+/*//}*/
+
+/*//{ callbackAngularVelocity() */
+void HdgPassthrough::callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp) {
+
+  double hdg_rate;
+  try {
+    auto msg = wrp.getMsg();
+    hdg_rate = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
+  }
+  catch (...) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
+  }
+
+  setState(hdg_rate, VELOCITY);
+}
+/*//}*/
+
 /* timerUpdate() //{*/
 void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
 
@@ -125,34 +160,6 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
-
-  double hdg, hdg_rate;
-  try {
-    auto msg = sh_orientation_.getMsg();
-    hdg      = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
-
-    auto msg_ang_vel = sh_ang_vel_.getMsg();
-    hdg_rate         = mrs_lib::AttitudeConverter(msg->quaternion).getHeadingRate(msg_ang_vel->vector);
-  }
-  catch (...) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
-  }
-  {
-    std::scoped_lock lock(mtx_innovation_);
-
-    innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(hdg), mrs_lib::geometry::radians(getState(POSITION)));
-    innovation_(1) = hdg_rate - getState(VELOCITY);
-
-    if (innovation_(0) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getPrintName().c_str(), innovation_(0));
-    }
-    if (innovation_(1) > 1.0) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg_rate: %.2f", getPrintName().c_str(), innovation_(1));
-    }
-  }
-
-  setState(hdg, 0);
-  setState(hdg_rate, 1);
 
   publishOutput();
   publishDiagnostics();
@@ -190,14 +197,11 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
 
 /*//{ getState() */
 double HdgPassthrough::getState(const int &state_id_in, const int &axis_in) const {
-
   return getState(stateIdToIndex(state_id_in, 0));
 }
 
 double HdgPassthrough::getState(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mtx_hdg_state_);
-  return hdg_state_(state_idx_in);
+  return mrs_lib::get_mutexed(mtx_hdg_state_, hdg_state_(state_idx_in));
 }
 /*//}*/
 
@@ -207,55 +211,53 @@ void HdgPassthrough::setState(const double &state_in, const int &state_id_in, co
 }
 
 void HdgPassthrough::setState(const double &state_in, const int &state_idx_in) {
-  std::scoped_lock lock(mtx_hdg_state_);
-  hdg_state_(state_idx_in) = state_in;
+
+  const double prev_hdg_state   = mrs_lib::get_mutexed(mtx_hdg_state_, hdg_state_(state_idx_in));
+  prev_hdg_state_(state_idx_in) = prev_hdg_state;
+  mrs_lib::set_mutexed(mtx_hdg_state_, state_in, hdg_state_(state_idx_in));
+
+  const double innovation = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(state_in), mrs_lib::geometry::radians(prev_hdg_state));
+  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_(state_idx_in));
 }
 /*//}*/
 
 /*//{ getStates() */
 HdgPassthrough::states_t HdgPassthrough::getStates(void) const {
-  std::scoped_lock lock(mtx_hdg_state_);
-  return hdg_state_;
+  return mrs_lib::get_mutexed(mtx_hdg_state_, hdg_state_);
 }
 /*//}*/
 
 /*//{ setStates() */
 void HdgPassthrough::setStates(const states_t &states_in) {
-  std::scoped_lock lock(mtx_hdg_state_);
-  hdg_state_ = states_in;
+  mrs_lib::set_mutexed(mtx_hdg_state_, states_in, hdg_state_);
 }
 /*//}*/
 
 /*//{ getCovariance() */
 double HdgPassthrough::getCovariance(const int &state_id_in, const int &axis_in) const {
-
   return getCovariance(stateIdToIndex(state_id_in, 0));
 }
 
 double HdgPassthrough::getCovariance(const int &state_idx_in) const {
-  std::scoped_lock lock(mtx_hdg_covariance_);
-  return hdg_covariance_(state_idx_in, state_idx_in);
+  return mrs_lib::get_mutexed(mtx_hdg_covariance_, hdg_covariance_(state_idx_in, state_idx_in));
 }
 /*//}*/
 
 /*//{ getCovarianceMatrix() */
 HdgPassthrough::covariance_t HdgPassthrough::getCovarianceMatrix(void) const {
-  std::scoped_lock lock(mtx_hdg_covariance_);
-  return hdg_covariance_;
+  return mrs_lib::get_mutexed(mtx_hdg_covariance_, hdg_covariance_);
 }
 /*//}*/
 
 /*//{ setCovarianceMatrix() */
 void HdgPassthrough::setCovarianceMatrix(const covariance_t &cov_in) {
-  std::scoped_lock lock(mtx_hdg_covariance_);
-  hdg_covariance_ = cov_in;
+  mrs_lib::set_mutexed(mtx_hdg_covariance_, cov_in, hdg_covariance_);
 }
 /*//}*/
 
 /*//{ getInnovation() */
 double HdgPassthrough::getInnovation(const int &state_idx) const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_(state_idx);
+  return mrs_lib::get_mutexed(mtx_innovation_, innovation_(state_idx));
 }
 
 double HdgPassthrough::getInnovation(const int &state_id_in, const int &axis_in) const {

@@ -48,7 +48,10 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
-        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<alt_generic::n_measurements>::MeasurementStamped& meas, const double R, const StateId_t state) {return this->doCorrection(meas, R, state);} ));
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); },
+        [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
+          return this->doCorrection(meas, R, state);
+        }));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -68,7 +71,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
+  drmgr_ =
+      std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&AltGeneric::callbackReconfigure, this, _1, _2));
   drmgr_->config.pos = Q_(POSITION, POSITION);
   drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
   drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION);
@@ -114,9 +118,15 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
-  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  if (ch_->debug_topics.input) {
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 10);
+  }
+  if (ch_->debug_topics.output) {
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+  }
 
   // | ------------------ finish initialization ----------------- |
 
@@ -200,15 +210,19 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  setDt((event.current_real - event.last_real).toSec());
+  double dt = (event.current_real - event.last_real).toSec();
+  if (dt <= 0.0) {
+    return;
+  }
+  setDt(dt);
 
   // prediction step
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_) {
     mrs_msgs::EstimatorInputConstPtr msg            = sh_control_input_.getMsg();
-    const tf2::Vector3                 des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
-    input_stamp                                       = msg->header.stamp;
+    const tf2::Vector3               des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
+    input_stamp                                     = msg->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
@@ -226,14 +240,16 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
+  Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
-      sc_ = lkf_rep_->predictTo(ros::Time::now());
+      lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, lkf_);
+      sc = lkf_rep_->predictTo(ros::Time::now());
     } else {
-      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
+      sc = lkf_->predict(sc, u, Q, dt_);
     }
   }
   catch (const std::exception &e) {
@@ -241,8 +257,10 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
   }
 
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
+
   // publishing
-  publishInput(u);
+  publishInput(u, input_stamp);
   publishOutput();
   publishDiagnostics();
 }
@@ -349,6 +367,10 @@ void AltGeneric::doCorrection(const Correction<alt_generic::n_measurements>::Mea
 /*//{ doCorrection() */
 void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   // for position state check the innovation
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
@@ -360,6 +382,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     }
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   try {
     // Apply the correction step
     {
@@ -371,7 +394,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
         lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[H_idx]);
       } else {
-        sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
+        sc = lkf_->correct(sc, z, R_t::Ones() * R);
       }
     }
   }
@@ -379,6 +402,8 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     // In case of error, alert the user
     ROS_ERROR("[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
   }
+
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
 }
 /*//}*/
 
@@ -393,15 +418,11 @@ bool AltGeneric::isConverged() {
 
 /*//{ getState() */
 double AltGeneric::getState(const int &state_id_in, const int &axis_in) const {
-
   return getState(stateIdToIndex(state_id_in, 0));
 }
 
 double AltGeneric::getState(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  /* ROS_INFO("[%s]: returning state[%d]: %.2f", getPrintName().c_str(), state_idx_in, sc_.x(state_idx_in)); */
-  return sc_.x(state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x(state_idx_in);
 }
 /*//}*/
 
@@ -411,56 +432,47 @@ void AltGeneric::setState(const double &state_in, const int &state_id_in, const 
 }
 
 void AltGeneric::setState(const double &state_in, const int &state_idx_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x(state_idx_in) = state_in;
+  mrs_lib::set_mutexed(mutex_sc_, state_in, sc_.x(state_idx_in));
 }
 /*//}*/
 
 /*//{ getStates() */
 AltGeneric::states_t AltGeneric::getStates(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.x;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x;
 }
 /*//}*/
 
 /*//{ setStates() */
 void AltGeneric::setStates(const states_t &states_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x = states_in;
+  mrs_lib::set_mutexed(mutex_sc_, states_in, sc_.x);
 }
 /*//}*/
 
 /*//{ getCovariance() */
 double AltGeneric::getCovariance(const int &state_id_in, const int &axis_in) const {
-
   return getCovariance(stateIdToIndex(state_id_in, 0));
 }
 
 double AltGeneric::getCovariance(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P(state_idx_in, state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P(state_idx_in, state_idx_in);
 }
 /*//}*/
 
 /*//{ getCovarianceMatrix() */
 AltGeneric::covariance_t AltGeneric::getCovarianceMatrix(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P;
 }
 /*//}*/
 
 /*//{ setCovarianceMatrix() */
 void AltGeneric::setCovarianceMatrix(const covariance_t &cov_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.P = cov_in;
+  mrs_lib::set_mutexed(mutex_sc_, cov_in, sc_.P);
 }
 /*//}*/
 
 /*//{ getInnovation() */
 double AltGeneric::getInnovation(const int &state_idx) const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_(0);
+  return mrs_lib::get_mutexed(mtx_innovation_, innovation_)(state_idx);
 }
 
 double AltGeneric::getInnovation(const int &state_id_in, const int &axis_in) const {
@@ -512,13 +524,18 @@ void AltGeneric::generateB() {
 }
 /*//}*/
 
-/*//{ getQ() */
-AltGeneric::Q_t AltGeneric::getQ() {
-  std::scoped_lock lock(mtx_Q_);
-  Q_(POSITION, POSITION)         = drmgr_->config.pos;
-  Q_(VELOCITY, VELOCITY)         = drmgr_->config.vel;
-  Q_(ACCELERATION, ACCELERATION) = drmgr_->config.acc;
-  return Q_;
+/*//{ callbackReconfigure() */
+void AltGeneric::callbackReconfigure(AltitudeEstimatorConfig &config, [[maybe_unused]] uint32_t level) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  Q_t Q;
+  Q(POSITION, POSITION)         = config.pos;
+  Q(VELOCITY, VELOCITY)         = config.vel;
+  Q(ACCELERATION, ACCELERATION) = config.acc;
+  mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 }
 /*//}*/
 

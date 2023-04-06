@@ -185,7 +185,8 @@ private:
 template <int n_measurements>
 Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
                                        const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
-                                       std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
+                                       std::function<double(int, int)>                            fun_get_state,
+                                       std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
     : est_name_(est_name),
       name_(name),
       ns_frame_id_(ns_frame_id),
@@ -299,9 +300,13 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | --------------- initialize publish handlers -------------- |
-  ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/raw", 1);
-  ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/proc", 1);
-  ph_delay_           = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 1);
+  if (ch_->debug_topics.correction) {
+    ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/raw", 10);
+    ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/proc", 10);
+  }
+  if (ch_->debug_topics.corr_delay) {
+    ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 10);
+  }
 }
 /*//}*/
 
@@ -1396,6 +1401,11 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
 template <int n_measurements>
 void Correction<n_measurements>::publishCorrection(const MeasurementStamped&                                 measurement_stamped,
                                                    mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr) {
+
+  if (!ch_->debug_topics.correction) {
+    return;
+  }
+
   mrs_msgs::EstimatorCorrection msg;
   msg.header.stamp    = measurement_stamped.stamp;
   msg.header.frame_id = ns_frame_id_;
@@ -1415,6 +1425,11 @@ void Correction<n_measurements>::publishCorrection(const MeasurementStamped&    
 /*//{ publishDelay() */
 template <int n_measurements>
 void Correction<n_measurements>::publishDelay(const double delay) {
+
+  if (!ch_->debug_topics.corr_delay) {
+    return;
+  }
+
   mrs_msgs::Float64Stamped msg;
   msg.header.stamp    = ros::Time::now();
   msg.header.frame_id = ns_frame_id_;

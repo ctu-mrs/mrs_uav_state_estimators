@@ -10,7 +10,6 @@ namespace mrs_uav_state_estimators
 
 {
 
-
 /* initialize() //{*/
 void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
@@ -48,8 +47,11 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING,
-                                                                                     ch_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<hdg_generic::n_measurements>::MeasurementStamped& meas, const double R, const StateId_t state) {return this->doCorrection(meas, R, state);} ));
+    corrections_.push_back(std::make_shared<Correction<hdg_generic::n_measurements>>(
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_, [this](int a, int b) { return this->getState(a, b); },
+        [this](const Correction<hdg_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
+          return this->doCorrection(meas, R, state);
+        }));
   }
 
   // | ----------- initialize process noise covariance ---------- |
@@ -67,7 +69,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
+  drmgr_ =
+      std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&HdgGeneric::callbackReconfigure, this, _1, _2));
   drmgr_->config.pos = Q_(POSITION, POSITION);
   drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
   drmgr_->update_config(drmgr_->config);
@@ -112,9 +115,15 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in");
 
   // | ---------------- publishers initialization --------------- |
-  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
-  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  if (ch_->debug_topics.input) {
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 10);
+  }
+  if (ch_->debug_topics.output) {
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+  }
 
   // | ------------------ finish initialization ----------------- |
 
@@ -197,7 +206,11 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  setDt((event.current_real - event.last_real).toSec());
+  double dt = (event.current_real - event.last_real).toSec();
+  if (dt <= 0.0) {
+    return;
+  }
+  setDt(dt);
 
   // go through available corrections and apply them
   for (auto correction : corrections_) {
@@ -221,14 +234,16 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     u = u_t::Zero();
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
+  Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, Q_, input_stamp, lkf_);
-      sc_ = lkf_rep_->predictTo(ros::Time::now());
+      lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, lkf_);
+      sc = lkf_rep_->predictTo(ros::Time::now());
     } else {
-      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
+      sc = lkf_->predict(sc, u, Q, dt_);
     }
   }
   catch (const std::exception &e) {
@@ -236,8 +251,10 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
   }
 
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
+
   // publishing
-  publishInput(u);
+  publishInput(u, input_stamp);
   publishOutput();
   publishDiagnostics();
 }
@@ -342,6 +359,10 @@ void HdgGeneric::doCorrection(const Correction<hdg_generic::n_measurements>::Mea
 /*//{ doCorrection() */
 void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   // for position state check the innovation
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
@@ -353,6 +374,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     }
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   try {
     // Apply the correction step
     {
@@ -364,7 +386,7 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
         lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[H_idx]);
       } else {
-        sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
+        sc = lkf_->correct(sc, z, R_t::Ones() * R);
       }
     }
   }
@@ -372,6 +394,8 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     // In case of error, alert the user
     ROS_ERROR("[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
   }
+
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
 }
 /*//}*/
 
@@ -386,14 +410,11 @@ bool HdgGeneric::isConverged() {
 
 /*//{ getState() */
 double HdgGeneric::getState(const int &state_id_in, const int &axis_in) const {
-
   return getState(stateIdToIndex(state_id_in, 0));
 }
 
 double HdgGeneric::getState(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.x(state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x(state_idx_in);
 }
 /*//}*/
 
@@ -403,56 +424,47 @@ void HdgGeneric::setState(const double &state_in, const int &state_id_in, const 
 }
 
 void HdgGeneric::setState(const double &state_in, const int &state_idx_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x(state_idx_in) = state_in;
+  mrs_lib::set_mutexed(mutex_sc_, state_in, sc_.x(state_idx_in));
 }
 /*//}*/
 
 /*//{ getStates() */
 HdgGeneric::states_t HdgGeneric::getStates(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.x;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x;
 }
 /*//}*/
 
 /*//{ setStates() */
 void HdgGeneric::setStates(const states_t &states_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x = states_in;
+  mrs_lib::set_mutexed(mutex_sc_, states_in, sc_.x);
 }
 /*//}*/
 
 /*//{ getCovariance() */
 double HdgGeneric::getCovariance(const int &state_id_in, const int &axis_in) const {
-
   return getCovariance(stateIdToIndex(state_id_in, 0));
 }
 
 double HdgGeneric::getCovariance(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P(state_idx_in, state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P(state_idx_in, state_idx_in);
 }
 /*//}*/
 
 /*//{ getCovarianceMatrix() */
 HdgGeneric::covariance_t HdgGeneric::getCovarianceMatrix(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P;
 }
 /*//}*/
 
 /*//{ setCovarianceMatrix() */
 void HdgGeneric::setCovarianceMatrix(const covariance_t &cov_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.P = cov_in;
+  mrs_lib::set_mutexed(mutex_sc_, cov_in, sc_.P);
 }
 /*//}*/
 
 /*//{ getInnovation() */
 double HdgGeneric::getInnovation(const int &state_idx) const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_(0);
+  return mrs_lib::get_mutexed(mtx_innovation_, innovation_)(state_idx);
 }
 
 double HdgGeneric::getInnovation(const int &state_id_in, const int &axis_in) const {
@@ -502,12 +514,17 @@ void HdgGeneric::generateB() {
 }
 /*//}*/
 
-/*//{ getQ() */
-HdgGeneric::Q_t HdgGeneric::getQ() {
-  std::scoped_lock lock(mtx_Q_);
-  Q_(POSITION, POSITION) = drmgr_->config.pos;
-  Q_(VELOCITY, VELOCITY) = drmgr_->config.vel;
-  return Q_;
+/*//{ callbackReconfigure() */
+void HdgGeneric::callbackReconfigure(HeadingEstimatorConfig &config, [[maybe_unused]] uint32_t level) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  Q_t Q;
+  Q(POSITION, POSITION) = config.pos;
+  Q(VELOCITY, VELOCITY) = config.vel;
+  mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 }
 /*//}*/
 

@@ -32,13 +32,14 @@ class HdgPassthrough : public HeadingEstimator<hdg_passthrough::n_states> {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
-
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   std::string parent_state_est_name_;
 
   states_t           hdg_state_;
   mutable std::mutex mtx_hdg_state_;
+  states_t           prev_hdg_state_;
+  mutable std::mutex mtx_prev_hdg_state_;
 
   covariance_t       hdg_covariance_;
   mutable std::mutex mtx_hdg_covariance_;
@@ -46,13 +47,15 @@ private:
   states_t           innovation_;
   mutable std::mutex mtx_innovation_;
 
-  std::string                                   orient_topic_;
+  std::string                                                 orient_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
-  std::atomic<bool>                             is_orient_ready_ = false;
+  void                                                        callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> &wrp);
+  std::atomic<bool>                                           is_orient_ready_ = false;
 
-  std::string                                   ang_vel_topic_;
+  std::string                                              ang_vel_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_ang_vel_;
-  std::atomic<bool>                             is_ang_vel_ready_ = false;
+  void                                                     callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp);
+  std::atomic<bool>                                        is_ang_vel_ready_ = false;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;

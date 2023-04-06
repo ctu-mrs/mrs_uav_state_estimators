@@ -48,8 +48,11 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL,
-                                                                                     ch_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<lat_generic::n_measurements>::MeasurementStamped& meas, const double R, const StateId_t state) {return this->doCorrection(meas, R, state);} ));
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_, [this](int a, int b) { return this->getState(a, b); },
+        [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
+          return this->doCorrection(meas, R, state);
+        }));
   }
 
   // | ------- check if all parameters loaded successfully ------ |
@@ -72,7 +75,8 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = tmp_noise;
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_             = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
+  drmgr_ =
+      std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&LatGeneric::callbackReconfigure, this, _1, _2));
   drmgr_->config.pos = Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X));
   drmgr_->config.vel = Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X));
   drmgr_->config.acc = Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X));
@@ -121,9 +125,15 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
       mrs_lib::SubscribeHandler<mrs_msgs::EstimatorOutput>(shopts, hdg_source_topic_);  // for transformation of desired accelerations from body to global frame
 
   // | ---------------- publishers initialization --------------- |
-  ph_input_       = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 1);
-  ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 1);
-  ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 1);
+  if (ch_->debug_topics.input) {
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 10);
+  }
+  if (ch_->debug_topics.output) {
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+  }
 
   // | ------------------ finish initialization ----------------- |
 
@@ -206,7 +216,11 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  setDt((event.current_real - event.last_real).toSec());
+  double dt = (event.current_real - event.last_real).toSec();
+  if (dt <= 0.0) {
+    return;
+  }
+  setDt(dt);
 
   // prediction step
   u_t       u;
@@ -217,11 +231,14 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       ROS_ERROR_THROTTLE(1.0, "[%s]: could not obtain heading", getPrintName().c_str());
       return;
     }
+    /* const double body_acc_x = sh_control_input_.getMsg()->control_acceleration.x; */
+    /* const double body_acc_y = sh_control_input_.getMsg()->control_acceleration.y; */
     const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input_.getMsg(), res.value());
     input_stamp                       = sh_control_input_.getMsg()->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
+    /* ROS_INFO_THROTTLE(1.0, "[%s]: body: [%.2f, %.2f], global: [%.2f, %.2f]", ros::this_node::getName().c_str(), body_acc_x, body_acc_y, u(0), u(1)); */
   } else {
     input_stamp = ros::Time::now();
     setInputCoeff(0);
@@ -237,14 +254,18 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   /*   } */
   /* } */
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
+  Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, getQ(), input_stamp, lkf_);
-      sc_ = lkf_rep_->predictTo(ros::Time::now());
+      lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, lkf_);
+      sc = lkf_rep_->predictTo(ros::Time::now());
     } else {
-      sc_ = lkf_->predict(sc_, u, getQ(), dt_);
+      /* const ros::Time t_start = ros::Time::now(); */
+      sc = lkf_->predict(sc, u, Q, dt_);
+      /* ROS_INFO("[%s]: prediction took: %.4f s", getPrintName().c_str(), (ros::Time::now()-t_start).toSec()); */
     }
   }
   catch (const std::exception &e) {
@@ -252,8 +273,10 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     changeState(ERROR_STATE);
   }
 
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
+
   // publishing
-  publishInput(u);
+  publishInput(u, input_stamp);
   publishOutput();
   publishDiagnostics();
 }
@@ -351,7 +374,6 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   if (fun_get_hdg_()) {
     is_hdg_state_ready_ = true;
   }
-
 }
 /*//}*/
 
@@ -363,6 +385,10 @@ void LatGeneric::doCorrection(const Correction<lat_generic::n_measurements>::Mea
 
 /*//{ doCorrection() */
 void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &state_id, const ros::Time &meas_stamp) {
+
+  if (!isInitialized()) {
+    return;
+  }
 
   // for position state check the innovation
   if (state_id == POSITION) {
@@ -381,6 +407,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
     }
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   try {
     // Apply the correction step
     std::scoped_lock lock(mutex_lkf_);
@@ -393,13 +420,15 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
 
       lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[state_id]);
     } else {
-      sc_ = lkf_->correct(sc_, z, R_t::Ones() * R);
+      sc = lkf_->correct(sc, z, R_t::Ones() * R);
     }
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
     ROS_ERROR("[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
   }
+
+  mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
 }
 /*//}*/
 
@@ -414,14 +443,11 @@ bool LatGeneric::isConverged() {
 
 /*//{ getState() */
 double LatGeneric::getState(const int &state_id_in, const int &axis_in) const {
-
   return getState(stateIdToIndex(state_id_in, axis_in));
 }
 
 double LatGeneric::getState(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.x(state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x(state_idx_in);
 }
 /*//}*/
 
@@ -431,56 +457,47 @@ void LatGeneric::setState(const double &state_in, const int &state_id_in, const 
 }
 
 void LatGeneric::setState(const double &state_in, const int &state_idx_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x(state_idx_in) = state_in;
+  mrs_lib::set_mutexed(mutex_sc_, state_in, sc_.x(state_idx_in));
 }
 /*//}*/
 
 /*//{ getStates() */
 LatGeneric::states_t LatGeneric::getStates(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.x;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).x;
 }
 /*//}*/
 
 /*//{ setStates() */
 void LatGeneric::setStates(const states_t &states_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.x = states_in;
+  mrs_lib::set_mutexed(mutex_sc_, states_in, sc_.x);
 }
 /*//}*/
 
 /*//{ getCovariance() */
 double LatGeneric::getCovariance(const int &state_id_in, const int &axis_in) const {
-
   return getCovariance(stateIdToIndex(state_id_in, axis_in));
 }
 
 double LatGeneric::getCovariance(const int &state_idx_in) const {
-
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P(state_idx_in, state_idx_in);
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P(state_idx_in, state_idx_in);
 }
 /*//}*/
 
 /*//{ getCovarianceMatrix() */
 LatGeneric::covariance_t LatGeneric::getCovarianceMatrix(void) const {
-  std::scoped_lock lock(mutex_lkf_);
-  return sc_.P;
+  return mrs_lib::get_mutexed(mutex_sc_, sc_).P;
 }
 /*//}*/
 
 /*//{ setCovarianceMatrix() */
 void LatGeneric::setCovarianceMatrix(const covariance_t &cov_in) {
-  std::scoped_lock lock(mutex_lkf_);
-  sc_.P = cov_in;
+  mrs_lib::set_mutexed(mutex_sc_, cov_in, sc_.P);
 }
 /*//}*/
 
 /*//{ getInnovation() */
 double LatGeneric::getInnovation(const int &state_idx) const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_(state_idx);
+  return mrs_lib::get_mutexed(mtx_innovation_, innovation_)(state_idx);
 }
 
 double LatGeneric::getInnovation(const int &state_id_in, const int &axis_in) const {
@@ -513,8 +530,8 @@ void LatGeneric::generateA() {
 
   // clang-format off
     A_ <<
-      1, 0, dt_, 0, std::pow(dt_, 2)/2, 0,
-      0, 1, 0, dt_, 0, std::pow(dt_, 2)/2,
+      1, 0, dt_, 0, 0.5 * dt_ * dt_, 0,
+      0, 1, 0, dt_, 0, 0.5 * dt_ * dt_,
       0, 0, 1, 0, dt_, 0,
       0, 0, 0, 1, 0, dt_,
       0, 0, 0, 0, 1-input_coeff_, 0,
@@ -538,16 +555,21 @@ void LatGeneric::generateB() {
 }
 /*//}*/
 
-/*//{ getQ() */
-LatGeneric::Q_t LatGeneric::getQ() {
-  std::scoped_lock lock(mtx_Q_);
-  Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X))         = drmgr_->config.pos;
-  Q_(stateIdToIndex(POSITION, AXIS_Y), stateIdToIndex(POSITION, AXIS_Y))         = drmgr_->config.pos;
-  Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X))         = drmgr_->config.vel;
-  Q_(stateIdToIndex(VELOCITY, AXIS_Y), stateIdToIndex(VELOCITY, AXIS_Y))         = drmgr_->config.vel;
-  Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = drmgr_->config.acc;
-  Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = drmgr_->config.acc;
-  return Q_;
+/*//{ callbackReconfigure() */
+void LatGeneric::callbackReconfigure(LateralEstimatorConfig &config, [[maybe_unused]] uint32_t level) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  Q_t Q;
+  Q(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X))         = config.pos;
+  Q(stateIdToIndex(POSITION, AXIS_Y), stateIdToIndex(POSITION, AXIS_Y))         = config.pos;
+  Q(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X))         = config.vel;
+  Q(stateIdToIndex(VELOCITY, AXIS_Y), stateIdToIndex(VELOCITY, AXIS_Y))         = config.vel;
+  Q(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = config.acc;
+  Q(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = config.acc;
+  mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 }
 /*//}*/
 

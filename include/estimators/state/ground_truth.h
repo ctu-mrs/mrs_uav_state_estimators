@@ -71,10 +71,10 @@ public:
   bool pause(void) override;
   bool reset(void) override;
 
-  mrs_msgs::UavState  getUavState() const override;
-  nav_msgs::Odometry  getInnovation() const override;
-  std::vector<double> getPoseCovariance() const override;
-  std::vector<double> getTwistCovariance() const override;
+  /* mrs_msgs::UavState  getUavState() override; */
+  /* nav_msgs::Odometry  getInnovation() const override; */
+  /* std::vector<double> getPoseCovariance() const override; */
+  /* std::vector<double> getTwistCovariance() const override; */
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
 };

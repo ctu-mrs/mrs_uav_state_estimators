@@ -18,45 +18,54 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerCheckHealth, this);
+  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerCheckHealth, this);
 
   // | ---------------- publishers initialization --------------- |
-  ph_uav_state_        = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 1);
-  ph_odom_             = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 1);
-  ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 1);
-  ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 1);
-  ph_innovation_       = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 1);
-  ph_diagnostics_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 1);
+  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10);
+
+  if (ch_->debug_topics.state) {
+    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 10);
+  }
+  if (ch_->debug_topics.covariance) {
+    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 10);
+    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 10);
+  }
+  if (ch_->debug_topics.innovation) {
+    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 10);
+  }
+  if (ch_->debug_topics.diag) {
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 10);
+  }
 
   // | ------------------ initialize published messages ------------------ |
-  uav_state_.header.frame_id = ns_frame_id_;
-  uav_state_.child_frame_id  = ch_->frames.ns_fcu;
+  uav_state_init_.header.frame_id = ns_frame_id_;
+  uav_state_init_.child_frame_id  = ch_->frames.ns_fcu;
 
-  uav_state_.estimator_horizontal = est_lat_name_;
-  uav_state_.estimator_vertical   = est_alt_name_;
-  uav_state_.estimator_heading    = est_hdg_name_;
+  uav_state_init_.estimator_horizontal = est_lat_name_;
+  uav_state_init_.estimator_vertical   = est_alt_name_;
+  uav_state_init_.estimator_heading    = est_hdg_name_;
 
-  uav_state_.pose.position.x = 0.0;
-  uav_state_.pose.position.y = 0.0;
-  uav_state_.pose.position.z = 0.0;
+  uav_state_init_.pose.position.x = 0.0;
+  uav_state_init_.pose.position.y = 0.0;
+  uav_state_init_.pose.position.z = 0.0;
 
-  uav_state_.pose.orientation.x = 0.0;
-  uav_state_.pose.orientation.y = 0.0;
-  uav_state_.pose.orientation.z = 0.0;
-  uav_state_.pose.orientation.w = 1.0;
+  uav_state_init_.pose.orientation.x = 0.0;
+  uav_state_init_.pose.orientation.y = 0.0;
+  uav_state_init_.pose.orientation.z = 0.0;
+  uav_state_init_.pose.orientation.w = 1.0;
 
-  uav_state_.velocity.linear.x = 0.0;
-  uav_state_.velocity.linear.y = 0.0;
-  uav_state_.velocity.linear.z = 0.0;
+  uav_state_init_.velocity.linear.x = 0.0;
+  uav_state_init_.velocity.linear.y = 0.0;
+  uav_state_init_.velocity.linear.z = 0.0;
 
-  uav_state_.velocity.angular.x = 0.0;
-  uav_state_.velocity.angular.y = 0.0;
-  uav_state_.velocity.angular.z = 0.0;
+  uav_state_init_.velocity.angular.x = 0.0;
+  uav_state_init_.velocity.angular.y = 0.0;
+  uav_state_init_.velocity.angular.z = 0.0;
 
-  innovation_.header.frame_id         = ns_frame_id_;
-  innovation_.child_frame_id          = ch_->frames.ns_fcu;
-  innovation_.pose.pose.orientation.w = 1.0;
+  innovation_init_.header.frame_id         = ns_frame_id_;
+  innovation_init_.child_frame_id          = ch_->frames.ns_fcu;
+  innovation_init_.pose.pose.orientation.w = 1.0;
 
   // | ------------------ finish initialization ----------------- |
 
@@ -128,44 +137,39 @@ void Dummy::timerUpdate(const ros::TimerEvent &event) {
 
   const ros::Time time_now = ros::Time::now();
 
-  {
-    std::scoped_lock lock(mtx_uav_state_);
+  mrs_msgs::UavState uav_state = uav_state_init_;
+  uav_state_.header.stamp      = time_now;
 
-    uav_state_.header.stamp = time_now;
-  }
+  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
 
-  {
-    std::scoped_lock lock(mtx_uav_state_, mtx_odom_);
-    odom_ = Support::uavStateToOdom(uav_state_);
-  }
+  nav_msgs::Odometry innovation = innovation_init_;
 
-  {
-    std::scoped_lock lock(mtx_innovation_);
+  innovation.header.stamp = time_now;
 
-    innovation_.header.stamp = time_now;
+  innovation.pose.pose.position.x = 0.0;
+  innovation.pose.pose.position.y = 0.0;
+  innovation.pose.pose.position.z = 0.0;
 
-    innovation_.pose.pose.position.x = 0.0;
-    innovation_.pose.pose.position.y = 0.0;
-    innovation_.pose.pose.position.z = 0.0;
-  }
+  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  pose_covariance_.header.stamp  = time_now;
+  twist_covariance_.header.stamp = time_now;
 
-  {
-    std::scoped_lock lock(mtx_covariance_);
+  const int n_states = 6;  // TODO this should be defined somewhere else
+  pose_covariance.values.resize(n_states * n_states);
+  twist_covariance.values.resize(n_states * n_states);
 
-    pose_covariance_.header.stamp  = time_now;
-    twist_covariance_.header.stamp = time_now;
-
-    const int n_states = 6;  // TODO this should be defined somewhere else
-    pose_covariance_.values.resize(n_states * n_states);
-    twist_covariance_.values.resize(n_states * n_states);
-  }
+  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
+  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
+  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
+  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
+  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
   publishUavState();
   publishOdom();
   publishCovariance();
   publishInnovation();
   publishDiagnostics();
-}
+}  // namespace dummy
 /*//}*/
 
 /*//{ timerCheckHealth() */
@@ -196,34 +200,6 @@ bool Dummy::isConverged() {
   // most likely not used in top-level estimator
 
   return true;
-}
-/*//}*/
-
-/*//{ getUavState() */
-mrs_msgs::UavState Dummy::getUavState() const {
-  std::scoped_lock lock(mtx_uav_state_);
-  return uav_state_;
-}
-/*//}*/
-
-/*//{ getInnovation() */
-nav_msgs::Odometry Dummy::getInnovation() const {
-  std::scoped_lock lock(mtx_innovation_);
-  return innovation_;
-}
-/*//}*/
-
-/*//{ getPoseCovariance() */
-std::vector<double> Dummy::getPoseCovariance() const {
-  std::scoped_lock lock(mtx_covariance_);
-  return pose_covariance_.values;
-}
-/*//}*/
-
-/*//{ getTwistCovariance() */
-std::vector<double> Dummy::getTwistCovariance() const {
-  std::scoped_lock lock(mtx_covariance_);
-  return twist_covariance_.values;
 }
 /*//}*/
 

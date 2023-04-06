@@ -72,7 +72,7 @@ public:
   int stateIdToIndex(const int &state_id_in, const int &axis_in) const;
 
   template <typename u_t>
-  void publishInput(const u_t &u) const;
+  void publishInput(const u_t &u, const ros::Time& stamp) const;
   void publishOutput() const;
 };
 
@@ -121,6 +121,10 @@ int PartialEstimator<n_states, n_axes>::stateIdToIndex(const int &state_id_in, c
 template <int n_states, int n_axes>
 void PartialEstimator<n_states, n_axes>::publishOutput() const {
 
+  if (!ch_->debug_topics.output) {
+    return;
+  }
+
   mrs_msgs::EstimatorOutput msg;
   msg.header.stamp    = ros::Time::now();
   msg.header.frame_id = getFrameId();
@@ -134,10 +138,14 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
 /*//{ publishInput() */
 template <int n_states, int n_axes>
 template <typename u_t>
-void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u) const {
+void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u, const ros::Time& stamp) const {
+
+  if (!ch_->debug_topics.input) {
+    return;
+  }
 
   mrs_msgs::Float64ArrayStamped msg;
-  msg.header.stamp = ros::Time::now();
+  msg.header.stamp = stamp;
   for (int i = 0; i < u.rows(); i++) {
     msg.values.push_back(u(i));
   }

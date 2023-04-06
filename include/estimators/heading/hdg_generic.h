@@ -65,13 +65,15 @@ private:
   B_t                                 B_;
   H_t                                 H_;
   Q_t                                 Q_;
-  statecov_t                          sc_;
   std::shared_ptr<lkf_t>              lkf_;
   std::unique_ptr<rep_lkf_t>          lkf_rep_;
   std::vector<std::shared_ptr<lkf_t>> models_;
   mutable std::mutex                  mutex_lkf_;
+  statecov_t                          sc_;
+  mutable std::mutex                  mutex_sc_;
 
   std::unique_ptr<drmgr_t> drmgr_;
+  void callbackReconfigure(HeadingEstimatorConfig& config, [[maybe_unused]] uint32_t level);
 
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;

@@ -79,19 +79,21 @@ public:
   ~StateGeneric(void) {
   }
 
-  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  void initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
 
-  mrs_msgs::UavState  getUavState() const override;
-  nav_msgs::Odometry  getInnovation() const override;
-  std::vector<double> getPoseCovariance() const override;
-  std::vector<double> getTwistCovariance() const override;
+  /* mrs_msgs::UavState  getUavState() override; */
+  /* nav_msgs::Odometry  getInnovation() const override; */
+  /* std::vector<double> getPoseCovariance() const override; */
+  /* std::vector<double> getTwistCovariance() const override; */
 
   bool setUavState(const mrs_msgs::UavState &uav_state) override;
 
   std::optional<double> getHeading() const;
+
+  void updateUavState();
 };
 
 }  // namespace mrs_uav_state_estimators
