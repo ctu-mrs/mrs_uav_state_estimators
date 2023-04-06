@@ -109,16 +109,18 @@ public:
   std::optional<MeasurementStamped> getProcessedCorrection();
 
 private:
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
-  void                                                                callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
-  mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
-  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>              sh_point_;
-  void                                                                callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>            sh_vector_;
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>         sh_quat_;
+  std::atomic_bool is_initialized_ = false;
+
+  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
+  void                                                                                   callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>                                  sh_pose_s_;
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped>                    sh_pose_wcs_;
+  mrs_lib::SubscribeHandler<sensor_msgs::Range>                                          sh_range_;
+  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                                            sh_rtk_;
+  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>                                 sh_point_;
+  void                                                        callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>    sh_vector_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
 
   ros::ServiceServer ser_toggle_range_;
   bool               callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
@@ -307,6 +309,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (ch_->debug_topics.corr_delay) {
     ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 10);
   }
+
+  is_initialized_ = true;
 }
 /*//}*/
 
@@ -351,6 +355,10 @@ StateId_t Correction<n_measurements>::getStateId() const {
 template <int n_measurements>
 bool Correction<n_measurements>::isHealthy() {
 
+  if (!is_initialized_) {
+    return false;
+  }
+
   if (!is_dt_ok_) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: dt not ok", getPrintName().c_str());
   }
@@ -368,6 +376,10 @@ bool Correction<n_measurements>::isHealthy() {
 /*//{ getRawCorrection() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::MeasurementStamped> Correction<n_measurements>::getRawCorrection() {
+
+  if (!is_initialized_) {
+    return {};
+  }
 
   MeasurementStamped measurement_stamped;
 
@@ -610,6 +622,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 /*//{ callbackOdometry() */
 template <int n_measurements>
 void Correction<n_measurements>::callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
   auto res = getCorrectionFromOdometry(wrp.getMsg());
   if (res) {
     MeasurementStamped measurement_stamped;
@@ -953,6 +970,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 /*//{ callbackPoint() */
 template <int n_measurements>
 void Correction<n_measurements>::callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
   auto res = getCorrectionFromPoint(wrp.getMsg());
   if (res) {
     MeasurementStamped measurement_stamped;
@@ -1177,6 +1199,10 @@ void Correction<n_measurements>::timeoutCallback(const std::string& topic, const
 /* //{ callbackToggleRange() */
 template <int n_measurements>
 bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+
+  if (!is_initialized_) {
+    return false;
+  }
 
   if (!range_enabled_ && req.data) {
     processors_["saturate"]->toggle(true);
