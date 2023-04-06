@@ -342,6 +342,10 @@ void HdgGeneric::doCorrection(const Correction<hdg_generic::n_measurements>::Mea
 /*//{ doCorrection() */
 void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   // for position state check the innovation
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);

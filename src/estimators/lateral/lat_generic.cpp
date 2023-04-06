@@ -364,6 +364,10 @@ void LatGeneric::doCorrection(const Correction<lat_generic::n_measurements>::Mea
 /*//{ doCorrection() */
 void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &state_id, const ros::Time &meas_stamp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   // for position state check the innovation
   if (state_id == POSITION) {
     {

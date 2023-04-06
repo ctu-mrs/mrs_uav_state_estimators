@@ -349,6 +349,10 @@ void AltGeneric::doCorrection(const Correction<alt_generic::n_measurements>::Mea
 /*//{ doCorrection() */
 void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   // for position state check the innovation
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
