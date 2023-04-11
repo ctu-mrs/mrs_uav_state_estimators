@@ -216,13 +216,14 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
+  // obtain dt for state prediction
   double dt = (event.current_real - event.last_real).toSec();
-  if (dt <= 0.0) {
+  if (dt <= 0.0) {  // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick
     return;
   }
   setDt(dt);
 
-  // prediction step
+  // obtain unbiased desired control acceleration in the estimator frame that will be used as input to the estimator
   u_t       u;
   ros::Time input_stamp;
   if (is_input_ready_ && is_hdg_state_ready_) {
@@ -231,15 +232,14 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       ROS_ERROR_THROTTLE(1.0, "[%s]: could not obtain heading", getPrintName().c_str());
       return;
     }
-    /* const double body_acc_x = sh_control_input_.getMsg()->control_acceleration.x; */
-    /* const double body_acc_y = sh_control_input_.getMsg()->control_acceleration.y; */
+
     const tf2::Vector3 des_acc_global = getAccGlobal(sh_control_input_.getMsg(), res.value());
     input_stamp                       = sh_control_input_.getMsg()->header.stamp;
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
-    /* ROS_INFO_THROTTLE(1.0, "[%s]: body: [%.2f, %.2f], global: [%.2f, %.2f]", ros::this_node::getName().c_str(), body_acc_x, body_acc_y, u(0), u(1)); */
-  } else {
+
+  } else {  // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
     input_stamp = ros::Time::now();
     setInputCoeff(0);
     u = u_t::Zero();
@@ -254,8 +254,11 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   /*   } */
   /* } */
 
+  // get current state, covariance, and process noise
   statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);
+
+  // prediction step
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
@@ -263,9 +266,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, lkf_);
       sc = lkf_rep_->predictTo(ros::Time::now());
     } else {
-      /* const ros::Time t_start = ros::Time::now(); */
       sc = lkf_->predict(sc, u, Q, dt_);
-      /* ROS_INFO("[%s]: prediction took: %.4f s", getPrintName().c_str(), (ros::Time::now()-t_start).toSec()); */
     }
   }
   catch (const std::exception &e) {
@@ -273,6 +274,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     changeState(ERROR_STATE);
   }
 
+  // update the state and covariance variable that is queried by the estimation manager
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
 
   // publishing
@@ -366,7 +368,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
+  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
     ROS_WARN("[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }

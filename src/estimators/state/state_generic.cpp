@@ -363,7 +363,7 @@ void StateGeneric::updateUavState() {
   mrs_msgs::UavState uav_state = uav_state_init_;
   uav_state.header.stamp       = time_now;
 
-  // do not do if passthrough hdg
+  // do not rotate orientation if passthrough hdg
   if (est_hdg_name_ == "hdg_passthrough") {
     uav_state.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
   } else {

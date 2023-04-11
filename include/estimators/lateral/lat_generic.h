@@ -7,6 +7,8 @@
 
 #include <nav_msgs/Odometry.h>
 
+#include <sensor_msgs/Imu.h>
+
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/repredictor.h>
 #include <mrs_lib/profiler.h>
@@ -69,7 +71,7 @@ private:
   mutable std::mutex                  mutex_sc_;
 
   std::unique_ptr<drmgr_t> drmgr_;
-  void callbackReconfigure(LateralEstimatorConfig& config, [[maybe_unused]] uint32_t level);
+  void                     callbackReconfigure(LateralEstimatorConfig &config, [[maybe_unused]] uint32_t level);
 
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;

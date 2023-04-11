@@ -36,7 +36,6 @@
 namespace mrs_uav_state_estimators
 {
 
-// TODO is needed?
 typedef enum
 {
   LATERAL,
@@ -111,16 +110,16 @@ public:
 private:
   std::atomic_bool is_initialized_ = false;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  void                                                                                   callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>                                  sh_pose_s_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped>                    sh_pose_wcs_;
-  mrs_lib::SubscribeHandler<sensor_msgs::Range>                                          sh_range_;
-  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                                            sh_rtk_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>                                 sh_point_;
-  void                                                        callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>    sh_vector_;
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
+  mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
+  void                                                                callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
+  mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
+  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
+  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>              sh_point_;
+  void                                                                callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>            sh_vector_;
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>         sh_quat_;
 
   ros::ServiceServer ser_toggle_range_;
   bool               callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
@@ -270,8 +269,6 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_);
       const std::size_t found     = ros::this_node::getName().find_last_of("/");
       std::string       node_name = ros::this_node::getName().substr(found + 1);
-      /* ser_toggle_range_ = nh.advertiseService("/" + ch_->uav_name + "/" + node_name + "/" + getNamespacedName() + "/toggle_range_in",
-       * &Correction::callbackToggleRange, this); */
       ser_toggle_range_ =
           nh.advertiseService(ros::this_node::getName() + "/" + getNamespacedName() + "/toggle_range_in", &Correction::callbackToggleRange, this);
       break;
@@ -590,7 +587,6 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       return {};
     }
   }
-  /* ROS_INFO("[%s]: debug: rtk correction: %f %f", getPrintName().c_str(), measurement(0), measurement(1)); */
 
   got_first_msg_ = true;
   publishCorrection(measurement_stamped, ph_correction_raw_);

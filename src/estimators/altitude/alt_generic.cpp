@@ -242,6 +242,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);
+
   try {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
