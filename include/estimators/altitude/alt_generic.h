@@ -90,11 +90,9 @@ private:
   std::atomic<bool>                                   is_input_ready_ = false;
 
   ros::Timer timer_update_;
-  int        _update_timer_rate_;
   void       timerUpdate(const ros::TimerEvent &event);
 
   ros::Timer timer_check_health_;
-  int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   void doCorrection(const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id);

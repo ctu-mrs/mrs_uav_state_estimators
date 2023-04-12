@@ -182,7 +182,7 @@ void Dummy::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(INITIALIZED_STATE)) {
 
     changeState(READY_STATE);
-    ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
   }
 
 

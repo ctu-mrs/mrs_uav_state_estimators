@@ -58,11 +58,9 @@ private:
   std::atomic<bool>                                        is_ang_vel_ready_ = false;
 
   ros::Timer timer_update_;
-  int        _update_timer_rate_;
   void       timerUpdate(const ros::TimerEvent &event);
 
   ros::Timer timer_check_health_;
-  int        _check_health_timer_rate_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
 public:

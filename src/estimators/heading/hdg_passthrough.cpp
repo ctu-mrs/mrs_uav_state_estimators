@@ -38,10 +38,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   }
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                               // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &HdgPassthrough::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                                 // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &HdgPassthrough::timerCheckHealth, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
@@ -176,25 +174,25 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
   if (isInState(INITIALIZED_STATE) && is_orient_ready_ && is_ang_vel_ready_) {
 
     changeState(READY_STATE);
-    ROS_INFO("[%s]: Ready to start", getPrintName().c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: Ready to start", getPrintName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
 
-    ROS_INFO("[%s]: Estimator Running", getPrintName().c_str());
+    ROS_INFO_THROTTLE(1.0, "[%s]: Estimator Running", getPrintName().c_str());
     changeState(RUNNING_STATE);
   }
 
   if (sh_orientation_.hasMsg()) {
     is_orient_ready_ = true;
   } else {
-    ROS_WARN("[%s]: has not received orientation yet", getPrintName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation yet", getPrintName().c_str());
   }
 
   if (sh_ang_vel_.hasMsg()) {
     is_ang_vel_ready_ = true;
   } else {
-    ROS_WARN("[%s]: has not received angular velocity yet", getPrintName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity yet", getPrintName().c_str());
   }
 }
 /*//}*/

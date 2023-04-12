@@ -96,10 +96,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                           // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                             // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &HdgGeneric::timerCheckHealth, this);
+  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
@@ -286,21 +284,21 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
-          ROS_INFO("[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X));
+          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X));
         } else {
-          ROS_INFO("[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
-      ROS_INFO("[%s]: Ready to start", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Ready to start", getPrintName().c_str());
       changeState(READY_STATE);
       break;
     }
 
     case STARTED_STATE: {
-      ROS_INFO("[%s]: Waiting for convergence of LKF", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for convergence of LKF", getPrintName().c_str());
       if (isConverged()) {
-        ROS_INFO("[%s]: LKF converged", getPrintName().c_str());
+        ROS_INFO_THROTTLE(1.0, "[%s]: LKF converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       }
       break;
@@ -344,7 +342,7 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN("[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
