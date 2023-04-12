@@ -154,7 +154,7 @@ bool LatGeneric::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }

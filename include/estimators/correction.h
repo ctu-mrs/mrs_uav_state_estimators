@@ -110,20 +110,41 @@ public:
 private:
   std::atomic_bool is_initialized_ = false;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry>                       sh_odom_;
-  void                                                                callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>               sh_pose_s_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
-  mrs_lib::SubscribeHandler<sensor_msgs::Range>                       sh_range_;
-  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>                         sh_rtk_;
-  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>              sh_point_;
-  void                                                                callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>            sh_vector_;
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>         sh_quat_;
+  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
+  void                                          callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+  std::optional<measurement_t>                  getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
 
-  ros::ServiceServer ser_toggle_range_;
-  bool               callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
-  bool               range_enabled_ = true;
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped> sh_pose_s_;
+  void                                                  callbackPoseStamped(mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>& wrp);
+
+  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
+
+  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps> sh_rtk_;
+  void                                        callbackRtk(mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>& wrp);
+  std::optional<measurement_t>                getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
+  void                                        getAvgRtkInitZ(const double rtk_z);
+  bool                                        got_avg_init_rtk_z_ = false;
+  double                                      rtk_init_z_avg_     = 0.0;
+  int                                         got_rtk_counter_    = 0;
+
+  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped> sh_point_;
+  void                                                   callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
+  std::optional<measurement_t>                           getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
+
+  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_vector_;
+  std::optional<measurement_t>                             getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
+  void                                                     callbackVector(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>& wrp);
+
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
+
+  mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
+  std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
+  void                                          callbackRange(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp);
+  ros::ServiceServer                            ser_toggle_range_;
+  bool                                          callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
+  bool                                          range_enabled_ = true;
+
+  void applyCorrection(const measurement_t& meas, const ros::Time& stamp);
 
   void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
 
@@ -147,12 +168,7 @@ private:
 
   std::unique_ptr<drmgr_t> drmgr_;
 
-  std::optional<measurement_t> getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
   std::optional<measurement_t> getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
-  std::optional<measurement_t> getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
-  std::optional<measurement_t> getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
-  std::optional<measurement_t> getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
-  std::optional<measurement_t> getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
   std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel, const std_msgs::Header& header, const std::string frame);
@@ -257,7 +273,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::POSE: {
-      sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_);
+      sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_, &Correction::callbackPoseStamped, this);
       break;
     }
     case MessageType_t::POSECOV: {
@@ -266,7 +282,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RANGE: {
-      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_);
+      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
       const std::size_t found     = ros::this_node::getName().find_last_of("/");
       std::string       node_name = ros::this_node::getName().substr(found + 1);
       ser_toggle_range_ =
@@ -274,7 +290,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::RTK_GPS: {
-      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_);
+      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
       break;
     }
     case MessageType_t::POINT: {
@@ -282,7 +298,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       break;
     }
     case MessageType_t::VECTOR: {
-      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_);
+      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_, &Correction::callbackVector, this);
       break;
     }
     case MessageType_t::QUAT: {
@@ -384,10 +400,6 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::ODOMETRY: {
 
-      /* if (!sh_odom_.newMsg()) { */
-      /*   return {}; */
-      /* } */
-
       if (!sh_odom_.hasMsg()) {
         return {};
       }
@@ -412,10 +424,6 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     }
 
     case MessageType_t::POSE: {
-
-      /* if (!sh_pose_s_.newMsg()) { */
-      /*   return {}; */
-      /* } */
 
       if (!sh_pose_s_.hasMsg()) {
         return {};
@@ -455,7 +463,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
         return {};
       }
 
-      if (!sh_range_.newMsg()) {
+      if (!sh_range_.hasMsg()) {
         return {};
       }
 
@@ -478,8 +486,8 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::RTK_GPS: {
 
-      if (!sh_rtk_.newMsg()) {
-        /* ROS_ERROR(" no new rtk msg"); */
+      if (!sh_rtk_.hasMsg()) {
+        ROS_ERROR(" no rtk msgs so far");
         return {};
       }
 
@@ -495,6 +503,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       if (res) {
         measurement_stamped.value = res.value();
       } else {
+        ROS_ERROR("[%s]: could not obtain rtk msg", getPrintName().c_str());
         return {};
       }
 
@@ -502,10 +511,6 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     }
 
     case MessageType_t::POINT: {
-
-      /* if (!sh_point_.newMsg()) { */
-      /*   return {}; */
-      /* } */
 
       if (!sh_point_.hasMsg()) {
         return {};
@@ -529,7 +534,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
     case MessageType_t::VECTOR: {
 
-      if (!sh_vector_.newMsg()) {
+      if (!sh_vector_.hasMsg()) {
         return {};
       }
 
@@ -625,13 +630,7 @@ void Correction<n_measurements>::callbackOdometry(mrs_lib::SubscribeHandler<nav_
 
   auto res = getCorrectionFromOdometry(wrp.getMsg());
   if (res) {
-    MeasurementStamped measurement_stamped;
-    measurement_stamped.value = res.value();
-    measurement_stamped.stamp = wrp.getMsg()->header.stamp;
-    if (process(measurement_stamped.value)) {
-      publishCorrection(measurement_stamped, ph_correction_proc_);
-      fun_apply_correction_(measurement_stamped, getR(), getStateId());
-    }
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
   }
 }
 /*//}*/
@@ -756,6 +755,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
+/*//{ callbackPoseStamped() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackPoseStamped(mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromPoseStamped(wrp.getMsg());
+  if (res) {
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+  }
+}
+/*//}*/
+
 /*//{ getCorrectionFromPoseStamped() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoseStamped(
@@ -836,9 +850,29 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
+/*//{ callbackRange() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackRange(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromRange(wrp.getMsg());
+  if (res) {
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+  }
+}
+/*//}*/
+
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg) {
+
+  if (!range_enabled_) {
+    ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
+    return {};
+  }
 
   geometry_msgs::PoseStamped range_point;
 
@@ -863,15 +897,28 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
+/*//{ callbackRtk() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackRtk(mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromRtk(wrp.getMsg());
+  if (res) {
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+  }
+}
+/*//}*/
+
 /*//{ getCorrectionFromRtk() */
-/* template <int n_measurements, typename Correction<n_measurements>::measurement_t> */
-/* std::optional<Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg) { */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg) {
 
   geometry_msgs::PoseStamped rtk_pos;
 
-  if (msg->header.frame_id == "gps") {
+  if (msg->header.frame_id == "gps" || (msg->header.frame_id == "" && msg->gps.latitude != 0 && msg->gps.longitude != 0 && msg->gps.altitude != 0)) {
 
     if (!std::isfinite(msg->gps.latitude)) {
       ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
@@ -894,7 +941,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   } else {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getPrintName().c_str(), msg->header.frame_id.c_str());
+    ROS_ERROR_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getPrintName().c_str(), msg->header.frame_id.c_str());
+    return {};
   }
 
   rtk_pos.pose.position.x -= ch_->utm_origin.x;
@@ -907,6 +955,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   if (res) {
     rtk_pos.pose = res.value();
   } else {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: transform to fcu failed", getPrintName().c_str());
     return {};
   }
 
@@ -939,6 +988,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement(0) = rtk_pos.pose.position.z;
+          if (!got_avg_init_rtk_z_) {
+            getAvgRtkInitZ(measurement(0));
+            return {};
+          }
+          measurement(0) -= rtk_init_z_avg_;
           return measurement;
           break;
         }
@@ -973,13 +1027,7 @@ void Correction<n_measurements>::callbackPoint(mrs_lib::SubscribeHandler<geometr
 
   auto res = getCorrectionFromPoint(wrp.getMsg());
   if (res) {
-    MeasurementStamped measurement_stamped;
-    measurement_stamped.value = res.value();
-    measurement_stamped.stamp = wrp.getMsg()->header.stamp;
-    if (process(measurement_stamped.value)) {
-      publishCorrection(measurement_stamped, ph_correction_proc_);
-      fun_apply_correction_(measurement_stamped, getR(), getStateId());
-    }
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
   }
 }
 /*//}*/
@@ -1041,6 +1089,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
+}
+/*//}*/
+
+/*//{ callbackVector() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackVector(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>& wrp) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromVector(wrp.getMsg());
+  if (res) {
+    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+  }
 }
 /*//}*/
 
@@ -1178,6 +1241,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
+}
+/*//}*/
+
+/*//{ applyCorrection() */
+template <int n_measurements>
+void Correction<n_measurements>::applyCorrection(const measurement_t& meas, const ros::Time& stamp) {
+
+  MeasurementStamped meas_stamped;
+  meas_stamped.value = meas;
+  meas_stamped.stamp = stamp;
+  publishCorrection(meas_stamped, ph_correction_raw_);
+  if (process(meas_stamped.value)) {
+    publishCorrection(meas_stamped, ph_correction_proc_);
+    fun_apply_correction_(meas_stamped, getR(), getStateId());
+  }
 }
 /*//}*/
 
@@ -1320,6 +1398,32 @@ std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu
   geometry_msgs::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
 
   return fcu_in_utm;
+}
+/*//}*/
+
+/*//{ getAvgRtkInitZ() */
+template <int n_measurements>
+void Correction<n_measurements>::getAvgRtkInitZ(const double rtk_z) {
+
+  if (!got_avg_init_rtk_z_) {
+
+    double rtk_avg = rtk_init_z_avg_ / got_rtk_counter_;
+
+    if (got_rtk_counter_ < 10 || (got_rtk_counter_ < 300 && std::fabs(rtk_z - rtk_avg) > 0.1)) {
+
+      rtk_init_z_avg_ += rtk_z;
+      got_rtk_counter_++;
+      rtk_avg = rtk_init_z_avg_ / got_rtk_counter_;
+      ROS_INFO("[%s]: RTK ASL altitude sample #%d: %.2f; avg: %.2f", getPrintName().c_str(), got_rtk_counter_, rtk_z, rtk_avg);
+      return;
+
+    } else {
+
+      rtk_init_z_avg_     = rtk_avg;
+      got_avg_init_rtk_z_ = true;
+      ROS_INFO("[%s]: RTK ASL altitude avg: %f", getPrintName().c_str(), rtk_avg);
+    }
+  }
 }
 /*//}*/
 

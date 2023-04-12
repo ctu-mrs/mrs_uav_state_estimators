@@ -147,7 +147,7 @@ bool AltGeneric::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }
@@ -232,13 +232,13 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   // go through available corrections and apply them
-  for (auto correction : corrections_) {
-    auto res = correction->getProcessedCorrection();
-    if (res) {
-      auto measurement_stamped = res.value();
-      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
-    }
-  }
+  /* for (auto correction : corrections_) { */
+  /*   auto res = correction->getProcessedCorrection(); */
+  /*   if (res) { */
+  /*     auto measurement_stamped = res.value(); */
+  /*     doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp); */
+  /*   } */
+  /* } */
 
   statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   Q_t        Q  = mrs_lib::get_mutexed(mtx_Q_, Q_);

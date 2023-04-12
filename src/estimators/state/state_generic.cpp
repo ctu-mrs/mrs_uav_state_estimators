@@ -11,7 +11,6 @@ namespace mrs_uav_state_estimators
 void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch) {
 
   ch_ = ch;
-  /* nh_ = nh; */
   ros::NodeHandle nh(parent_nh);
 
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
@@ -125,14 +124,12 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
 /*//{ start() */
 bool StateGeneric::start(void) {
 
-
   if (isInState(READY_STATE)) {
 
     bool est_lat_start_successful, est_alt_start_successful, est_hdg_start_successful;
 
     if (est_lat_->isStarted() || est_lat_->isRunning()) {
       est_lat_start_successful = true;
-      timer_pub_attitude_.start();
     } else {
       est_lat_start_successful = est_lat_->start();
     }
@@ -144,6 +141,7 @@ bool StateGeneric::start(void) {
     }
 
     if (est_hdg_->isStarted() || est_hdg_->isRunning()) {
+      timer_pub_attitude_.start();
       est_hdg_start_successful = true;
     } else {
       est_hdg_start_successful = est_hdg_->start();
@@ -236,11 +234,11 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     case INITIALIZED_STATE: {
 
       if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
-        if (est_lat_->isReady() && est_alt_->isReady() && est_hdg_->isReady()) {
+        if (est_lat_->isInitialized() && est_alt_->isInitialized() && est_hdg_->isInitialized()) {
           changeState(READY_STATE);
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for subestimators to be ready", getPrintName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for subestimators to be initialized", getPrintName().c_str());
           return;
         }
       } else {
@@ -324,6 +322,7 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
   scope_timer.checkpoint("rotate");
 
   if (!Support::noNans(att.quaternion)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: NaNs in timerPubAttitude quaternion", getPrintName().c_str());
     return;
   }
 

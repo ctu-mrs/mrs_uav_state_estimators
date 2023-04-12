@@ -61,7 +61,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.output) {
-    ph_output_      = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
   }
   if (ch_->debug_topics.diag) {
     ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
@@ -80,13 +80,13 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 /*//{ start() */
 bool HdgPassthrough::start(void) {
 
-  if (isInState(READY_STATE) && is_orient_ready_ && is_ang_vel_ready_) {
+  if (isInState(READY_STATE)) {
     timer_update_.start();
     changeState(STARTED_STATE);
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }
@@ -173,7 +173,7 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
     return;
   }
 
-  if (isInState(INITIALIZED_STATE)) {
+  if (isInState(INITIALIZED_STATE) && is_orient_ready_ && is_ang_vel_ready_) {
 
     changeState(READY_STATE);
     ROS_INFO("[%s]: Ready to start", getPrintName().c_str());
@@ -187,10 +187,14 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
 
   if (sh_orientation_.hasMsg()) {
     is_orient_ready_ = true;
+  } else {
+    ROS_WARN("[%s]: has not received orientation yet", getPrintName().c_str());
   }
 
   if (sh_ang_vel_.hasMsg()) {
     is_ang_vel_ready_ = true;
+  } else {
+    ROS_WARN("[%s]: has not received angular velocity yet", getPrintName().c_str());
   }
 }
 /*//}*/

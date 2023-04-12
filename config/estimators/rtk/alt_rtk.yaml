@@ -21,7 +21,7 @@ rtk: # namespace of the state estimator
       noise: 1.0 # measurement noise covariance (R)
       message:
         type: "mrs_msgs/RtkGps"
-        topic: "rtk_gps/global" # without uav namespace
+        topic: "hw_api/rtk" # without uav namespace
         limit: 
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy

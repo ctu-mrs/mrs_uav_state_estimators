@@ -9,9 +9,9 @@ gps_baro: # namespace of the state estimator
       enabled: false
 
     process_noise: # process noise covariance (Q)
-      pos: 1.0 # position state
-      vel: 10.0 # velocity state
-      acc: 0.01 # acceleration state
+      pos: 0.1 # position state
+      vel: 1.0 # velocity state
+      acc: 1.0 # acceleration state
 
     corrections: [
       "pos_hw_api"
