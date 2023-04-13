@@ -116,6 +116,7 @@ private:
 
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped> sh_pose_s_;
   void                                                  callbackPoseStamped(mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>& wrp);
+  std::optional<measurement_t>                          getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
 
@@ -168,7 +169,6 @@ private:
 
   std::unique_ptr<drmgr_t> drmgr_;
 
-  std::optional<measurement_t> getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
   std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel, const std_msgs::Header& header, const std::string frame);

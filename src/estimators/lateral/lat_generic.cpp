@@ -101,6 +101,8 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time::now();
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+
+    setDt(1.0/ch_->desired_uav_state_rate);
   }
 
   // | ------------------ timers initialization ----------------- |
@@ -219,7 +221,10 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
   if (dt <= 0.0) {  // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick
     return;
   }
-  setDt(dt);
+
+  /* if (!is_repredictor_enabled_) { // repredictor requires constant dt */
+  /*   setDt(dt); */
+  /* } */
 
   // obtain unbiased desired control acceleration in the estimator frame that will be used as input to the estimator
   u_t       u;

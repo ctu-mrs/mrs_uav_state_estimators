@@ -93,6 +93,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time::now();
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+
+    setDt(1.0/ch_->desired_uav_state_rate);
   }
 
   // | ------------------ timers initialization ----------------- |
@@ -208,16 +210,19 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
   if (dt <= 0.0) {
     return;
   }
-  setDt(dt);
+
+  /* if (!is_repredictor_enabled_) { // repredictor requires constant dt */
+  /*   setDt(dt); */
+  /* } */
 
   // go through available corrections and apply them
-  for (auto correction : corrections_) {
-    auto res = correction->getProcessedCorrection();
-    if (res) {
-      auto measurement_stamped = res.value();
-      doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp);
-    }
-  }
+  /* for (auto correction : corrections_) { */
+  /*   auto res = correction->getProcessedCorrection(); */
+  /*   if (res) { */
+  /*     auto measurement_stamped = res.value(); */
+  /*     doCorrection(measurement_stamped.value, correction->getR(), correction->getStateId(), measurement_stamped.stamp); */
+  /*   } */
+  /* } */
 
   // prediction step
   u_t       u;
