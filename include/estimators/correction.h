@@ -147,8 +147,6 @@ private:
 
   void applyCorrection(const measurement_t& meas, const ros::Time& stamp);
 
-  void timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs);
-
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_raw_;
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>      ph_delay_;
@@ -184,9 +182,11 @@ private:
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
   bool                                       process(measurement_t& measurement);
 
-  bool             isTimestampOk(const ros::Time& msg_time);
+  bool             isTimestampOk();
   std::atomic_bool first_timestamp_ = true;
+  ros::Time        msg_time_;
   ros::Time        prev_msg_time_;
+  std::mutex       mtx_msg_time_;
 
   std::vector<std::string>                                                    processor_names_;
   std::unordered_map<std::string, std::shared_ptr<Processor<n_measurements>>> processors_;
@@ -372,9 +372,7 @@ bool Correction<n_measurements>::isHealthy() {
     return false;
   }
 
-  if (!is_dt_ok_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: dt not ok", getPrintName().c_str());
-  }
+  is_dt_ok_ = isTimestampOk();
 
   if (!is_delay_ok_) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getPrintName().c_str());
@@ -406,14 +404,14 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_odom_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      if (!isTimestampOk(measurement_stamped.stamp)) {
-        return {};
-      }
-      checkMsgDelay(measurement_stamped.stamp);
+      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+      /*   return {}; */
+      /* } */
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
       auto res = getCorrectionFromOdometry(msg);
       if (res) {
         measurement_stamped.value = res.value();
@@ -431,14 +429,14 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_pose_s_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      if (!isTimestampOk(measurement_stamped.stamp)) {
-        return {};
-      }
-      checkMsgDelay(measurement_stamped.stamp);
+      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+      /*   return {}; */
+      /* } */
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
       auto res = getCorrectionFromPoseStamped(msg);
       if (res) {
         measurement_stamped.value = res.value();
@@ -469,11 +467,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_range_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
 
       auto res = getCorrectionFromRange(msg);
       if (res) {
@@ -493,17 +491,18 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_rtk_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
 
       auto res = getCorrectionFromRtk(msg);
       if (res) {
         measurement_stamped.value = res.value();
       } else {
-        ROS_ERROR("[%s]: could not obtain rtk msg", getPrintName().c_str());
+        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
         return {};
       }
 
@@ -518,11 +517,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_point_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
       auto res = getCorrectionFromPoint(msg);
       if (res) {
         measurement_stamped.value = res.value();
@@ -540,11 +539,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_vector_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
       auto res = getCorrectionFromVector(msg);
       if (res) {
         measurement_stamped.value = res.value();
@@ -562,11 +561,11 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       auto msg                  = sh_quat_.getMsg();
       measurement_stamped.stamp = msg->header.stamp;
-      checkMsgDelay(measurement_stamped.stamp);
+      /* checkMsgDelay(measurement_stamped.stamp); */
 
-      if (!is_delay_ok_) {
-        return {};
-      }
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
       auto res = getCorrectionFromQuat(msg);
       if (res) {
         measurement_stamped.value = res.value();
@@ -1248,6 +1247,18 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 template <int n_measurements>
 void Correction<n_measurements>::applyCorrection(const measurement_t& meas, const ros::Time& stamp) {
 
+  {
+    std::scoped_lock lock(mtx_msg_time_);
+    if (first_timestamp_) {
+      prev_msg_time_   = stamp - ros::Duration(0.01);
+      msg_time_        = stamp;
+      first_timestamp_ = false;
+    }
+
+    prev_msg_time_ = msg_time_;
+    msg_time_      = stamp;
+  }
+
   MeasurementStamped meas_stamped;
   meas_stamped.value = meas;
   meas_stamped.stamp = stamp;
@@ -1256,17 +1267,6 @@ void Correction<n_measurements>::applyCorrection(const measurement_t& meas, cons
     publishCorrection(meas_stamped, ph_correction_proc_);
     fun_apply_correction_(meas_stamped, getR(), getStateId());
   }
-}
-/*//}*/
-
-/*//{ timeoutCallback() */
-template <int n_measurements>
-void Correction<n_measurements>::timeoutCallback(const std::string& topic, const ros::Time& last_msg, const int n_pubs) {
-  if (got_first_msg_) {
-    is_dt_ok_ = false;
-  }
-  ROS_WARN_THROTTLE(5.0, "[%s]: Did not receive message from topic '%s' for %.2f seconds (%d publishers on topic)", getPrintName().c_str(), topic.c_str(),
-                    (ros::Time::now() - last_msg).toSec(), n_pubs);
 }
 /*//}*/
 
@@ -1449,41 +1449,37 @@ void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
 
 /*//{ isTimestampOk() */
 template <int n_measurements>
-bool Correction<n_measurements>::isTimestampOk(const ros::Time& msg_time) {
-
-  const double delta_tol = 100;
+bool Correction<n_measurements>::isTimestampOk() {
 
   if (first_timestamp_) {
-    if (msg_time.toSec() > 0.0) {
-      prev_msg_time_   = msg_time;
-      first_timestamp_ = false;
-      return true;
-    } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
-      return false;
-    }
+    return true;
   }
 
-  const double delta = msg_time.toSec() - prev_msg_time_.toSec();
-  prev_msg_time_     = msg_time;
+  ros::Time msg_time, prev_msg_time;
+  {
+    std::scoped_lock lock(mtx_msg_time_);
+    msg_time      = msg_time_;
+    prev_msg_time = prev_msg_time_;
+  }
+  const double delta = msg_time.toSec() - prev_msg_time.toSec();
 
-  if (msg_time.toSec() < 0.0) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+  if (msg_time.toSec() <= 0.0) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
     return false;
   }
 
-  if (delta < 0.0) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: time delta negative: %f", getPrintName().c_str(), delta);
-    return false;
+  if (delta <= 0.0) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: time delta non-positive: %f", getPrintName().c_str(), delta);
+    return true;
   }
 
-  if (fabs(delta) < 0.001) {
-    ROS_DEBUG_THROTTLE(1.0, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
-    return false;
+  if (delta < 0.001) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
+    return true;
   }
 
-  if (delta > delta_tol) {
-    ROS_DEBUG_THROTTLE(1.0, "[%s]: time delta %f > %f", getPrintName().c_str(), delta, delta_tol);
+  if (delta > time_since_last_msg_limit_) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta, time_since_last_msg_limit_);
     return false;
   }
 

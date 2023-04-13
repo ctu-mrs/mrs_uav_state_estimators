@@ -133,6 +133,19 @@ target_link_libraries(HectorGarmin
 ## Add configure headers for dynamic reconfigure
 add_dependencies(HectorGarmin ${PROJECT_NAME}_gencfg)
 
+add_library(Vio 
+  src/estimators/state/vio.cpp 
+  )
+
+target_link_libraries(Vio
+  Common
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(Vio ${PROJECT_NAME}_gencfg)
+
 add_library(Rtk 
   src/estimators/state/rtk.cpp 
   )

@@ -32,7 +32,7 @@ rtk: # namespace of the state estimator
 
     vel_hw_api:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
-      noise: 1.0 # measurement noise covariance (R)
+      noise: 0.01 # measurement noise covariance (R)
       message:
         type: "geometry_msgs/Vector3Stamped"
         topic: "hw_api/velocity" # without uav namespace

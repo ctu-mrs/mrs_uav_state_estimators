@@ -10,7 +10,6 @@ using namespace mrs_uav_managers::estimation_manager;
 template <int n_measurements>
 class Processor {
 
-
 public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 

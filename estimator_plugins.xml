@@ -28,6 +28,12 @@
   </class>
 </library>
 
+<library path="lib/libVio">
+  <class name="mrs_uav_state_estimators/Vio" type="mrs_uav_state_estimators::vio::Vio" base_class_type="mrs_uav_managers::StateEstimator">
+    <description>Vio state estimator</description>
+  </class>
+</library>
+
 <library path="lib/libPassthrough">
   <class name="mrs_uav_state_estimators/Passthrough" type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Passthrough state estimator</description>
