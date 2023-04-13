@@ -298,8 +298,8 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
     return;
   }
 
-  if (!est_hdg_->isRunning()) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: heading estimator not ready yet", getPrintName().c_str());
+  if (!est_hdg_->isRunning() && !isError()) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: cannot publish attitude, heading estimator is not running", getPrintName().c_str());
     return;
   }
 
@@ -311,7 +311,14 @@ void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
   att.header.stamp    = time_now;
   att.header.frame_id = ns_frame_id_ + "_att_only";
 
-  auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+  double hdg;
+  if (isError()) {
+    hdg = est_hdg_->getLastValidHdg();
+  } else {
+    hdg = est_hdg_->getState(POSITION);
+  }
+
+  auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, hdg);
   if (res) {
     att.quaternion = res.value();
   } else {
@@ -366,7 +373,14 @@ void StateGeneric::updateUavState() {
   if (est_hdg_name_ == "hdg_passthrough") {
     uav_state.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
   } else {
-    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, est_hdg_->getState(POSITION));
+    double hdg;
+    if (isError()) {
+      hdg = est_hdg_->getLastValidHdg();
+    } else {
+      hdg = est_hdg_->getState(POSITION);
+    }
+
+    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, hdg);
     if (res) {
       uav_state.pose.orientation = res.value();
     } else {

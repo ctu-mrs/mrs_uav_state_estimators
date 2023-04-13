@@ -94,12 +94,12 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     const ros::Time t0 = ros::Time::now();
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
 
-    setDt(1.0/ch_->desired_uav_state_rate);
+    setDt(1.0 / ch_->desired_uav_state_rate);
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerCheckHealth, this);
+  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
@@ -256,6 +256,10 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
 
+  if (!isError()) {
+    mrs_lib::set_mutexed(mutex_last_valid_hdg_, sc.x(POSITION), last_valid_hdg_);
+  }
+
   // publishing
   publishInput(u, input_stamp);
   publishOutput();
@@ -347,7 +351,8 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
+                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
@@ -514,6 +519,12 @@ void HdgGeneric::generateB() {
       0,
       input_coeff_;
   // clang-format on
+}
+/*//}*/
+
+/*//{ getLastValidHdg() */
+double HdgGeneric::getLastValidHdg() const {
+  return mrs_lib::get_mutexed(mutex_last_valid_hdg_, last_valid_hdg_);
 }
 /*//}*/
 

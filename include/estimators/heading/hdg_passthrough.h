@@ -94,6 +94,8 @@ public:
   double getInnovation(const int &state_idx) const override;
   double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
+  double getLastValidHdg() const override;
+
   std::string getNamespacedName() const;
 
   std::string getPrintName() const;

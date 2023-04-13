@@ -132,6 +132,11 @@ void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs
   }
 
   setState(hdg, POSITION);
+
+  if (!isError()) {
+    mrs_lib::set_mutexed(mutex_last_valid_hdg_, hdg, last_valid_hdg_);
+  }
+
 }
 /*//}*/
 
@@ -264,6 +269,12 @@ double HdgPassthrough::getInnovation(const int &state_idx) const {
 
 double HdgPassthrough::getInnovation(const int &state_id_in, const int &axis_in) const {
   return getInnovation(stateIdToIndex(state_id_in, 0));
+}
+/*//}*/
+
+/*//{ getLastValidHdg() */
+double HdgPassthrough::getLastValidHdg() const {
+  return mrs_lib::get_mutexed(mutex_last_valid_hdg_, last_valid_hdg_);
 }
 /*//}*/
 

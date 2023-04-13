@@ -73,7 +73,7 @@ private:
   mutable std::mutex                  mutex_sc_;
 
   std::unique_ptr<drmgr_t> drmgr_;
-  void callbackReconfigure(HeadingEstimatorConfig& config, [[maybe_unused]] uint32_t level);
+  void                     callbackReconfigure(HeadingEstimatorConfig &config, [[maybe_unused]] uint32_t level);
 
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
@@ -101,6 +101,9 @@ private:
 
   Q_t                getQ();
   mutable std::mutex mtx_Q_;
+
+  mutable std::mutex mutex_last_valid_hdg_;
+  double             last_valid_hdg_;
 
 public:
   HdgGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
@@ -133,11 +136,14 @@ public:
   double getInnovation(const int &state_idx) const override;
   double getInnovation(const int &state_id_in, const int &axis_in) const override;
 
+  double getLastValidHdg() const override;
+
   void setDt(const double &dt);
   void setInputCoeff(const double &input_coeff);
 
   void generateA();
   void generateB();
+
 
   std::string getNamespacedName() const;
 

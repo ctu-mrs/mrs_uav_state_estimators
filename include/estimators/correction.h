@@ -183,6 +183,7 @@ private:
   bool                                       process(measurement_t& measurement);
 
   bool             isTimestampOk();
+  bool             isMsgComing();
   std::atomic_bool first_timestamp_ = true;
   ros::Time        msg_time_;
   ros::Time        prev_msg_time_;
@@ -372,7 +373,7 @@ bool Correction<n_measurements>::isHealthy() {
     return false;
   }
 
-  is_dt_ok_ = isTimestampOk();
+  is_dt_ok_ = isMsgComing();
 
   if (!is_delay_ok_) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getPrintName().c_str());
@@ -1476,6 +1477,27 @@ bool Correction<n_measurements>::isTimestampOk() {
   if (delta < 0.001) {
     ROS_WARN_THROTTLE(1.0, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
     return true;
+  }
+
+  if (delta > time_since_last_msg_limit_) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta, time_since_last_msg_limit_);
+    return false;
+  }
+
+  return true;
+}  // namespace mrs_uav_state_estimators
+/*//}*/
+
+/*//{ isMsgComing() */
+template <int n_measurements>
+bool Correction<n_measurements>::isMsgComing() {
+
+  const ros::Time msg_time = mrs_lib::get_mutexed(mtx_msg_time_, msg_time_);
+  const double delta = ros::Time::now().toSec() - msg_time.toSec();
+
+  if (msg_time.toSec() <= 0.0) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+    return false;
   }
 
   if (delta > time_since_last_msg_limit_) {
