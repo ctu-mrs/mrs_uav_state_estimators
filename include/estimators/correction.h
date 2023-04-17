@@ -164,12 +164,13 @@ private:
   double     R_;
   std::mutex mtx_R_;
   StateId_t  state_id_;
+  bool       is_in_body_frame_ = true;
 
   std::unique_ptr<drmgr_t> drmgr_;
 
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
-  std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel, const std_msgs::Header& header, const std::string frame);
+  std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel_in, const std_msgs::Header& source_header, const std::string target_frame);
 
   std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
 
@@ -239,6 +240,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ROS_ERROR("[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
     ros::shutdown();
   }
+  if (state_id_ == VELOCITY) {
+    param_loader.loadParam("body_frame", is_in_body_frame_, true);
+  }
+
   param_loader.loadParam("noise", R_);
 
   // | --------------- processors initialization --------------- |
@@ -655,15 +660,23 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         case StateId_t::VELOCITY: {
-          std_msgs::Header header = msg->header;
-          header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is publisher in body frame
-          auto res                = getVelInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
-          if (res) {
-            measurement_t measurement;
-            measurement = res.value();
-            return measurement;
+          if (is_in_body_frame_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is published in body frame
+            auto res                = getVelInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              return {};
+            }
           } else {
-            return {};
+            measurement_t measurement;
+            measurement(0) = msg->twist.twist.linear.x;
+            measurement(1) = msg->twist.twist.linear.y;
+            return measurement;
           }
           break;
         }
@@ -689,15 +702,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         case StateId_t::VELOCITY: {
-          std_msgs::Header header = msg->header;
-          header.frame_id         = ch_->frames.ns_fcu;
-          auto res                = getZVelUntilted(msg->twist.twist.linear, header);
-          if (res) {
-            measurement_t measurement;
-            measurement = res.value();
-            return measurement;
+          if (is_in_body_frame_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = ch_->frames.ns_fcu;
+            auto res                = getZVelUntilted(msg->twist.twist.linear, header);
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              return measurement;
+            } else {
+              return {};
+            }
           } else {
-            return {};
+            measurement_t measurement;
+            measurement(0) = msg->twist.twist.linear.z;
+            return measurement;
           }
           break;
         }
@@ -1332,27 +1351,28 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getVelInFrame() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVelInFrame(const geometry_msgs::Vector3& vel,
-                                                                                                            const std_msgs::Header&       header,
-                                                                                                            const std::string             frame) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVelInFrame(const geometry_msgs::Vector3& vel_in,
+                                                                                                            const std_msgs::Header&       source_header,
+                                                                                                            const std::string             target_frame) {
 
   measurement_t measurement;
 
-  geometry_msgs::Vector3Stamped body_vel;
-  body_vel.header   = header;
-  body_vel.vector.x = vel.x;
-  body_vel.vector.y = vel.y;
-  body_vel.vector.z = vel.z;
+  geometry_msgs::Vector3Stamped vel;
+  vel.header = source_header;
+  vel.vector = vel_in;
+  /* body.vector.x = vel.x; */
+  /* body.vector.y = vel.y; */
+  /* body.vector.z = vel.z; */
 
   geometry_msgs::Vector3Stamped transformed_vel;
-  auto                          res = ch_->transformer->transformSingle(body_vel, frame);
+  auto                          res = ch_->transformer->transformSingle(vel, target_frame);
   if (res) {
     transformed_vel = res.value();
     measurement(0)  = transformed_vel.vector.x;
     measurement(1)  = transformed_vel.vector.y;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), body_vel.header.frame_id.c_str(), frame.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), vel.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
@@ -1493,7 +1513,7 @@ template <int n_measurements>
 bool Correction<n_measurements>::isMsgComing() {
 
   const ros::Time msg_time = mrs_lib::get_mutexed(mtx_msg_time_, msg_time_);
-  const double delta = ros::Time::now().toSec() - msg_time.toSec();
+  const double    delta    = ros::Time::now().toSec() - msg_time.toSec();
 
   if (msg_time.toSec() <= 0.0) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());

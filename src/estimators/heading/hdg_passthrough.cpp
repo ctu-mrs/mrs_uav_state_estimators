@@ -122,6 +122,10 @@ bool HdgPassthrough::reset(void) {
 /*//{ callbackOrientation() */
 void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> &wrp) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
   double hdg;
   try {
     auto msg = wrp.getMsg();
@@ -142,6 +146,10 @@ void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs
 
 /*//{ callbackAngularVelocity() */
 void HdgPassthrough::callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp) {
+
+  if (!isInitialized()) {
+    return;
+  }
 
   double hdg_rate;
   try {
