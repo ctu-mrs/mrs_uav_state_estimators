@@ -38,8 +38,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerCheckHealth, this);
+  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerUpdate, this, false, false);  // not running after init
+  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerCheckHealth, this);
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
@@ -140,14 +140,13 @@ void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs
   if (!isError()) {
     mrs_lib::set_mutexed(mutex_last_valid_hdg_, hdg, last_valid_hdg_);
   }
-
 }
 /*//}*/
 
 /*//{ callbackAngularVelocity() */
 void HdgPassthrough::callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp) {
 
-  if (!isInitialized()) {
+  if (!isInitialized() || !sh_orientation_.hasMsg()) {
     return;
   }
 
