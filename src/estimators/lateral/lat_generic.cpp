@@ -309,7 +309,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     case INITIALIZED_STATE: {
       // initialize the estimator with current corrections
       for (auto correction : corrections_) {
-        auto res = correction->getRawCorrection();
+        auto res = correction->getProcessedCorrection();
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);

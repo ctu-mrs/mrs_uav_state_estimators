@@ -293,7 +293,7 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
       // initialize the estimator with current corrections
       for (auto correction : corrections_) {
-        auto res = correction->getRawCorrection();
+        auto res = correction->getProcessedCorrection();
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());

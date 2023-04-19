@@ -29,6 +29,7 @@
 #include "processors/proc_median_filter.h"
 #include "processors/proc_saturate.h"
 #include "processors/proc_excessive_tilt.h"
+#include "processors/proc_tf_to_world.h"
 
 #include "mrs_uav_state_estimators/CorrectionConfig.h"
 
@@ -1539,6 +1540,8 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
     return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, state_id_, fun_get_state_);
   } else if (name == "excessive_tilt") {
     return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_);
+  } else if (name == "tf_to_world") {
+    return std::make_shared<ProcTfToWorld<n_measurements>>(nh, getNamespacedName(), name, ch_);
   } else {
     ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     ros::shutdown();

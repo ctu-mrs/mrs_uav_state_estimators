@@ -27,4 +27,7 @@ gps_baro: # namespace of the state estimator
           delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
           time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
-      processors: [] # types of processors attached to this measurement
+      processors: ["tf_to_world"] # types of processors attached to this measurement
+
+      tf_to_world:
+        gnss_topic: "hw_api/gnss"
