@@ -97,6 +97,7 @@ public:
   StateId_t getStateId() const;
 
   bool             isHealthy();
+  ros::Time        healthy_time_;
   std::atomic_bool is_healthy_    = true;
   std::atomic_bool is_delay_ok_   = true;
   std::atomic_bool is_dt_ok_      = true;
@@ -330,6 +331,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 10);
   }
 
+  healthy_time_ = ros::Time(0);
+
   is_initialized_ = true;
 }
 /*//}*/
@@ -383,6 +386,16 @@ bool Correction<n_measurements>::isHealthy() {
 
   if (!is_delay_ok_) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getPrintName().c_str());
+  }
+
+  if (!is_healthy_) {
+    if (is_dt_ok_ && is_delay_ok_) {
+      if (healthy_time_ > ros::Time(10)) {
+        is_healthy_ = true;
+      }
+    } else {
+      healthy_time_ = ros::Time(0);
+    }
   }
 
   is_healthy_ = is_healthy_ && is_dt_ok_ && is_delay_ok_;
@@ -1273,11 +1286,13 @@ void Correction<n_measurements>::applyCorrection(const measurement_t& meas, cons
     if (first_timestamp_) {
       prev_msg_time_   = stamp - ros::Duration(0.01);
       msg_time_        = stamp;
+      healthy_time_    = ros::Time(0);
       first_timestamp_ = false;
     }
 
     prev_msg_time_ = msg_time_;
     msg_time_      = stamp;
+    healthy_time_ += msg_time_ - prev_msg_time_;
   }
 
   MeasurementStamped meas_stamped;

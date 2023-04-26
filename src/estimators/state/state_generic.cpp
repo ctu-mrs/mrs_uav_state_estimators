@@ -43,8 +43,8 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerCheckHealth, this);
+  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init
+  /* timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerCheckHealth, this); */
   timer_pub_attitude_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerPubAttitude, this);
 
   // | --------------- subscribers initialization --------------- |
@@ -148,7 +148,7 @@ bool StateGeneric::start(void) {
     }
 
     if (est_lat_start_successful && est_alt_start_successful && est_hdg_start_successful) {
-      timer_update_.start();
+      /* timer_update_.start(); */
       changeState(STARTED_STATE);
       return true;
     }
@@ -204,6 +204,71 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
+    return;
+  }
+  
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::timerUpdate", ch_->scope_timer.logger, ch_->scope_timer.enabled);
+
+  switch (getCurrentSmState()) {
+
+    case UNINITIALIZED_STATE: {
+      break;
+    }
+    case INITIALIZED_STATE: {
+
+      if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
+        if (est_lat_->isInitialized() && est_alt_->isInitialized() && est_hdg_->isInitialized()) {
+          changeState(READY_STATE);
+          ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
+        } else {
+          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for subestimators to be initialized", getPrintName().c_str());
+          return;
+        }
+      } else {
+        ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+        return;
+      }
+
+      break;
+    }
+
+    case READY_STATE: {
+      break;
+    }
+
+    case STARTED_STATE: {
+
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+
+      if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
+        ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
+        changeState(RUNNING_STATE);
+      } else {
+        return;
+      }
+      break;
+    }
+
+    case RUNNING_STATE: {
+      if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
+        changeState(ERROR_STATE);
+      }
+      break;
+    }
+
+    case STOPPED_STATE: {
+      break;
+    }
+
+    case ERROR_STATE: {
+      if (est_lat_->isReady() && est_alt_->isReady() && est_hdg_->isReady()) {
+        changeState(READY_STATE);
+      }
+      break;
+    }
+  }
+
+  if (!isRunning() && !isStarted()) {
     return;
   }
 
@@ -278,6 +343,9 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
 
     case ERROR_STATE: {
+      if (est_lat_->isReady() && est_alt_->isReady() && est_hdg_->isReady()) {
+        changeState(READY_STATE);
+      }
       break;
     }
   }
