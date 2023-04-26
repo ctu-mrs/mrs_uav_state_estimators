@@ -115,8 +115,8 @@ bool ProcTfToWorld<n_measurements>::process(measurement_t& measurement) {
 
   if (!is_gnss_offset_calculated_) {
 
-    gnss_x_                    = (gnss_x_ - measurement(0)) - Processor<n_measurements>::ch_->utm_origin.x;
-    gnss_y_                    = (gnss_y_ - measurement(1)) - Processor<n_measurements>::ch_->utm_origin.y;
+    gnss_x_                    = (gnss_x_ - measurement(0)) - Processor<n_measurements>::ch_->world_origin.x;
+    gnss_y_                    = (gnss_y_ - measurement(1)) - Processor<n_measurements>::ch_->world_origin.y;
     is_gnss_offset_calculated_ = true;
   }
 

@@ -24,7 +24,7 @@ void Passthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   param_loader.setPrefix(getName() + "/");
 
   // | --------------------- load parameters -------------------- |
-  param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
+  param_loader.loadParam("max_flight_z", max_flight_z_);
   param_loader.loadParam("message/topic", msg_topic_);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 

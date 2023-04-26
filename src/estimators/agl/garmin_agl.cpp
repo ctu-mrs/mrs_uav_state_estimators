@@ -59,7 +59,7 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   est_agl_garmin_ = std::make_unique<AltGeneric>(est_agl_name_, frame_id_, getName());
   est_agl_garmin_->initialize(nh, ch_);
 
-  max_flight_altitude_agl_ = est_agl_garmin_->getMaxFlightAltitudeAgl();
+  max_flight_z_ = est_agl_garmin_->getMaxFlightZ();
 
   // | ------------------ initialize published messages ------------------ |
   agl_height_init_.header.frame_id     = ns_frame_id_;

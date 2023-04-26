@@ -1,7 +1,7 @@
 vio: # namespace of the state estimator
   hdg_vio: # namespace of the heading estimator
 
-    max_flight_altitude_agl: 100.0 # [m] maximum allowed flight altitude AGL (Above Ground Level)
+    max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
     repredictor: # repredictor for correct fusion of delayed measurements
       enabled: true

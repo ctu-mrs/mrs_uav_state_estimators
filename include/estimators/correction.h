@@ -978,8 +978,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     return {};
   }
 
-  rtk_pos.pose.position.x -= ch_->utm_origin.x;
-  rtk_pos.pose.position.y -= ch_->utm_origin.y;
+  rtk_pos.pose.position.x -= ch_->world_origin.x;
+  rtk_pos.pose.position.y -= ch_->world_origin.y;
 
   Correction::measurement_t measurement;
 

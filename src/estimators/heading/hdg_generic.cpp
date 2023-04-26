@@ -37,7 +37,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   param_loader.setPrefix(getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
-  param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
+  param_loader.loadParam("max_flight_z", max_flight_z_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);

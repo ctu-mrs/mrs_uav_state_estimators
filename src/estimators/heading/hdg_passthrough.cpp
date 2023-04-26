@@ -27,7 +27,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   param_loader.setPrefix(getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
-  param_loader.loadParam("max_flight_altitude_agl", max_flight_altitude_agl_);
+  param_loader.loadParam("max_flight_z", max_flight_z_);
 
   param_loader.loadParam("topics/orientation", orient_topic_);
   param_loader.loadParam("topics/angular_velocity", ang_vel_topic_);

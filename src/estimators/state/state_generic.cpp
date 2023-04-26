@@ -87,17 +87,17 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
     est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName());
   }
   est_hdg_->initialize(nh, ch_);
-  max_altitudes.push_back(est_hdg_->getMaxFlightAltitudeAgl());
+  max_altitudes.push_back(est_hdg_->getMaxFlightZ());
 
   est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), [this](void) { return this->getHeading(); });
   est_lat_->initialize(nh, ch_);
-  max_altitudes.push_back(est_lat_->getMaxFlightAltitudeAgl());
+  max_altitudes.push_back(est_lat_->getMaxFlightZ());
 
   est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
   est_alt_->initialize(nh, ch_);
-  max_altitudes.push_back(est_alt_->getMaxFlightAltitudeAgl());
+  max_altitudes.push_back(est_alt_->getMaxFlightZ());
 
-  max_flight_altitude_agl_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
+  max_flight_z_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 
   // | ------------------ initialize published messages ------------------ |
   uav_state_init_.header.frame_id = ns_frame_id_;
