@@ -951,32 +951,20 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   geometry_msgs::PoseStamped rtk_pos;
 
-  if (msg->header.frame_id == "gps" || (msg->header.frame_id == "" && msg->gps.latitude != 0 && msg->gps.longitude != 0 && msg->gps.altitude != 0)) {
-
-    if (!std::isfinite(msg->gps.latitude)) {
-      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
-      return {};
-    }
-
-    if (!std::isfinite(msg->gps.longitude)) {
-      ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getPrintName().c_str());
-      return {};
-    }
-
-    rtk_pos.header = msg->header;
-    mrs_lib::UTM(msg->gps.latitude, msg->gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
-    rtk_pos.pose.position.z  = msg->gps.altitude;
-    rtk_pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
-
-  } else if (msg->header.frame_id == "utm") {
-
-    rtk_pos.pose = msg->pose.pose;
-
-  } else {
-
-    ROS_ERROR_THROTTLE(1.0, "[%s]: RTK message has unknown frame_id: '%s'", getPrintName().c_str(), msg->header.frame_id.c_str());
+  if (!std::isfinite(msg->gps.latitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
     return {};
   }
+
+  if (!std::isfinite(msg->gps.longitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getPrintName().c_str());
+    return {};
+  }
+
+  rtk_pos.header = msg->header;
+  mrs_lib::UTM(msg->gps.latitude, msg->gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
+  rtk_pos.pose.position.z  = msg->gps.altitude;
+  rtk_pos.pose.orientation = mrs_lib::AttitudeConverter(0, 0, 0);
 
   rtk_pos.pose.position.x -= ch_->world_origin.x;
   rtk_pos.pose.position.y -= ch_->world_origin.y;
