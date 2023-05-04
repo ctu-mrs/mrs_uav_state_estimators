@@ -94,6 +94,7 @@ public:
   std::string getPrintName() const;
 
   double    getR();
+  void      setR(const double R);
   StateId_t getStateId() const;
 
   bool             isHealthy();
@@ -164,6 +165,8 @@ private:
   double        msg_timeout_;
 
   double     R_;
+  double     default_R_;
+  double     R_coeff_;
   std::mutex mtx_R_;
   StateId_t  state_id_;
   bool       is_in_body_frame_ = true;
@@ -183,7 +186,7 @@ private:
   double time_since_last_msg_limit_;
 
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
-  bool                                       process(measurement_t& measurement);
+  bool                     process(measurement_t& measurement);
 
   bool             isTimestampOk();
   bool             isMsgComing();
@@ -247,6 +250,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   param_loader.loadParam("noise", R_);
+  param_loader.loadParam("noise_unhealthy_coeff", R_coeff_);
+  default_R_ = R_;
 
   // | --------------- processors initialization --------------- |
   param_loader.loadParam("processors", processor_names_);
@@ -362,8 +367,16 @@ std::string Correction<n_measurements>::getPrintName() const {
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
   std::scoped_lock lock(mtx_R_);
-  R_ = drmgr_->config.noise;
+  default_R_         = drmgr_->config.noise;
   return R_;
+}
+/*//}*/
+
+/*//{ setR() */
+template <int n_measurements>
+void Correction<n_measurements>::setR(const double R) {
+  std::scoped_lock lock(mtx_R_);
+  R_ = R;
 }
 /*//}*/
 
@@ -505,7 +518,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::RTK_GPS: {
 
       if (!sh_rtk_.hasMsg()) {
-        ROS_ERROR(" no rtk msgs so far");
+        ROS_ERROR_THROTTLE(1.0, " no rtk msgs so far");
         return {};
       }
 
@@ -1556,14 +1569,28 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
 /*//{ process() */
 template <int n_measurements>
 bool Correction<n_measurements>::process(Correction<n_measurements>::measurement_t& measurement) {
-  bool ok_flag = true;
+
+  bool ok_flag   = true;
+  bool fuse_flag = true;
+
   for (auto proc_name :
        processor_names_) {  // need to access the estimators in the specific order from the config (e.g. median filter should go before saturation etc.)
-    if (!processors_[proc_name]->process(measurement)) {
-      ok_flag = false;
+    /* bool is_ok, should_fuse; */
+    auto [ is_ok, should_fuse ] = processors_[proc_name]->process(measurement);
+    ok_flag &= is_ok;
+    fuse_flag &= should_fuse;
+  }
+  if (fuse_flag) {
+    if (!ok_flag) {
+      setR(default_R_ * R_coeff_);
+      ROS_INFO_THROTTLE(1.0, "[%s]: set R to %.4f", getPrintName().c_str(), default_R_ * R_coeff_);
+      return true;
+    } else {
+      setR(default_R_);
+      return true;
     }
   }
-  return ok_flag;
+  return false;
 }
 /*//}*/
 

@@ -3,6 +3,8 @@ vio: # namespace of the state estimator
 
     max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
+    position_innovation_limit: 1.0 # [m] innovation limit that will trigger switch to other estimator
+
     repredictor: # repredictor for correct fusion of delayed measurements
       enabled: false
       buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
@@ -20,6 +22,7 @@ vio: # namespace of the state estimator
     pos_vio:
       state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 0.001 # measurement noise covariance (R)
+      noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
       message:
         type: "nav_msgs/Odometry"
         topic: "vins_republisher/odom" # without uav namespace
@@ -32,6 +35,7 @@ vio: # namespace of the state estimator
     vel_hw_api:
       state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 1.0 # measurement noise covariance (R)
+      noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
       message:
         type: "geometry_msgs/Vector3Stamped"
         topic: "hw_api/velocity" # without uav namespace

@@ -23,7 +23,7 @@ public:
 public:
   ProcTfToWorld(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
-  bool process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t& measurement) override;
 
 private:
   bool is_initialized_ = false;
@@ -102,15 +102,15 @@ void ProcTfToWorld<n_measurements>::callbackGnss(mrs_lib::SubscribeHandler<senso
 
 /*//{ process() */
 template <int n_measurements>
-bool ProcTfToWorld<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
-    return false;
+    return {true, true};
   }
 
   if (!got_gnss_) {
     ROS_WARN_THROTTLE(1.0, "[%s]: Missing GNSS data on topic: %s", Processor<n_measurements>::getPrintName().c_str(), gnss_topic_.c_str());
-    return false;
+    return {false, false};
   }
 
   if (!is_gnss_offset_calculated_) {
@@ -122,7 +122,7 @@ bool ProcTfToWorld<n_measurements>::process(measurement_t& measurement) {
 
   measurement(0) += gnss_x_;
   measurement(1) += gnss_y_;
-  return true;
+  return {true, true};
 }
 /*//}*/
 

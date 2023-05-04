@@ -38,6 +38,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);
+  param_loader.loadParam("position_innovation_limit", pos_innovation_limit_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
@@ -463,8 +464,9 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
     innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(z(0)), mrs_lib::geometry::radians(getState(POSITION)));
 
-    if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
+    if (fabs(innovation_(0)) > pos_innovation_limit_) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getPrintName().c_str(), innovation_(0));
+      changeState(ERROR_STATE);
     }
   }
 

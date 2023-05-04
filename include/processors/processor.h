@@ -20,7 +20,7 @@ public:
 
   void toggle(bool enable);
 
-  virtual bool process(measurement_t& measurement) = 0;
+  virtual std::tuple<bool, bool> process(measurement_t& measurement) = 0;
 
 protected:
   Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch)

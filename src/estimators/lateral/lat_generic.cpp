@@ -39,6 +39,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
   param_loader.loadParam("max_flight_z", max_flight_z_);
+  param_loader.loadParam("position_innovation_limit", pos_innovation_limit_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
@@ -102,11 +103,11 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     const ros::Time t0 = ros::Time::now();
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
 
-    setDt(1.0/ch_->desired_uav_state_rate);
+    setDt(1.0 / ch_->desired_uav_state_rate);
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerUpdate, this);  // not running after init
   /* timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerCheckHealth, this); */
 
   // | --------------- subscribers initialization --------------- |
@@ -231,7 +232,8 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
+          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
+                            measurement_stamped.value(AXIS_Y));
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getPrintName().c_str());
           return;
@@ -289,7 +291,8 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
+                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 
@@ -404,7 +407,8 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
+          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
+                            measurement_stamped.value(AXIS_Y));
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getPrintName().c_str());
           return;
@@ -462,7 +466,8 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
+                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 
@@ -493,11 +498,13 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
       innovation_(0) = z(0) - getState(POSITION, AXIS_X);
       innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
 
-      if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
+      if (fabs(innovation_(0)) > pos_innovation_limit_) {
         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getPrintName().c_str(), innovation_(0));
+        changeState(ERROR_STATE);
       }
-      if (innovation_(1) > 1.0 || innovation_(1) < -1.0) {
+      if (fabs(innovation_(1)) > pos_innovation_limit_) {
         ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getPrintName().c_str(), innovation_(1));
+        changeState(ERROR_STATE);
       }
     }
   }
@@ -524,7 +531,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
   }
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
-}
+}  // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ isConverged() */
@@ -679,5 +686,4 @@ std::string LatGeneric::getPrintName() const {
   return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
-
 };  // namespace mrs_uav_state_estimators

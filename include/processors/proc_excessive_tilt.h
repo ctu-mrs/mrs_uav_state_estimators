@@ -26,7 +26,7 @@ public:
 public:
   ProcExcessiveTilt(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
-  bool process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t& measurement) override;
 
 private:
   double max_tilt_sq_;
@@ -71,15 +71,18 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(ros::NodeHandle& nh, const 
 
 /*//{ process() */
 template <int n_measurements>
-bool ProcExcessiveTilt<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process(measurement_t& measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
-    return false;
+    return {true, true};
   }
 
   if (!sh_orientation_.hasMsg()) {
-    return false;
+    return {false, false};
   }
+
+  bool ok_flag = true;
+  bool should_fuse = true;
 
   try {
     Eigen::Matrix3d orientation_R = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion);
@@ -90,13 +93,16 @@ bool ProcExcessiveTilt<n_measurements>::process(measurement_t& measurement) {
 
     if (is_excessive_tilt) {
       ROS_WARN_THROTTLE(1.0, "[%s]: excessive tilt of %.2f deg. Not fusing correction.", Processor<n_measurements>::getPrintName().c_str(), tilt / M_PI * 180);
+      ok_flag = false;
+      should_fuse = false;
     }
-    return !is_excessive_tilt;
   }
   catch (...) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: failed obtaining tilt value", Processor<n_measurements>::getPrintName().c_str());
-    return false;
+      ok_flag = false;
+      should_fuse = false;
   }
+  return {ok_flag, should_fuse};
 }
 /*//}*/
 

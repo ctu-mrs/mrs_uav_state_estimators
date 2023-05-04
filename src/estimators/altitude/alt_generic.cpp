@@ -38,6 +38,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);
+  param_loader.loadParam("position_innovation_limit", pos_innovation_limit_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
@@ -97,11 +98,11 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     const ros::Time t0 = ros::Time::now();
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
 
-    setDt(1.0/ch_->desired_uav_state_rate);
+    setDt(1.0 / ch_->desired_uav_state_rate);
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_             = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &AltGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &AltGeneric::timerUpdate, this);  // not running after init
   /* timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &AltGeneric::timerCheckHealth, this); */
 
   // | --------------- subscribers initialization --------------- |
@@ -284,7 +285,8 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
+                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 
@@ -443,7 +445,8 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
   // check age of input
   if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
+                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
     is_input_ready_ = false;
   }
 }
@@ -468,8 +471,9 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
     innovation_(0) = z(0) - getState(POSITION);
 
-    if (innovation_(0) > 1.0 || innovation_(0) < -1.0) {
+    if (fabs(innovation_(0)) > pos_innovation_limit_) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getPrintName().c_str(), innovation_(0));
+      changeState(ERROR_STATE);
     }
   }
 
@@ -495,7 +499,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   }
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
-}
+}  // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ isConverged() */
@@ -641,5 +645,4 @@ std::string AltGeneric::getPrintName() const {
   return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
-
 };  // namespace mrs_uav_state_estimators

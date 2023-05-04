@@ -3,6 +3,8 @@ aloam: # namespace of the state estimator
 
     hdg_source_topic: "aloam/hdg_aloam/output" # [mrs_uav_state_estimation/EstimatorOutput]
 
+    position_innovation_limit: 1.0 # [m] innovation limit that will trigger switch to other estimator
+
     max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
     repredictor: # repredictor for correct fusion of delayed measurements
@@ -21,6 +23,7 @@ aloam: # namespace of the state estimator
     pos_aloam:
       state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
       noise: 0.001 # measurement noise covariance (R)
+      noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
       message:
         type: "nav_msgs/Odometry"
         topic: "slam/odom" # without uav namespace

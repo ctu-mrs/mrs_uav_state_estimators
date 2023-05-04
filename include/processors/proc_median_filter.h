@@ -23,7 +23,7 @@ public:
 public:
   ProcMedianFilter(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
-  bool process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t& measurement) override;
 
 private:
   std::vector<mrs_lib::MedianFilter> vec_mf_;
@@ -62,13 +62,14 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const st
 
 /*//{ process() */
 template <int n_measurements>
-bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
-    return false;
+    return {true, true};
   }
 
-  bool ok_flag = true;
+  bool ok_flag     = true;
+  bool should_fuse = true;
   for (int i = 0; i < measurement.rows(); i++) {
     vec_mf_[i].add(measurement(i));
     if (vec_mf_[i].full()) {
@@ -76,17 +77,19 @@ bool ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
         std::stringstream ss_measurement_string;
         ss_measurement_string << measurement(i);
         ss_measurement_string << " ";
-        ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %sdeclined by median filter (median: %.2f, max_diff: %.2f).",
+        ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %s declined by median filter (median: %.2f, max_diff: %.2f).",
                           Processor<n_measurements>::getPrintName().c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
-        ok_flag = false;
+        ok_flag     = false;
+        should_fuse = false;
       }
     } else {
       ROS_WARN_THROTTLE(1.0, "[%s]: median filter not full yet", Processor<n_measurements>::getPrintName().c_str());
-      ok_flag = false;
+      ok_flag     = false;
+      should_fuse = false;
     }
   }
 
-  return ok_flag;
+  return {ok_flag, should_fuse};
 }
 /*//}*/
 
