@@ -39,7 +39,9 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
   param_loader.loadParam("max_flight_z", max_flight_z_);
-  param_loader.loadParam("position_innovation_limit", pos_innovation_limit_);
+  param_loader.loadParam("innovation/limit", pos_innovation_limit_);
+  param_loader.loadParam("innovation/action", exc_innovation_action_name_);
+  exc_innovation_action_ = map_exc_inno_action.at(exc_innovation_action_name_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
@@ -495,16 +497,36 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
     {
       std::scoped_lock lock(mtx_innovation_);
 
-      innovation_(0) = z(0) - getState(POSITION, AXIS_X);
-      innovation_(1) = z(1) - getState(POSITION, AXIS_Y);
+      is_mitigating_jump_ = false;
+      innovation_(0)      = z(0) - getState(POSITION, AXIS_X);
+      innovation_(1)      = z(1) - getState(POSITION, AXIS_Y);
 
-      if (fabs(innovation_(0)) > pos_innovation_limit_) {
-        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - x: %.2f", getPrintName().c_str(), innovation_(0));
-        changeState(ERROR_STATE);
-      }
-      if (fabs(innovation_(1)) > pos_innovation_limit_) {
-        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - y: %.2f", getPrintName().c_str(), innovation_(1));
-        changeState(ERROR_STATE);
+      if (fabs(innovation_(0)) > pos_innovation_limit_ || fabs(innovation_(1)) > pos_innovation_limit_) {
+        ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - [%.2f %.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), innovation_(1),
+                          pos_innovation_limit_);
+        switch (exc_innovation_action_) {
+          case ExcInnoAction_t::ELAND: {
+            ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", ros::this_node::getName().c_str());
+            changeState(ERROR_STATE);
+            break;
+          }
+          case ExcInnoAction_t::SWITCH: {
+            ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", ros::this_node::getName().c_str());
+            innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+            innovation_(1) = 0.0;
+            changeState(ERROR_STATE);
+            break;
+          }
+          case ExcInnoAction_t::MITIGATE: {
+            ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", ros::this_node::getName().c_str());
+            innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+            innovation_(1)      = 0.0;
+            is_mitigating_jump_ = true;
+            setState(z(0), POSITION, AXIS_X);
+            setState(z(1), POSITION, AXIS_Y);
+            break;
+          }
+        }
       }
     }
   }

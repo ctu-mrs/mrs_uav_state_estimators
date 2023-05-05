@@ -3,7 +3,9 @@ vio: # namespace of the state estimator
 
     max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
-    position_innovation_limit: 1.0 # [m] innovation limit that will trigger switch to other estimator
+    innovation:
+      limit: 1.0 # [m] innovation limit that will trigger action
+      action: "eland" # {"eland", "switch", "mitigate"}
 
     repredictor: # repredictor for correct fusion of delayed measurements
       enabled: false

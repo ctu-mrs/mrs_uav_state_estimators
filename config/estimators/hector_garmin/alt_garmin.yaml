@@ -5,6 +5,10 @@ hector_garmin: # namespace of the state estimator
 
     position_innovation_limit: 1.0 # [m] innovation limit that will trigger switch to other estimator
 
+    innovation:
+      limit: 1.0 # [m] innovation limit that will trigger action
+      action: "eland" # {"eland", "switch", "mitigate"}
+
     repredictor: # repredictor for correct fusion of delayed measurements
       enabled: false
 

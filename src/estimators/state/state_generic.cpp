@@ -485,6 +485,8 @@ void StateGeneric::updateUavState() {
   innovation.pose.pose.position.y = est_lat_->getInnovation(POSITION, AXIS_Y);
   innovation.pose.pose.position.z = est_alt_->getInnovation(POSITION);
 
+  is_mitigating_jump_ = est_alt_->isMitigatingJump() || est_lat_->isMitigatingJump() || est_hdg_->isMitigatingJump();
+
   scope_timer.checkpoint("innovation");
 
   mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;

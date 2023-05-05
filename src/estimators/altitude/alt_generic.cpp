@@ -469,11 +469,31 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
 
-    innovation_(0) = z(0) - getState(POSITION);
+    is_mitigating_jump_ = false;
+    innovation_(0)      = z(0) - getState(POSITION);
 
     if (fabs(innovation_(0)) > pos_innovation_limit_) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - z: %.2f", getPrintName().c_str(), innovation_(0));
-      changeState(ERROR_STATE);
+      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), pos_innovation_limit_);
+      switch (exc_innovation_action_) {
+        case ExcInnoAction_t::ELAND: {
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", ros::this_node::getName().c_str());
+          changeState(ERROR_STATE);
+          break;
+        }
+        case ExcInnoAction_t::SWITCH: {
+          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", ros::this_node::getName().c_str());
+          innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+          changeState(ERROR_STATE);
+          break;
+        }
+        case ExcInnoAction_t::MITIGATE: {
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", ros::this_node::getName().c_str());
+          innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+          is_mitigating_jump_ = true;
+          setState(z(0), POSITION);
+          break;
+        }
+      }
     }
   }
 

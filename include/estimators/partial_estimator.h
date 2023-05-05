@@ -19,6 +19,17 @@
 namespace mrs_uav_state_estimators
 {
 
+typedef enum
+{
+  ELAND,
+  SWITCH,
+  MITIGATE,
+} ExcInnoAction_t;
+const int n_ExcInnoAction = 3;
+
+const std::map<std::string, ExcInnoAction_t> map_exc_inno_action{{"eland", ExcInnoAction_t::ELAND},
+                                                        {"switch", ExcInnoAction_t::SWITCH},
+                                                        {"mitigate", ExcInnoAction_t::MITIGATE}};
 template <int n_states, int n_axes>
 class PartialEstimator : public mrs_uav_managers::Estimator {
 
@@ -31,6 +42,10 @@ protected:
   mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_input_;
 
   bool first_iter_ = true;
+
+  double pos_innovation_limit_;
+  ExcInnoAction_t exc_innovation_action_;
+  std::string exc_innovation_action_name_;
 
 private:
   static const int _n_axes_   = n_axes;
