@@ -38,7 +38,9 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);
-  param_loader.loadParam("position_innovation_limit", pos_innovation_limit_);
+  param_loader.loadParam("innovation/limit", pos_innovation_limit_);
+  param_loader.loadParam("innovation/action", exc_innovation_action_name_);
+  exc_innovation_action_ = map_exc_inno_action.at(exc_innovation_action_name_);
   param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
     param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
