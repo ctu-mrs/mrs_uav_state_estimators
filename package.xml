@@ -12,8 +12,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>roslint</build_depend>
-
   <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
@@ -22,6 +20,7 @@
   <depend>std_msgs</depend>
   <depend>mrs_lib</depend>
   <depend>mrs_msgs</depend>
+  <depend>roslint</depend>
   <depend>nodelet</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>message_generation</depend>
