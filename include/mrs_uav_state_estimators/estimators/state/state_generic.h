@@ -17,11 +17,11 @@
 
 #include <mrs_uav_managers/state_estimator.h>
 
-#include "estimators/lateral/lat_generic.h"
-#include "estimators/altitude/alt_generic.h"
-#include "estimators/heading/heading_estimator.h"
-#include "estimators/heading/hdg_generic.h"
-#include "estimators/heading/hdg_passthrough.h"
+#include <mrs_uav_state_estimators/estimators/lateral/lat_generic.h>
+#include <mrs_uav_state_estimators/estimators/altitude/alt_generic.h>
+#include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
+#include <mrs_uav_state_estimators/estimators/heading/hdg_generic.h>
+#include <mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h>
 
 //}
 

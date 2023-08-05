@@ -1,38 +1,44 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(mrs_uav_state_estimators)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
+set(DEPENDENCIES
   roscpp
+  nodelet
   sensor_msgs
-  geometry_msgs
   std_msgs
   nav_msgs
+  tf2_geometry_msgs
+  geometry_msgs
+  dynamic_reconfigure
   mrs_lib
   mrs_msgs
   mrs_uav_managers
-  nodelet
-  tf2_geometry_msgs
-  dynamic_reconfigure
   roslint
-  )
+)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
+find_package(catkin REQUIRED COMPONENTS
+  ${DEPENDENCIES}
+)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+
 # include Eigen3
 find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
 set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
+# TODO prefix with mrs-related tag to avoid .so confusion
+set(LIBRARIES
+  Common Aloam GpsGarmin GpsBaro Rtk HectorGarmin Passthrough GroundTruth Dummy GarminAgl
+)
+
 # clang-tidy linting
 # find_program(CLANG_TIDY_COMMAND NAMES clang-tidy)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-header-filter='${CMAKE_SOURCE_DIR}/*'")
 # set(CLANG_TIDY_DEFINITIONS "--use-color")
-
-###################################
-## catkin specific configuration ##
-###################################
 
 generate_dynamic_reconfigure_options(
   cfg/Correction.cfg
@@ -43,17 +49,11 @@ generate_dynamic_reconfigure_options(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES Common Aloam GpsGarmin GpsBaro Rtk HectorGarmin Passthrough GroundTruth Dummy GarminAgl
-  CATKIN_DEPENDS roscpp nodelet sensor_msgs std_msgs nav_msgs tf2_geometry_msgs geometry_msgs dynamic_reconfigure mrs_lib mrs_msgs mrs_uav_managers
+  LIBRARIES ${LIBRARIES}
+  CATKIN_DEPENDS ${DEPENDENCIES}
   DEPENDS Eigen
   )
 
-###########
-## Build ##
-###########
-
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
 include_directories(
   include
   ${CMAKE_SOURCE_DIR}
@@ -65,12 +65,12 @@ include_directories(
 set(ROSLINT_CPP_OPTS "--filter=-whitespace/comments,-whitespace/braces,-legal/copyright,-readability/multiline_comment,-whitespace/blank_line,-whitespace/line_length,-readability/todo,-build/include_what_you_use,-runtime/references,-build/include")
 roslint_cpp()
 
-add_library(Common 
-  src/estimators/state/state_generic.cpp 
-  src/estimators/altitude/alt_generic.cpp 
-  src/estimators/lateral/lat_generic.cpp 
-  src/estimators/heading/hdg_generic.cpp 
-  src/estimators/heading/hdg_passthrough.cpp 
+add_library(Common
+  src/estimators/state/state_generic.cpp
+  src/estimators/altitude/alt_generic.cpp
+  src/estimators/lateral/lat_generic.cpp
+  src/estimators/heading/hdg_generic.cpp
+  src/estimators/heading/hdg_passthrough.cpp
   )
 
 ## Specify libraries to link a library or executable target against
@@ -79,8 +79,14 @@ target_link_libraries(Common
   ${Eigen_LIBRARIES}
   )
 
-add_library(GpsGarmin 
-  src/estimators/state/gps_garmin.cpp 
+add_dependencies(Common
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
+
+add_library(GpsGarmin
+  src/estimators/state/gps_garmin.cpp
   )
 
 ## Specify libraries to link a library or executable target against
@@ -91,10 +97,14 @@ target_link_libraries(GpsGarmin
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsGarmin ${PROJECT_NAME}_gencfg)
+add_dependencies(GpsGarmin
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(GpsBaro 
-  src/estimators/state/gps_baro.cpp 
+add_library(GpsBaro
+  src/estimators/state/gps_baro.cpp
   )
 
 ## Specify libraries to link a library or executable target against
@@ -105,10 +115,14 @@ target_link_libraries(GpsBaro
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsBaro ${PROJECT_NAME}_gencfg)
+add_dependencies(GpsBaro
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(Aloam 
-  src/estimators/state/aloam.cpp 
+add_library(Aloam
+  src/estimators/state/aloam.cpp
   )
 
 target_link_libraries(Aloam
@@ -118,10 +132,14 @@ target_link_libraries(Aloam
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Aloam ${PROJECT_NAME}_gencfg)
+add_dependencies(Aloam
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(HectorGarmin 
-  src/estimators/state/hector_garmin.cpp 
+add_library(HectorGarmin
+  src/estimators/state/hector_garmin.cpp
   )
 
 target_link_libraries(HectorGarmin
@@ -131,10 +149,14 @@ target_link_libraries(HectorGarmin
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(HectorGarmin ${PROJECT_NAME}_gencfg)
+add_dependencies(HectorGarmin
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(Vio 
-  src/estimators/state/vio.cpp 
+add_library(Vio
+  src/estimators/state/vio.cpp
   )
 
 target_link_libraries(Vio
@@ -144,10 +166,14 @@ target_link_libraries(Vio
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Vio ${PROJECT_NAME}_gencfg)
+add_dependencies(Vio
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(Rtk 
-  src/estimators/state/rtk.cpp 
+add_library(Rtk
+  src/estimators/state/rtk.cpp
   )
 
 target_link_libraries(Rtk
@@ -157,10 +183,14 @@ target_link_libraries(Rtk
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Rtk ${PROJECT_NAME}_gencfg)
+add_dependencies(Rtk
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(Passthrough 
-  src/estimators/state/passthrough.cpp 
+add_library(Passthrough
+  src/estimators/state/passthrough.cpp
   )
 
 target_link_libraries(Passthrough
@@ -169,10 +199,14 @@ target_link_libraries(Passthrough
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Passthrough ${PROJECT_NAME}_gencfg)
+add_dependencies(Passthrough
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(GroundTruth 
-  src/estimators/state/ground_truth.cpp 
+add_library(GroundTruth
+  src/estimators/state/ground_truth.cpp
   )
 
 target_link_libraries(GroundTruth
@@ -181,10 +215,14 @@ target_link_libraries(GroundTruth
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GroundTruth ${PROJECT_NAME}_gencfg)
+add_dependencies(GroundTruth
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(Dummy 
-  src/estimators/state/dummy.cpp 
+add_library(Dummy
+  src/estimators/state/dummy.cpp
   )
 
 target_link_libraries(Dummy
@@ -193,10 +231,14 @@ target_link_libraries(Dummy
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Dummy ${PROJECT_NAME}_gencfg)
+add_dependencies(Dummy
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
-add_library(GarminAgl 
-  src/estimators/agl/garmin_agl.cpp 
+add_library(GarminAgl
+  src/estimators/agl/garmin_agl.cpp
   )
 
 target_link_libraries(GarminAgl
@@ -206,7 +248,11 @@ target_link_libraries(GarminAgl
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GarminAgl ${PROJECT_NAME}_gencfg)
+add_dependencies(GarminAgl
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
 
 if(CATKIN_ENABLE_TESTING)
 
@@ -229,3 +275,25 @@ if(CATKIN_ENABLE_TESTING)
     )
 
 endif()
+
+## --------------------------------------------------------------
+## |                           Install                          |
+## --------------------------------------------------------------
+
+install(TARGETS ${LIBRARIES}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  )
+
+install(DIRECTORY config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )
+
+install(DIRECTORY include/mrs_uav_state_estimators/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  )
+
+install(FILES estimator_plugins.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )

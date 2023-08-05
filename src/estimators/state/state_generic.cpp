@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include "estimators/state/state_generic.h"
+#include <mrs_uav_state_estimators/estimators/state/state_generic.h>
 
 //}
 

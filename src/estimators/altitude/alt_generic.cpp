@@ -2,7 +2,7 @@
 
 /* includes //{ */
 
-#include "estimators/altitude/alt_generic.h"
+#include <mrs_uav_state_estimators/estimators/altitude/alt_generic.h>
 
 //}
 

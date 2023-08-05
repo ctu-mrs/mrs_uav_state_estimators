@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include "estimators/state/dummy.h"
+#include <mrs_uav_state_estimators/estimators/state/dummy.h>
 
 //}
 

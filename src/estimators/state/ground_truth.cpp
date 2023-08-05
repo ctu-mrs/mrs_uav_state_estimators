@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include "estimators/state/ground_truth.h"
+#include <mrs_uav_state_estimators/estimators/state/ground_truth.h>
 
 //}
 

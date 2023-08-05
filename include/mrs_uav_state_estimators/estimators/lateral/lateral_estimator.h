@@ -3,7 +3,7 @@
 
 /* includes //{ */
 
-#include "estimators/partial_estimator.h"
+#include <mrs_uav_state_estimators/estimators/partial_estimator.h>
 
 //}
 

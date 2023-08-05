@@ -1,6 +1,6 @@
 /* includes //{ */
 
-#include "estimators/state/passthrough.h"
+#include <mrs_uav_state_estimators/estimators/state/passthrough.h>
 
 //}
 

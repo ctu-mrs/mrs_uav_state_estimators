@@ -2,7 +2,7 @@
 
 /* includes //{ */
 
-#include "estimators/heading/hdg_passthrough.h"
+#include <mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h>
 
 //}
 

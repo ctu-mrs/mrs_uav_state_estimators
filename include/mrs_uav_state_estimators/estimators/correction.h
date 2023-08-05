@@ -21,17 +21,17 @@
 
 #include <functional>
 
-#include <estimation_manager/types.h>
-#include <estimation_manager/support.h>
-#include <estimation_manager/common_handlers.h>
+#include <mrs_uav_managers/estimation_manager/types.h>
+#include <mrs_uav_managers/estimation_manager/support.h>
+#include <mrs_uav_managers/estimation_manager/common_handlers.h>
 
-#include "processors/processor.h"
-#include "processors/proc_median_filter.h"
-#include "processors/proc_saturate.h"
-#include "processors/proc_excessive_tilt.h"
-#include "processors/proc_tf_to_world.h"
+#include <mrs_uav_state_estimators/processors/processor.h>
+#include <mrs_uav_state_estimators/processors/proc_median_filter.h>
+#include <mrs_uav_state_estimators/processors/proc_saturate.h>
+#include <mrs_uav_state_estimators/processors/proc_excessive_tilt.h>
+#include <mrs_uav_state_estimators/processors/proc_tf_to_world.h>
 
-#include "mrs_uav_state_estimators/CorrectionConfig.h"
+#include <mrs_uav_state_estimators/CorrectionConfig.h>
 
 
 namespace mrs_uav_state_estimators

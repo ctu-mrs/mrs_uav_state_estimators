@@ -13,7 +13,7 @@
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/geometry/cyclic.h>
 
-#include "estimators/heading/heading_estimator.h"
+#include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
 
 //}
 

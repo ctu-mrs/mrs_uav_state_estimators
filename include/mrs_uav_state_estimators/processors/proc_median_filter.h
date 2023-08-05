@@ -2,7 +2,7 @@
 #ifndef PROCESSORS_PROC_MEDIAN_FILTER_H
 #define PROCESSORS_PROC_MEDIAN_FILTER_H
 
-#include "processors/processor.h"
+#include <mrs_uav_state_estimators/processors/processor.h>
 
 #include <mrs_lib/median_filter.h>
 #include <mrs_lib/param_loader.h>

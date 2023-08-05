@@ -12,7 +12,7 @@
 
 #include <mrs_msgs/EstimatorOutput.h>
 
-#include <estimation_manager/estimator.h>
+#include <mrs_uav_managers/estimation_manager/estimator.h>
 
 //}
 

@@ -15,8 +15,8 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
 
-#include "estimators/lateral/lateral_estimator.h"
-#include "estimators/correction.h"
+#include <mrs_uav_state_estimators/estimators/lateral/lateral_estimator.h>
+#include <mrs_uav_state_estimators/estimators/correction.h>
 
 #include <mrs_uav_state_estimators/LateralEstimatorConfig.h>
 

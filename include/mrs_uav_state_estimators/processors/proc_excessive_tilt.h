@@ -2,7 +2,7 @@
 #ifndef PROCESSORS_PROC_EXCESSIVE_TILT_H
 #define PROCESSORS_PROC_EXCESSIVE_TILT_H
 
-#include "processors/processor.h"
+#include <mrs_uav_state_estimators/processors/processor.h>
 
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscribe_handler.h>
