@@ -10,9 +10,10 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
+  ph_ = ph;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
@@ -31,7 +32,15 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
+  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
+  bool success = true;
+
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
+
+  if (!success) {
+    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+    return;
+  }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");

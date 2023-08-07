@@ -11,9 +11,10 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
+  ph_ = ph;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
@@ -21,7 +22,15 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   hdg_covariance_ = covariance_t::Zero();
 
   // | --------------- param loader initialization --------------- |
-  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace());
+  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
+  bool success = true;
+
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
+
+  if (!success) {
+    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+    return;
+  }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
   param_loader.setPrefix(getNamespacedName() + "/");

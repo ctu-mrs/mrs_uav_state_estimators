@@ -11,16 +11,26 @@ namespace ground_truth
 {
 
 /* initialize() //{*/
-void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
+  ph_ = ph;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | --------------- param loader initialization -------------- |
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
 
-  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
+  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace()); */
+  bool success = true;
+
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml");
+
+  if (!success) {
+    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+    return;
+  }
+
   param_loader.setPrefix(getName() + "/");
 
   // | --------------------- load parameters -------------------- |

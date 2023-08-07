@@ -11,9 +11,10 @@ namespace dummy
 {
 
 /* initialize() //{*/
-void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
+  ph_ = ph;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 

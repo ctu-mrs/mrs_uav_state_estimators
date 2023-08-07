@@ -8,10 +8,21 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch) {
+void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
+  ph_ = ph;
+
   ros::NodeHandle nh(parent_nh);
+
+  bool success = true;
+
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml");
+
+  if (!success) {
+    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+    return;
+  }
 
   Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace());
 
@@ -86,15 +97,15 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   } else {
     est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName());
   }
-  est_hdg_->initialize(nh, ch_);
+  est_hdg_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_hdg_->getMaxFlightZ());
 
   est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), [this](void) { return this->getHeading(); });
-  est_lat_->initialize(nh, ch_);
+  est_lat_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_lat_->getMaxFlightZ());
 
   est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
-  est_alt_->initialize(nh, ch_);
+  est_alt_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_alt_->getMaxFlightZ());
 
   max_flight_z_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());

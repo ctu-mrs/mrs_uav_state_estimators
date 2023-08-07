@@ -113,7 +113,7 @@ public:
   ~HdgGeneric(void) {
   }
 
-  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch) override;
+  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
