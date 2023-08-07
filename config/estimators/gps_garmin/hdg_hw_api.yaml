@@ -1,4 +1,3 @@
-# passthrough estimator - no estimation on its own
 gps_garmin: # namespace of the state estimator
   hdg_hw_api: # namespace of the heading estimator
 

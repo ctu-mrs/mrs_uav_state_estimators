@@ -25,7 +25,7 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh_.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", "");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());

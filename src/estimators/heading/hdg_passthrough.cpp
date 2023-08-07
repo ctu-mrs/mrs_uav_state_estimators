@@ -25,7 +25,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", "");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
