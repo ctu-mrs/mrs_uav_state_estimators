@@ -28,7 +28,6 @@
   <depend>mrs_uav_managers</depend>
 
   <exec_depend>pluginlib</exec_depend>
-  <exec_depend>mrs_uav_general</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>plotjuggler</exec_depend>
 
