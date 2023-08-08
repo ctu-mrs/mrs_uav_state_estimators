@@ -221,7 +221,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(getNamespacedName() + "/");
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/");
+  /* param_loader.setPrefix(getNamespacedName() + "/"); */
 
   std::string msg_type_string;
   param_loader.loadParam("message/type", msg_type_string);

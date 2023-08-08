@@ -21,17 +21,16 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   // | --------------- param loader initialization -------------- |
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
 
-  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", nh.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", "");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
     return;
   }
 
-  param_loader.setPrefix(getName() + "/");
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);

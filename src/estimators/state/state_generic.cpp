@@ -17,17 +17,16 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
 
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", "");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
     return;
   }
 
-  Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getName() + "/" + getName() + ".yaml", "");
-
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(getName() + "/");
+
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
 
   param_loader.loadParam("estimators/lateral/name", est_lat_name_);
   param_loader.loadParam("estimators/altitude/name", est_alt_name_);

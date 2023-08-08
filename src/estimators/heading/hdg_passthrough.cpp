@@ -22,10 +22,9 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   hdg_covariance_ = covariance_t::Zero();
 
   // | --------------- param loader initialization --------------- |
-  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", "");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
@@ -33,7 +32,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(getNamespacedName() + "/");
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);

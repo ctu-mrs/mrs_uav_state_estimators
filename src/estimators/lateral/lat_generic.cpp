@@ -35,7 +35,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", "");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
@@ -43,7 +43,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(getNamespacedName() + "/");
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("hdg_source_topic", hdg_source_topic_);
@@ -347,6 +347,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     u(1) = des_acc_global.getY();
 
   } else {  // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
+    ROS_WARN_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = ros::Time::now();
     setInputCoeff(0);
     u = u_t::Zero();

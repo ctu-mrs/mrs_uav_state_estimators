@@ -39,7 +39,7 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const st
 
   // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
-  param_loader.setPrefix(Processor<n_measurements>::getNamespacedName() + "/");
+  param_loader.setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
   param_loader.loadParam("buffer_size", buffer_size_);
   param_loader.loadParam("max_diff", max_diff_);

@@ -1,8 +1,10 @@
-gps_garmin: # namespace of the state estimator
-  hdg_hw_api: # namespace of the heading estimator
+mrs_uav_managers:
+  estimation_manager:
+    gps_garmin: # namespace of the state estimator
+      hdg_hw_api: # namespace of the heading estimator
 
-    max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
+        max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
-    topics:
-      orientation: "hw_api/orientation" # without uav namespace
-      angular_velocity: "hw_api/angular_velocity" # without uav namespace
+        topics:
+          orientation: "hw_api/orientation" # without uav namespace
+          angular_velocity: "hw_api/angular_velocity" # without uav namespace

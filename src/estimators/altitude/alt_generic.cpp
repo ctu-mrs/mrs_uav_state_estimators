@@ -35,7 +35,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", "");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
@@ -43,7 +43,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(getNamespacedName() + "/");
+  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
   param_loader.loadParam("max_flight_z", max_flight_z_);
@@ -329,6 +329,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = ros::Time::now();
     setInputCoeff(0);
     u = u_t::Zero();

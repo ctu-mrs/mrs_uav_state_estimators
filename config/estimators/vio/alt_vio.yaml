@@ -1,53 +1,55 @@
-vio: # namespace of the state estimator
-  alt_vio: # namespace of the altitude estimator
+mrs_uav_managers:
+  estimation_manager:
+    vio: # namespace of the state estimator
+      alt_vio: # namespace of the altitude estimator
 
-    max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
+        max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
 
-    innovation:
-      limit: 1.0 # [m] innovation limit that will trigger action
-      action: "eland" # {"eland", "switch", "mitigate"}
+        innovation:
+          limit: 1.0 # [m] innovation limit that will trigger action
+          action: "eland" # {"eland", "switch", "mitigate"}
 
-    repredictor: # repredictor for correct fusion of delayed measurements
-      enabled: false
-      buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
+        repredictor: # repredictor for correct fusion of delayed measurements
+          enabled: false
+          buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
 
-    process_noise: # process noise covariance (Q)
-      pos: 1.0 # position state
-      vel: 100.0 # velocity state
-      acc: 100.0 # acceleration state
+        process_noise: # process noise covariance (Q)
+          pos: 1.0 # position state
+          vel: 100.0 # velocity state
+          acc: 100.0 # acceleration state
 
-    corrections: [
-      "pos_vio",
-      "vel_hw_api"
-    ]
+        corrections: [
+          "pos_vio",
+          "vel_hw_api"
+        ]
 
-    pos_vio:
-      state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
-      noise: 0.001 # measurement noise covariance (R)
-      noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
-      message:
-        type: "nav_msgs/Odometry"
-        topic: "vins_republisher/odom" # without uav namespace
-        limit: 
-          delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
-          time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+        pos_vio:
+          state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
+          noise: 0.001 # measurement noise covariance (R)
+          noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
+          message:
+            type: "nav_msgs/Odometry"
+            topic: "vins_republisher/odom" # without uav namespace
+            limit: 
+              delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
+              time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
-      processors: [] # types of processors attached to this measurement
+          processors: [] # types of processors attached to this measurement
 
-    vel_hw_api:
-      state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
-      noise: 1.0 # measurement noise covariance (R)
-      noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
-      message:
-        type: "geometry_msgs/Vector3Stamped"
-        topic: "hw_api/velocity" # without uav namespace
-        limit: 
-          delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
-          time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+        vel_hw_api:
+          state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
+          noise: 1.0 # measurement noise covariance (R)
+          noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
+          message:
+            type: "geometry_msgs/Vector3Stamped"
+            topic: "hw_api/velocity" # without uav namespace
+            limit: 
+              delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
+              time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
-      processors: [] # types of processors attached to this measurement
+          processors: [] # types of processors attached to this measurement
 
-      median_filter:
-        buffer_size: 20 # the number of samples from which the median is calculated
-        max_diff: 2.0 # [m] reject measurement if difference from median is over this value
+          median_filter:
+            buffer_size: 20 # the number of samples from which the median is calculated
+            max_diff: 2.0 # [m] reject measurement if difference from median is over this value
 

@@ -47,7 +47,7 @@ ProcTfToWorld<n_measurements>::ProcTfToWorld(ros::NodeHandle& nh, const std::str
 
   // | --------------------- load parameters -------------------- |
   mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
-  param_loader.setPrefix(Processor<n_measurements>::getNamespacedName() + "/");
+  param_loader.setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
   param_loader.loadParam("gnss_topic", gnss_topic_);
   gnss_topic_ = "/" + ch->uav_name + "/" + gnss_topic_;
