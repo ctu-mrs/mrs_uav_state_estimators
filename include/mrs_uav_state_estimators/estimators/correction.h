@@ -921,6 +921,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     return {};
   }
 
+  if (!std::isfinite(msg->range)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s]: received value: %f. Not using this correction.", getPrintName().c_str(), msg->range);
+    return {};
+  }
+
   geometry_msgs::PoseStamped range_point;
 
   range_point.header           = msg->header;
