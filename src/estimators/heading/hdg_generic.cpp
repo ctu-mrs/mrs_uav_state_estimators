@@ -20,8 +20,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format off
   dt_ = 0.01;
-  input_coeff_ = 0.2;
-  default_input_coeff_ = 0.2;
+  input_coeff_ = 20;
+  default_input_coeff_ = 20;
 
   generateA();
   generateB();
@@ -306,9 +306,9 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  /* if (!is_repredictor_enabled_) { // repredictor requires constant dt */
-  /*   setDt(dt); */
-  /* } */
+  if (!is_repredictor_enabled_) { // repredictor requires constant dt
+    setDt(dt);
+  }
 
   // go through available corrections and apply them
   /* for (auto correction : corrections_) { */
@@ -580,8 +580,10 @@ double HdgGeneric::getInnovation(const int &state_id_in, const int &axis_in) con
 void HdgGeneric::setDt(const double &dt) {
   dt_ = dt;
   generateA();
+  generateB();
   std::scoped_lock lock(mutex_lkf_);
   lkf_->A = A_;
+  lkf_->B = B_;
 }
 /*//}*/
 
@@ -602,7 +604,7 @@ void HdgGeneric::generateA() {
   // clang-format off
     A_ <<
       1, dt_,
-      0, 1-input_coeff_;
+      0, 1-(input_coeff_ * dt_);
   // clang-format on
 }
 /*//}*/
@@ -613,7 +615,7 @@ void HdgGeneric::generateB() {
   // clang-format off
     B_ <<
       0,
-      input_coeff_;
+      (input_coeff_ * dt_);
   // clang-format on
 }
 /*//}*/

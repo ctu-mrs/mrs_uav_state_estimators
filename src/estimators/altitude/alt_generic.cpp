@@ -20,8 +20,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // clang-format off
   dt_ = 0.01;
-  input_coeff_ = 0.1;
-  default_input_coeff_ = 0.1;
+  input_coeff_ = 10;
+  default_input_coeff_ = 10;
 
   generateA();
   generateB();
@@ -315,9 +315,9 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  /* if (!is_repredictor_enabled_) { // repredictor requires constant dt */
-  /*   setDt(dt); */
-  /* } */
+  if (!is_repredictor_enabled_) { // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
+    setDt(dt);
+  }
 
   // prediction step
   u_t       u;
@@ -611,8 +611,10 @@ double AltGeneric::getInnovation(const int &state_id_in, const int &axis_in) con
 void AltGeneric::setDt(const double &dt) {
   dt_ = dt;
   generateA();
+  generateB();
   std::scoped_lock lock(mutex_lkf_);
   lkf_->A = A_;
+  lkf_->B = B_;
 }
 /*//}*/
 
@@ -632,9 +634,9 @@ void AltGeneric::generateA() {
 
   // clang-format off
     A_ <<
-      1, dt_, std::pow(dt_, 2)/2,
+      1, dt_, 0.5 * dt_ * dt_,
       0, 1, dt_,
-      0, 0, 1-input_coeff_;
+      0, 0, 1-(input_coeff_ * dt_);
   // clang-format on
 }
 /*//}*/
@@ -646,7 +648,7 @@ void AltGeneric::generateB() {
     B_ <<
       0,
       0,
-      input_coeff_;
+      (input_coeff_ * dt_);
   // clang-format on
 }
 /*//}*/
