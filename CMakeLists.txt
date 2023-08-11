@@ -1,24 +1,27 @@
 cmake_minimum_required(VERSION 3.5)
 project(mrs_uav_state_estimators)
 
-set(DEPENDENCIES
-  roscpp
-  nodelet
-  sensor_msgs
-  std_msgs
-  nav_msgs
-  tf2_geometry_msgs
-  geometry_msgs
+set(CATKIN_DEPENDENCIES
+  cmake_modules
   dynamic_reconfigure
+  geometry_msgs
+  message_generation
+  message_runtime
   mrs_lib
   mrs_msgs
   mrs_uav_managers
+  nav_msgs
+  nodelet
+  roscpp
   roslint
-)
+  sensor_msgs
+  std_msgs
+  tf2_geometry_msgs
+  )
 
 find_package(catkin REQUIRED COMPONENTS
-  ${DEPENDENCIES}
-)
+  ${CATKIN_DEPENDENCIES}
+  )
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -30,10 +33,18 @@ find_package(Eigen3 REQUIRED)
 set(Eigen_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
 set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
-# TODO prefix with mrs-related tag to avoid .so confusion
 set(LIBRARIES
-  Common Aloam GpsGarmin GpsBaro Rtk HectorGarmin Passthrough GroundTruth Dummy GarminAgl
-)
+  MrsUavStateEstimators_Common
+  MrsUavStateEstimators_Aloam
+  MrsUavStateEstimators_GpsGarmin
+  MrsUavStateEstimators_GpsBaro
+  MrsUavStateEstimators_Rtk
+  MrsUavStateEstimators_HectorGarmin
+  MrsUavStateEstimators_Passthrough
+  MrsUavStateEstimators_GroundTruth
+  MrsUavStateEstimators_Dummy
+  MrsUavStateEstimators_GarminAgl
+  )
 
 # clang-tidy linting
 # find_program(CLANG_TIDY_COMMAND NAMES clang-tidy)
@@ -50,7 +61,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${LIBRARIES}
-  CATKIN_DEPENDS ${DEPENDENCIES}
+  CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
   DEPENDS Eigen
   )
 
@@ -65,7 +76,7 @@ include_directories(
 set(ROSLINT_CPP_OPTS "--filter=-whitespace/comments,-whitespace/braces,-legal/copyright,-readability/multiline_comment,-whitespace/blank_line,-whitespace/line_length,-readability/todo,-build/include_what_you_use,-runtime/references,-build/include")
 roslint_cpp()
 
-add_library(Common
+add_library(MrsUavStateEstimators_Common
   src/estimators/state/state_generic.cpp
   src/estimators/altitude/alt_generic.cpp
   src/estimators/lateral/lat_generic.cpp
@@ -74,82 +85,82 @@ add_library(Common
   )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(Common
+target_link_libraries(MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
-add_dependencies(Common
+add_dependencies(MrsUavStateEstimators_Common
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(GpsGarmin
+add_library(MrsUavStateEstimators_GpsGarmin
   src/estimators/state/gps_garmin.cpp
   )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(GpsGarmin
-  Common
+target_link_libraries(MrsUavStateEstimators_GpsGarmin
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsGarmin
+add_dependencies(MrsUavStateEstimators_GpsGarmin
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(GpsBaro
+add_library(MrsUavStateEstimators_GpsBaro
   src/estimators/state/gps_baro.cpp
   )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(GpsBaro
-  Common
+target_link_libraries(MrsUavStateEstimators_GpsBaro
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GpsBaro
+add_dependencies(MrsUavStateEstimators_GpsBaro
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(Aloam
+add_library(MrsUavStateEstimators_Aloam
   src/estimators/state/aloam.cpp
   )
 
-target_link_libraries(Aloam
-  Common
+target_link_libraries(MrsUavStateEstimators_Aloam
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Aloam
+add_dependencies(MrsUavStateEstimators_Aloam
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(HectorGarmin
+add_library(MrsUavStateEstimators_HectorGarmin
   src/estimators/state/hector_garmin.cpp
   )
 
-target_link_libraries(HectorGarmin
-  Common
+target_link_libraries(MrsUavStateEstimators_HectorGarmin
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(HectorGarmin
+add_dependencies(MrsUavStateEstimators_HectorGarmin
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
@@ -160,7 +171,7 @@ add_library(Vio
   )
 
 target_link_libraries(Vio
-  Common
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
@@ -172,83 +183,83 @@ add_dependencies(Vio
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(Rtk
+add_library(MrsUavStateEstimators_Rtk
   src/estimators/state/rtk.cpp
   )
 
-target_link_libraries(Rtk
-  Common
+target_link_libraries(MrsUavStateEstimators_Rtk
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Rtk
+add_dependencies(MrsUavStateEstimators_Rtk
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(Passthrough
+add_library(MrsUavStateEstimators_Passthrough
   src/estimators/state/passthrough.cpp
   )
 
-target_link_libraries(Passthrough
+target_link_libraries(MrsUavStateEstimators_Passthrough
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Passthrough
+add_dependencies(MrsUavStateEstimators_Passthrough
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(GroundTruth
+add_library(MrsUavStateEstimators_GroundTruth
   src/estimators/state/ground_truth.cpp
   )
 
-target_link_libraries(GroundTruth
+target_link_libraries(MrsUavStateEstimators_GroundTruth
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GroundTruth
+add_dependencies(MrsUavStateEstimators_GroundTruth
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(Dummy
+add_library(MrsUavStateEstimators_Dummy
   src/estimators/state/dummy.cpp
   )
 
-target_link_libraries(Dummy
+target_link_libraries(MrsUavStateEstimators_Dummy
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(Dummy
+add_dependencies(MrsUavStateEstimators_Dummy
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
   )
 
-add_library(GarminAgl
+add_library(MrsUavStateEstimators_GarminAgl
   src/estimators/agl/garmin_agl.cpp
   )
 
-target_link_libraries(GarminAgl
-  Common
+target_link_libraries(MrsUavStateEstimators_GarminAgl
+  MrsUavStateEstimators_Common
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
 
 ## Add configure headers for dynamic reconfigure
-add_dependencies(GarminAgl
+add_dependencies(MrsUavStateEstimators_GarminAgl
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
