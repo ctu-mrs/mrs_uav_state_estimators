@@ -34,7 +34,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // | --------------- initialize parameter loader -------------- |
   bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
+  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());

@@ -1,0 +1,10 @@
+mrs_uav_managers:
+  estimation_manager:
+    rtk: # namespace of the state estimator
+      override_frame_id:
+        enabled: false # if true, custom frame_id can be provided instead of the default "[estimator_name]_origin"
+        frame_id: ""
+
+
+
+

@@ -15,7 +15,7 @@ class ParamsGetter:
 
         file_paths = []
 
-        for path, subdirs, files in os.walk(package_path + "/config/estimators/"):
+        for path, subdirs, files in os.walk(package_path + "/config/public/"):
             for name in files:
                 if name.endswith(".yaml") or name.endswith(".yml"):
                   file_paths.append(os.path.join(path, name))

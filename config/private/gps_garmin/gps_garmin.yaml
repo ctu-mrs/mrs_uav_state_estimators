@@ -1,35 +1,26 @@
 mrs_uav_managers:
   estimation_manager:
-    hector_garmin: # namespace of the state estimator
+    gps_garmin: # namespace of the state estimator
       requires: # data required from the hw api
-        gnss: false
+        gnss: true
         imu: false
         distance_sensor: true
         altitude: false
         magnetometer_heading: false
-        position: false
+        position: true
         orientation: true
         velocity: true
         angular_velocity: true
 
       estimators: # the names of the partial estimators
         lateral:
-          name: "lat_hector"
+          name: "lat_gps"
         altitude:
           name: "alt_garmin"
         heading:
-          name: "hdg_hector"
-          passthrough: false # if true, then heading is not estimated but passed through from the orientation topic
+          name: "hdg_hw_api"
+          passthrough: true # if true, then heading is not estimated but passed through from the orientation topic
 
       topics:
         orientation: "hw_api/orientation" # orientation passthrough
         angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
-
-      override_frame_id: # override the default frame_id with a custom one (e.g. slam_origin instead of aloam_origin)
-        enabled: false
-        frame_id: "hector_origin" # the desired frame_id without the UAV namespace
-
-
-
-
-

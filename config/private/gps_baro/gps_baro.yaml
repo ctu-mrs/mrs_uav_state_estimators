@@ -1,11 +1,11 @@
 mrs_uav_managers:
   estimation_manager:
-    gps_garmin: # namespace of the state estimator
+    gps_baro: # namespace of the state estimator
       requires: # data required from the hw api
         gnss: true
         imu: false
-        distance_sensor: true
-        altitude: false
+        distance_sensor: false
+        altitude: true
         magnetometer_heading: false
         position: true
         orientation: true
@@ -16,7 +16,7 @@ mrs_uav_managers:
         lateral:
           name: "lat_gps"
         altitude:
-          name: "alt_garmin"
+          name: "alt_baro"
         heading:
           name: "hdg_hw_api"
           passthrough: true # if true, then heading is not estimated but passed through from the orientation topic
@@ -24,11 +24,3 @@ mrs_uav_managers:
       topics:
         orientation: "hw_api/orientation" # orientation passthrough
         angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
-
-      override_frame_id:
-        enabled: false # if true, custom frame_id can be provided instead of the default "[estimator_name]_origin"
-        frame_id: ""
-
-
-
-

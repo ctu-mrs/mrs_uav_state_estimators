@@ -1,0 +1,13 @@
+mrs_uav_managers:
+  estimation_manager:
+    garmin_agl: # namespace of the agl estimator
+      requires: # data required from the hw api
+        gnss: false
+        imu: false
+        distance_sensor: true
+        altitude: false
+        magnetometer_heading: false
+        position: false
+        orientation: false
+        velocity: false
+        angular_velocity: false

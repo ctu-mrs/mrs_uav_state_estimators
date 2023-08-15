@@ -1,6 +1,6 @@
 mrs_uav_managers:
   estimation_manager:
-    vio: # namespace of the state estimator
+    aloam: # namespace of the state estimator
       requires: # data required from the hw api
         gnss: false
         imu: false
@@ -14,22 +14,13 @@ mrs_uav_managers:
 
       estimators: # the names of the partial estimators
         lateral:
-          name: "lat_vio"
+          name: "lat_aloam"
         altitude:
-          name: "alt_vio"
+          name: "alt_aloam"
         heading:
-          name: "hdg_vio"
+          name: "hdg_aloam"
           passthrough: false # if true, then heading is not estimated but passed through from the orientation topic
 
       topics:
         orientation: "hw_api/orientation" # orientation passthrough
         angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough
-
-      override_frame_id: # override the default frame_id with a custom one (e.g. slam_origin instead of vio_origin)
-        enabled: false
-        frame_id: "vio_origin" # the desired frame_id without the UAV namespace
-
-
-
-
-
