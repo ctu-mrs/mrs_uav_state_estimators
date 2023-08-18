@@ -6,6 +6,7 @@
 
 #include <sensor_msgs/NavSatFix.h>
 
+#include <mrs_lib/gps_conversions.h>
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/param_loader.h>
 
@@ -36,7 +37,7 @@ private:
   double gnss_y_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_gnss_;
-  void                                              callbackGnss(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp);
+  void                                              callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg);
 };
 
 /*//{ constructor */
@@ -75,7 +76,7 @@ ProcTfToWorld<n_measurements>::ProcTfToWorld(ros::NodeHandle& nh, const std::str
 
 /*//{ callbackGnss() */
 template <int n_measurements>
-void ProcTfToWorld<n_measurements>::callbackGnss(mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>& wrp) {
+void ProcTfToWorld<n_measurements>::callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -84,8 +85,6 @@ void ProcTfToWorld<n_measurements>::callbackGnss(mrs_lib::SubscribeHandler<senso
   if (got_gnss_) {
     return;
   }
-
-  const sensor_msgs::NavSatFixConstPtr msg = wrp.getMsg();
 
   if (!std::isfinite(msg->latitude)) {
     ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->latitude\"!!!", Processor<n_measurements>::getPrintName().c_str());

@@ -10,9 +10,11 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/dynamic_reconfigure_mgr.h>
 #include <mrs_lib/gps_conversions.h>
+#include <mrs_lib/mutex.h>
 
 #include <mrs_msgs/RtkGps.h>
 #include <mrs_msgs/EstimatorCorrection.h>
+#include <mrs_msgs/Float64Stamped.h>
 
 #include <sensor_msgs/Range.h>
 #include <nav_msgs/Odometry.h>
@@ -114,17 +116,17 @@ private:
   std::atomic_bool is_initialized_ = false;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  void                                          callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp);
+  void                                          callbackOdometry(const nav_msgs::Odometry::ConstPtr msg);
   std::optional<measurement_t>                  getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped> sh_pose_s_;
-  void                                                  callbackPoseStamped(mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>& wrp);
+  void                                                  callbackPoseStamped(const geometry_msgs::PoseStamped::ConstPtr msg);
   std::optional<measurement_t>                          getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
 
   mrs_lib::SubscribeHandler<mrs_msgs::RtkGps> sh_rtk_;
-  void                                        callbackRtk(mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>& wrp);
+  void                                        callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg);
   std::optional<measurement_t>                getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
   void                                        getAvgRtkInitZ(const double rtk_z);
   bool                                        got_avg_init_rtk_z_ = false;
@@ -132,18 +134,18 @@ private:
   int                                         got_rtk_counter_    = 0;
 
   mrs_lib::SubscribeHandler<geometry_msgs::PointStamped> sh_point_;
-  void                                                   callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp);
+  void                                                   callbackPoint(const geometry_msgs::PointStamped::ConstPtr msg);
   std::optional<measurement_t>                           getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_vector_;
   std::optional<measurement_t>                             getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
-  void                                                     callbackVector(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>& wrp);
+  void                                                     callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
-  void                                          callbackRange(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp);
+  void                                          callbackRange(const sensor_msgs::Range::ConstPtr msg);
   ros::ServiceServer                            ser_toggle_range_;
   bool                                          callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
   bool                                          range_enabled_ = true;
@@ -186,7 +188,7 @@ private:
   double time_since_last_msg_limit_;
 
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
-  bool                     process(measurement_t& measurement);
+  bool                                       process(measurement_t& measurement);
 
   bool             isTimestampOk();
   bool             isMsgComing();
@@ -368,7 +370,7 @@ std::string Correction<n_measurements>::getPrintName() const {
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
   std::scoped_lock lock(mtx_R_);
-  default_R_         = drmgr_->config.noise;
+  default_R_ = drmgr_->config.noise;
   return R_;
 }
 /*//}*/
@@ -655,15 +657,15 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
 /*//{ callbackOdometry() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackOdometry(mrs_lib::SubscribeHandler<nav_msgs::Odometry>& wrp) {
+void Correction<n_measurements>::callbackOdometry(const nav_msgs::Odometry::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromOdometry(wrp.getMsg());
+  auto res = getCorrectionFromOdometry(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -804,15 +806,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackPoseStamped() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackPoseStamped(mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>& wrp) {
+void Correction<n_measurements>::callbackPoseStamped(const geometry_msgs::PoseStamped::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromPoseStamped(wrp.getMsg());
+  auto res = getCorrectionFromPoseStamped(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -899,15 +901,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackRange() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackRange(mrs_lib::SubscribeHandler<sensor_msgs::Range>& wrp) {
+void Correction<n_measurements>::callbackRange(const sensor_msgs::Range::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromRange(wrp.getMsg());
+  auto res = getCorrectionFromRange(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -951,15 +953,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackRtk() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackRtk(mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>& wrp) {
+void Correction<n_measurements>::callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromRtk(wrp.getMsg());
+  auto res = getCorrectionFromRtk(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -1059,15 +1061,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackPoint() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackPoint(mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>& wrp) {
+void Correction<n_measurements>::callbackPoint(const geometry_msgs::PointStamped::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromPoint(wrp.getMsg());
+  auto res = getCorrectionFromPoint(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -1134,15 +1136,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackVector() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackVector(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>& wrp) {
+void Correction<n_measurements>::callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg) {
 
   if (!is_initialized_) {
     return;
   }
 
-  auto res = getCorrectionFromVector(wrp.getMsg());
+  auto res = getCorrectionFromVector(msg);
   if (res) {
-    applyCorrection(res.value(), wrp.getMsg()->header.stamp);
+    applyCorrection(res.value(), msg->header.stamp);
   }
 }
 /*//}*/
@@ -1582,7 +1584,7 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
   for (auto proc_name :
        processor_names_) {  // need to access the estimators in the specific order from the config (e.g. median filter should go before saturation etc.)
     /* bool is_ok, should_fuse; */
-    auto [ is_ok, should_fuse ] = processors_[proc_name]->process(measurement);
+    auto [is_ok, should_fuse] = processors_[proc_name]->process(measurement);
     ok_flag &= is_ok;
     fuse_flag &= should_fuse;
   }

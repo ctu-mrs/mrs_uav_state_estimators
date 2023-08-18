@@ -49,12 +49,12 @@ private:
 
   std::string                                                 orient_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
-  void                                                        callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> &wrp);
+  void                                                        callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg);
   std::atomic<bool>                                           is_orient_ready_ = false;
 
   std::string                                              ang_vel_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_ang_vel_;
-  void                                                     callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp);
+  void                                                     callbackAngularVelocity(const geometry_msgs::Vector3Stamped::ConstPtr msg);
   std::atomic<bool>                                        is_ang_vel_ready_ = false;
 
   ros::Timer timer_update_;

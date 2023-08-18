@@ -129,7 +129,7 @@ bool HdgPassthrough::reset(void) {
 /*//}*/
 
 /*//{ callbackOrientation() */
-void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> &wrp) {
+void HdgPassthrough::callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg) {
 
   if (!isInitialized()) {
     return;
@@ -137,8 +137,7 @@ void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs
 
   double hdg;
   try {
-    auto msg = wrp.getMsg();
-    hdg      = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
+    hdg = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
   }
   catch (...) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
@@ -153,7 +152,7 @@ void HdgPassthrough::callbackOrientation(mrs_lib::SubscribeHandler<geometry_msgs
 /*//}*/
 
 /*//{ callbackAngularVelocity() */
-void HdgPassthrough::callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> &wrp) {
+void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::Vector3Stamped::ConstPtr msg) {
 
   if (!isInitialized() || !sh_orientation_.hasMsg()) {
     return;
@@ -161,7 +160,6 @@ void HdgPassthrough::callbackAngularVelocity(mrs_lib::SubscribeHandler<geometry_
 
   double hdg_rate;
   try {
-    auto msg = wrp.getMsg();
     hdg_rate = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
   }
   catch (...) {
