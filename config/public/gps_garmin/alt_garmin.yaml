@@ -24,7 +24,7 @@ mrs_uav_managers:
 
         pos_garmin:
           state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
-          noise: 1.0 # measurement noise covariance (R)
+          noise: 10.0 # measurement noise covariance (R)
           noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
           message:
             type: "sensor_msgs/Range"
@@ -53,7 +53,7 @@ mrs_uav_managers:
       # Parameters of altitude median filters - buffer_size , max_diff 
         vel_hw_api:
           state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
-          noise: 1.0 # measurement noise covariance (R)
+          noise: 0.01 # measurement noise covariance (R)
           noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
           message:
             type: "geometry_msgs/Vector3Stamped"
