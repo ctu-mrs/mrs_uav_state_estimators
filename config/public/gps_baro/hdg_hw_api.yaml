@@ -9,4 +9,3 @@ mrs_uav_managers:
         topics:
           orientation: "hw_api/orientation" # without uav namespace
           angular_velocity: "hw_api/angular_velocity" # without uav namespace
-
