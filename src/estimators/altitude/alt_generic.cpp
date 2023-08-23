@@ -506,6 +506,10 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
           setState(z(0), POSITION);
           break;
         }
+        case ExcInnoAction_t::NONE: {
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", ros::this_node::getName().c_str());
+          break;
+        }
       }
     }
   }

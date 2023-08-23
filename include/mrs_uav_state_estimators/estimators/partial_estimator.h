@@ -24,12 +24,15 @@ typedef enum
   ELAND,
   SWITCH,
   MITIGATE,
+  NONE
 } ExcInnoAction_t;
-const int n_ExcInnoAction = 3;
+const int n_ExcInnoAction = 4;
 
 const std::map<std::string, ExcInnoAction_t> map_exc_inno_action{{"eland", ExcInnoAction_t::ELAND},
                                                         {"switch", ExcInnoAction_t::SWITCH},
-                                                        {"mitigate", ExcInnoAction_t::MITIGATE}};
+                                                        {"mitigate", ExcInnoAction_t::MITIGATE},
+{"none", ExcInnoAction_t::NONE}};
+
 template <int n_states, int n_axes>
 class PartialEstimator : public mrs_uav_managers::Estimator {
 
