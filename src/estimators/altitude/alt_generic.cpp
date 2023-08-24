@@ -330,7 +330,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     setInputCoeff(default_input_coeff_);
     u(0) = des_acc_global.getZ();
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
+    ROS_DEBUG_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = ros::Time::now();
     setInputCoeff(0);
     u = u_t::Zero();
