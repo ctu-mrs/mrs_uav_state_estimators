@@ -49,6 +49,7 @@ protected:
   double pos_innovation_limit_;
   ExcInnoAction_t exc_innovation_action_;
   std::string exc_innovation_action_name_;
+  bool innovation_ok_ = true;
 
 private:
   static const int _n_axes_   = n_axes;

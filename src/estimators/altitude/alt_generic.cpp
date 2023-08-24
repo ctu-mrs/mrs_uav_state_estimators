@@ -284,7 +284,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
         }
       }
       // initialize the estimator again if corrections become healthy
-      if (all_corrections_healthy) {
+      if (all_corrections_healthy && innovation_ok_) {
         changeState(INITIALIZED_STATE);
       }
       break;
@@ -487,6 +487,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
     if (fabs(innovation_(0)) > pos_innovation_limit_) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), pos_innovation_limit_);
+      innovation_ok_ = false;
       switch (exc_innovation_action_) {
         case ExcInnoAction_t::ELAND: {
           ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", ros::this_node::getName().c_str());
@@ -529,6 +530,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
         sc = lkf_->correct(sc, z, R_t::Ones() * R);
       }
     }
+    innovation_ok_ = true;
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
