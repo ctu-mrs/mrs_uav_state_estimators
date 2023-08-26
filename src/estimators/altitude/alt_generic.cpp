@@ -478,6 +478,11 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     return;
   }
 
+  // we do not want to perform corrections until the estimator is initialized
+  if (!(isInState(SMStates_t::READY_STATE) || isInState(SMStates_t::RUNNING_STATE) || isInState(SMStates_t::STARTED_STATE))) {
+    return; 
+  }
+
   // for position state check the innovation
   if (H_idx == POSITION) {
     std::scoped_lock lock(mtx_innovation_);
