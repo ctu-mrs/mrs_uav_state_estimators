@@ -232,11 +232,11 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
           changeState(READY_STATE);
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for subestimators to be initialized", getPrintName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s subestimators to be initialized", getPrintName().c_str(), Support::waiting_for_string.c_str());
           return;
         }
       } else {
-        ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+        ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str(), Support::waiting_for_string.c_str());
         return;
       }
 
@@ -249,7 +249,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
 
     case STARTED_STATE: {
 
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
@@ -314,11 +314,11 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           changeState(READY_STATE);
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for subestimators to be initialized", getPrintName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s subestimators to be initialized", getPrintName().c_str(), Support::waiting_for_string.c_str());
           return;
         }
       } else {
-        ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
+        ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_hw_api_orient_.topicName().c_str());
         return;
       }
 
@@ -331,7 +331,7 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
     case STARTED_STATE: {
 
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());

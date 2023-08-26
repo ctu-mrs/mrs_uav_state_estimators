@@ -220,7 +220,7 @@ void GroundTruth::timerCheckHealth(const ros::TimerEvent &event) {
       changeState(READY_STATE);
       ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for msg on topic %s", getPrintName().c_str(), sh_gt_odom_.topicName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_gt_odom_.topicName().c_str());
       return;
     }
   }

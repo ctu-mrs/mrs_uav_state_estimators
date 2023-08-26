@@ -221,12 +221,12 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
@@ -240,7 +240,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(0), correction->getStateId());
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -250,7 +250,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
 
     case STARTED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (isConverged()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: LKF converged", getPrintName().c_str());
@@ -382,12 +382,12 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for initialization", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for estimator start", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
@@ -401,7 +401,7 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(0), correction->getStateId());
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: Waiting for correction %s", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -411,7 +411,7 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
     }
 
     case STARTED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (isConverged()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: LKF converged", getPrintName().c_str());

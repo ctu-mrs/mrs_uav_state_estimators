@@ -190,14 +190,14 @@ void GarminAgl::timerCheckHealth(const ros::TimerEvent &event) {
       changeState(READY_STATE);
       ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
-      ROS_INFO("[%s]: Waiting for subestimators to be ready", getPrintName().c_str());
+      ROS_INFO("[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
       return;
     }
   }
 
 
   if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]: Estimator is waiting for convergence of LKF", getPrintName().c_str());
+    ROS_INFO("[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
     if (est_agl_garmin_->isRunning()) {
       ROS_INFO("[%s]: Subestimators converged", getPrintName().c_str());
