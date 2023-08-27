@@ -236,7 +236,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
           return;
         }
       } else {
-        ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str(), Support::waiting_for_string.c_str());
+        ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_hw_api_orient_.topicName().c_str());
         return;
       }
 
