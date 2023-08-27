@@ -189,6 +189,7 @@ private:
 
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
   bool                                       process(measurement_t& measurement);
+  void                                       resetProcessors();
 
   bool             isTimestampOk();
   bool             isMsgComing();
@@ -1582,7 +1583,7 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
   bool fuse_flag = true;
 
   for (auto proc_name :
-       processor_names_) {  // need to access the estimators in the specific order from the config (e.g. median filter should go before saturation etc.)
+       processor_names_) {  // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
     /* bool is_ok, should_fuse; */
     auto [is_ok, should_fuse] = processors_[proc_name]->process(measurement);
     ok_flag &= is_ok;
@@ -1599,6 +1600,18 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
     }
   }
   return false;
+}
+/*//}*/
+
+/*//{ resetProcessors() */
+template <int n_measurements>
+void Correction<n_measurements>::resetProcessors() {
+
+  for (auto proc_name :
+       processor_names_) {  // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
+    /* bool is_ok, should_fuse; */
+    processors_[proc_name]->reset();
+  }
 }
 /*//}*/
 

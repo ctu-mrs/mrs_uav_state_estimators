@@ -25,6 +25,7 @@ public:
                StateId_t state_id, std::function<double(int, int)> fun_get_state);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
+  void reset();
 
 private:
   const StateId_t                 state_id_;
@@ -102,6 +103,13 @@ std::tuple<bool, bool> ProcSaturate<n_measurements>::process(measurement_t& meas
   }
 
   return {ok_flag, should_fuse};  // saturated measurement is valid
+}
+/*//}*/
+
+/*//{ reset() */
+template <int n_measurements>
+void ProcSaturate<n_measurements>::reset() {
+  // no need to reset anything
 }
 /*//}*/
 

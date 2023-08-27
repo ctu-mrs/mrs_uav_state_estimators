@@ -27,6 +27,7 @@ public:
   ProcExcessiveTilt(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
+  void reset();
 
 private:
   double max_tilt_sq_;
@@ -103,6 +104,13 @@ std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process(measurement_t&
       should_fuse = false;
   }
   return {ok_flag, should_fuse};
+}
+/*//}*/
+
+/*//{ reset() */
+template <int n_measurements>
+void ProcExcessiveTilt<n_measurements>::reset() {
+  // no need to do anything
 }
 /*//}*/
 

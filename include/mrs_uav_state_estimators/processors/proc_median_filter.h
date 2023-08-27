@@ -24,6 +24,7 @@ public:
   ProcMedianFilter(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
+  void reset();
 
 private:
   std::vector<mrs_lib::MedianFilter> vec_mf_;
@@ -90,6 +91,15 @@ std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t& 
   }
 
   return {ok_flag, should_fuse};
+}
+/*//}*/
+
+/*//{ reset() */
+template <int n_measurements>
+void ProcMedianFilter<n_measurements>::reset() {
+  for (auto mf : vec_mf_) {
+    mf->clear();
+  }
 }
 /*//}*/
 
