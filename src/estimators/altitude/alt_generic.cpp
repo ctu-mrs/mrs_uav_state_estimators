@@ -276,33 +276,37 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
     case ERROR_STATE: {
       ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+      ros::Time t_now = ros::Time::now();
+      if (is_error_state_first_time_) {
+        prev_time_in_error_state_ = t_now;
+        is_error_state_first_time_ = false;
+        error_state_duration_ = ros::Duration(0.0);
+      }
+      error_state_duration_ += t_now - prev_time_in_error_state_;
+
+
+      // check if all corrections are healthy now
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
-          correction.resetProcessors();
           all_corrections_healthy = false;
         }
       }
 
       if (all_corrections_healthy && innovation_ok_) {
-        ros::Time t_now = ros::Time::now();
-        if (first_time_corrections_healthy_) {
-          first_time_corrections_healthy_ = false;
-        } else {
-          healthy_duration_ += t_now - prev_time_in_error_state_;
-        } 
-        prev_time_in_error_state_ = t_now;
+        // initialize the estimator again if corrections become healthy
+        if (error_state_duration_.toSec() > 5.0) {
+          ROS_INFO("[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_.toSec());
+          changeState(INITIALIZED_STATE);
+          is_error_state_first_time_ = true;
+        }
       } else {
-        healthy_duration_ = ros::Duration(0.0);
+        is_error_state_first_time_ = true;
       }
 
-      // initialize the estimator again if corrections become healthy
-      if (healthy_duration_.toSec() > 5.0) {
-        first_time_corrections_healthy_ = true;
-        ROS_INFO("[%s]: corrections healthy for %.2f s", getPrintName().c_str(), healthy_duration_.toSec());
-        changeState(INITIALIZED_STATE);
-      }
+      prev_time_in_error_state_ = t_now;
+
       break;
     }
   }

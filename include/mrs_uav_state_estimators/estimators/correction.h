@@ -112,6 +112,8 @@ public:
   std::optional<MeasurementStamped> getRawCorrection();
   std::optional<MeasurementStamped> getProcessedCorrection();
 
+  void resetProcessors();
+
 private:
   std::atomic_bool is_initialized_ = false;
 
@@ -189,7 +191,6 @@ private:
 
   std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
   bool                                       process(measurement_t& measurement);
-  void                                       resetProcessors();
 
   bool             isTimestampOk();
   bool             isMsgComing();

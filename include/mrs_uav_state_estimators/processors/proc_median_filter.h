@@ -98,7 +98,7 @@ std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t& 
 template <int n_measurements>
 void ProcMedianFilter<n_measurements>::reset() {
   for (auto mf : vec_mf_) {
-    mf->clear();
+    mf.clear();
   }
 }
 /*//}*/
