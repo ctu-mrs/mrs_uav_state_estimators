@@ -28,7 +28,7 @@ void GroundTruth::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    return;
+    ros::shutdown();
   }
 
   param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
