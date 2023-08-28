@@ -241,12 +241,12 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         auto res = correction->getProcessedCorrection();
         if (res) {
-          auto res_raw = correction->getRawCorrection();
-          if (!res_raw) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: error getting raw correction when processed correction is available, should not happen", getPrintName().c_str());
-            return;
-          }
-          auto measurement_stamped = res_raw.value();  // we need to use raw correction for initialization to avoid saturation wrpt previous state (especially
+          /* auto res_raw = correction->getRawCorrection(); */
+          /* if (!res_raw) { */
+          /*   ROS_ERROR_THROTTLE(1.0, "[%s]: error getting raw correction when processed correction is available, should not happen", getPrintName().c_str()); */
+          /*   return; */
+          /* } */
+          auto measurement_stamped = res.value();  // we need to use raw correction for initialization to avoid saturation wrpt previous state (especially
                                                        // when getting out of ERROR_STATE)
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
