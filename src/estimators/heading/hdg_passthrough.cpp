@@ -29,7 +29,7 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 
   if (!success) {
     ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    return;
+    ros::shutdown();
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
