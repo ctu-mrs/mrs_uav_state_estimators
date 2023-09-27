@@ -22,14 +22,16 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   // | --------------------- load parameters -------------------- |
   /* mrs_lib::ParamLoader param_loader(nh, getName()); */
 
-  bool success = true;
+  if (is_core_plugin_) {
+    bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
 
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   /* param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
@@ -66,7 +68,7 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
 
   // | ---------------- estimators initialization --------------- |
 
-  est_agl_garmin_ = std::make_unique<AltGeneric>(est_agl_name_, frame_id_, getName());
+  est_agl_garmin_ = std::make_unique<AltGeneric>(est_agl_name_, frame_id_, getName(), is_core_plugin_);
   est_agl_garmin_->initialize(nh, ch_, ph_);
 
   max_flight_z_ = est_agl_garmin_->getMaxFlightZ();

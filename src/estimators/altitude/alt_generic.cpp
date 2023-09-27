@@ -33,14 +33,17 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------- initialize parameter loader -------------- |
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
-  bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
+  if (is_core_plugin_) {
+    bool success = true;
 
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
+
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());

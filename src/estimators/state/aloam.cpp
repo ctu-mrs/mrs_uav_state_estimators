@@ -8,10 +8,11 @@ namespace aloam
 {
 
 const char estimator_name[] = "aloam";
+const bool is_core_plugin = true;
 
 class Aloam : public StateGeneric {
 public:
-  Aloam() : StateGeneric(estimator_name) {
+  Aloam() : StateGeneric(estimator_name, is_core_plugin) {
   }
 
   ~Aloam(void) {

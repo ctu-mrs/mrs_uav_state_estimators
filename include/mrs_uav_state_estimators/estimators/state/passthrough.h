@@ -28,6 +28,8 @@ const char name[]         = "passthrough";
 const char frame_id[]     = "passthrough_origin";
 const char package_name[] = "mrs_uav_state_estimators";
 
+const bool is_core_plugin = true;
+
 using namespace mrs_uav_managers::estimation_manager;
 
 class Passthrough : public mrs_uav_managers::StateEstimator {
@@ -43,6 +45,8 @@ private:
 
   const std::string est_hdg_name_ = "hdg_passthrough";
 
+  const bool is_core_plugin_;
+
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_passthrough_odom_;
   double                                        _critical_timeout_passthrough_odom_;
   std::string                                   msg_topic_;
@@ -51,16 +55,15 @@ private:
   void                       timerUpdate(const ros::TimerEvent &event);
   nav_msgs::OdometryConstPtr prev_msg_;
   bool                       first_iter_ = true;
-
-  ros::Timer timer_check_health_;
-  void       timerCheckHealth(const ros::TimerEvent &event);
+  ros::Timer                 timer_check_health_;
+  void                       timerCheckHealth(const ros::TimerEvent &event);
 
   bool isConverged();
 
   void waitForEstimationInitialization();
 
 public:
-  Passthrough() : StateEstimator(passthrough::name, passthrough::frame_id, passthrough::package_name) {
+  Passthrough() : StateEstimator(passthrough::name, passthrough::frame_id, passthrough::package_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~Passthrough(void) {

@@ -32,14 +32,16 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  bool success = true;
+  if (is_core_plugin_) {
+    bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
 
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
@@ -108,7 +110,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerUpdate, this);  // not running after init
   /* timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgGeneric::timerCheckHealth, this); */
 
   // | --------------- subscribers initialization --------------- |
@@ -232,7 +234,8 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                            correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -307,7 +310,7 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  if (!is_repredictor_enabled_) { // repredictor requires constant dt
+  if (!is_repredictor_enabled_) {  // repredictor requires constant dt
     setDt(dt);
   }
 
@@ -391,7 +394,8 @@ void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                            correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -466,10 +470,10 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   if (!isInitialized()) {
     return;
   }
-  
+
   // we do not want to perform corrections until the estimator is initialized
   if (!(isInState(SMStates_t::READY_STATE) || isInState(SMStates_t::RUNNING_STATE) || isInState(SMStates_t::STARTED_STATE))) {
-    return; 
+    return;
   }
 
   // for position state check the innovation

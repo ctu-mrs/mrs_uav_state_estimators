@@ -15,14 +15,14 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
 
   ros::NodeHandle nh(parent_nh);
 
-  bool success = true;
-
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
-
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+  if (is_core_plugin_) {
+    bool success = true;
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
@@ -54,7 +54,7 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init
   /* timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerCheckHealth, this); */
   timer_pub_attitude_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerPubAttitude, this);
 
@@ -93,18 +93,18 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   std::vector<double> max_altitudes;
 
   if (is_hdg_passthrough_) {
-    est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName());
+    est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
   } else {
-    est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName());
+    est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
   }
   est_hdg_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_hdg_->getMaxFlightZ());
 
-  est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), [this](void) { return this->getHeading(); });
+  est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), is_core_plugin_, [this](void) { return this->getHeading(); });
   est_lat_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_lat_->getMaxFlightZ());
 
-  est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName());
+  est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName(), is_core_plugin_);
   est_alt_->initialize(nh, ch_, ph_);
   max_altitudes.push_back(est_alt_->getMaxFlightZ());
 
@@ -217,7 +217,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
   if (!isInitialized()) {
     return;
   }
-  
+
   mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::timerUpdate", ch_->scope_timer.logger, ch_->scope_timer.enabled);
 
   switch (getCurrentSmState()) {

@@ -7,10 +7,11 @@ namespace hector_garmin
 {
 
 const char estimator_name[] = "hector_garmin";
+const bool is_core_plugin = true;
 
 class HectorGarmin : public StateGeneric {
 public:
-  HectorGarmin() : StateGeneric(estimator_name) {
+  HectorGarmin() : StateGeneric(estimator_name, is_core_plugin) {
   }
 
   ~HectorGarmin(void) {

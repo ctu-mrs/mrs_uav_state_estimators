@@ -47,6 +47,8 @@ private:
   states_t           innovation_;
   mutable std::mutex mtx_innovation_;
 
+  const bool is_core_plugin_;
+
   std::string                                                 orient_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
   void                                                        callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg);
@@ -64,8 +66,8 @@ private:
   void       timerCheckHealth(const ros::TimerEvent &event);
 
 public:
-  HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
-      : HeadingEstimator<hdg_passthrough::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name) {
+  HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
+      : HeadingEstimator<hdg_passthrough::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~HdgPassthrough(void) {

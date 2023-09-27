@@ -53,6 +53,8 @@ private:
 
   bool is_override_frame_id_;
 
+  const bool is_core_plugin_;
+
   std::string                                                 topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
 
@@ -73,7 +75,8 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  StateGeneric(const std::string &name) : StateEstimator(name, name + "_origin", state_generic::package_name) {
+  StateGeneric(const std::string &name, const bool is_core_plugin)
+      : StateEstimator(name, name + "_origin", state_generic::package_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~StateGeneric(void) {

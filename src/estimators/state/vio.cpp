@@ -7,10 +7,11 @@ namespace vio
 {
 
 const char estimator_name[] = "vio";
+const bool is_core_plugin = true;
 
 class Vio : public StateGeneric {
 public:
-  Vio() : StateGeneric(estimator_name) {
+  Vio() : StateGeneric(estimator_name, is_core_plugin) {
   }
 
   ~Vio(void) {

@@ -7,10 +7,11 @@ namespace gps_baro
 {
 
 const char estimator_name[] = "gps_baro";
+const bool is_core_plugin = true;
 
 class GpsBaro : public StateGeneric {
 public:
-  GpsBaro() : StateGeneric(estimator_name) {
+  GpsBaro() : StateGeneric(estimator_name, is_core_plugin) {
   }
 
   ~GpsBaro(void) {

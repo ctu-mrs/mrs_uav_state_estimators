@@ -21,14 +21,16 @@ void Passthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   // | --------------- param loader initialization -------------- |
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
 
-  bool success = true;
+  if (is_core_plugin_) {
+    bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
 
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
@@ -55,7 +57,7 @@ void Passthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHa
   sh_passthrough_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_);
 
   // | ---------------- publishers initialization --------------- |
-  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10); // needed for tf
+  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10);  // needed for tf
   if (ch_->debug_topics.state) {
     ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 10);
   }

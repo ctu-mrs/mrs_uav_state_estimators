@@ -30,11 +30,15 @@ const char name[]         = "garmin_agl";
 const char frame_id[]     = "garmin_agl_origin";
 const char package_name[] = "mrs_uav_state_estimators";
 
+const bool is_core_plugin = true;
+
 class GarminAgl : public mrs_uav_managers::AglEstimator {
 
 private:
   std::unique_ptr<AltGeneric> est_agl_garmin_;
   const std::string           est_agl_name_ = "garmin_agl";
+
+  const bool is_core_plugin_;
 
   ros::Timer timer_update_;
   int        _update_timer_rate_;
@@ -49,7 +53,7 @@ private:
   void waitForEstimationInitialization();
 
 public:
-  GarminAgl() : AglEstimator(garmin_agl::name, garmin_agl::frame_id, garmin_agl::package_name) {
+  GarminAgl() : AglEstimator(garmin_agl::name, garmin_agl::frame_id, garmin_agl::package_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~GarminAgl(void) {
@@ -60,9 +64,8 @@ public:
   bool pause(void) override;
   bool reset(void) override;
 
-  mrs_msgs::Float64Stamped  getUavAglHeight() const override;
-  std::vector<double> getHeightCovariance() const override;
-
+  mrs_msgs::Float64Stamped getUavAglHeight() const override;
+  std::vector<double>      getHeightCovariance() const override;
 };
 
 }  // namespace garmin_agl

@@ -82,6 +82,8 @@ private:
   bool is_repredictor_enabled_;
   int  rep_buffer_size_ = 200;
 
+  const bool is_core_plugin_;
+
   std::vector<std::string>                                              correction_names_;
   std::vector<std::shared_ptr<Correction<alt_generic::n_measurements>>> corrections_;
 
@@ -104,8 +106,8 @@ private:
   mutable std::mutex mtx_Q_;
 
 public:
-  AltGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name)
-      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name) {
+  AltGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
+      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~AltGeneric(void) {

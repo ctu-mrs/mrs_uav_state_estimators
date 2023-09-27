@@ -33,14 +33,16 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | --------------- initialize parameter loader -------------- |
   /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
-  bool success = true;
+  if (is_core_plugin_) {
+    bool success = true;
 
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
-  success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
+    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
 
-  if (!success) {
-    ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-    ros::shutdown();
+    if (!success) {
+      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
+      ros::shutdown();
+    }
   }
 
   mrs_lib::ParamLoader param_loader(nh, getPrintName());
@@ -327,7 +329,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  if (!is_repredictor_enabled_) { // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
+  if (!is_repredictor_enabled_) {  // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
     setDt(dt);
   }
 
@@ -505,7 +507,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
 
   // we do not want to perform corrections until the estimator is initialized
   if (!(isInState(SMStates_t::READY_STATE) || isInState(SMStates_t::RUNNING_STATE) || isInState(SMStates_t::STARTED_STATE))) {
-    return; 
+    return;
   }
 
   // for position state check the innovation

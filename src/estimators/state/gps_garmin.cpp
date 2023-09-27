@@ -7,10 +7,11 @@ namespace gps_garmin
 {
 
 const char estimator_name[] = "gps_garmin";
+const bool is_core_plugin = true;
 
 class GpsGarmin : public StateGeneric {
 public:
-  GpsGarmin() : StateGeneric(estimator_name) {
+  GpsGarmin() : StateGeneric(estimator_name, is_core_plugin) {
   }
 
   ~GpsGarmin(void) {
