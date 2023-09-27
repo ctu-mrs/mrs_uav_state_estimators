@@ -272,7 +272,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
 
     case ERROR_STATE: {
-      if (est_lat_->isReady() && est_alt_->isReady() && est_hdg_->isReady()) {
+      if ((est_lat_->isReady() || est_lat_->isRunning()) && (est_alt_->isReady() || est_alt_->isRunning()) && (est_hdg_->isReady() || est_hdg_->isRunning())) {
         changeState(READY_STATE);
       }
       break;

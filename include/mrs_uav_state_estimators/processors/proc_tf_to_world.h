@@ -25,6 +25,7 @@ public:
   ProcTfToWorld(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
+  void reset();
 
 private:
   bool is_initialized_ = false;
@@ -125,6 +126,13 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
 }
 /*//}*/
 
+/*//{ reset() */
+template <int n_measurements>
+void ProcTfToWorld<n_measurements>::reset() {
+  got_gnss_                  = false;
+  is_gnss_offset_calculated_ = false;
+}
+/*//}*/
 }  // namespace mrs_uav_state_estimators
 
 #endif  // PROCESSORS_PROC_TF_TO_WORLD_H

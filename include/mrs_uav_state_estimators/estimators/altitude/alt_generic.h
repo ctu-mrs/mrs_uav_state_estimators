@@ -79,6 +79,10 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
+  bool is_error_state_first_time_ = true;
+  ros::Duration error_state_duration_;
+  ros::Time prev_time_in_error_state_;
+
   bool is_repredictor_enabled_;
   int  rep_buffer_size_ = 200;
 

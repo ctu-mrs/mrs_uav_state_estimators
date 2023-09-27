@@ -279,6 +279,16 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 
     case ERROR_STATE: {
       ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+      ros::Time t_now = ros::Time::now();
+      if (is_error_state_first_time_) {
+        prev_time_in_error_state_ = t_now;
+        is_error_state_first_time_ = false;
+        error_state_duration_ = ros::Duration(0.0);
+      }
+      error_state_duration_ += t_now - prev_time_in_error_state_;
+
+
+      // check if all corrections are healthy now
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
@@ -286,10 +296,20 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
           all_corrections_healthy = false;
         }
       }
-      // initialize the estimator again if corrections become healthy
+
       if (all_corrections_healthy && innovation_ok_) {
-        changeState(INITIALIZED_STATE);
+        // initialize the estimator again if corrections become healthy
+        if (error_state_duration_.toSec() > 5.0) {
+          ROS_INFO("[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_.toSec());
+          changeState(INITIALIZED_STATE);
+          is_error_state_first_time_ = true;
+        }
+      } else {
+        is_error_state_first_time_ = true;
       }
+
+      prev_time_in_error_state_ = t_now;
+
       break;
     }
   }
@@ -521,6 +541,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
         }
       }
     }
+    innovation_ok_ = true;
   }
 
   statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
@@ -538,7 +559,6 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
         sc = lkf_->correct(sc, z, R_t::Ones() * R);
       }
     }
-    innovation_ok_ = true;
   }
   catch (const std::exception &e) {
     // In case of error, alert the user

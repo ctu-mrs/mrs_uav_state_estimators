@@ -243,7 +243,13 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         auto res = correction->getProcessedCorrection();
         if (res) {
-          auto measurement_stamped = res.value();
+          /* auto res_raw = correction->getRawCorrection(); */
+          /* if (!res_raw) { */
+          /*   ROS_ERROR_THROTTLE(1.0, "[%s]: error getting raw correction when processed correction is available, should not happen", getPrintName().c_str()); */
+          /*   return; */
+          /* } */
+          auto measurement_stamped = res.value();  // we need to use raw correction for initialization to avoid saturation wrpt previous state (especially
+                                                       // when getting out of ERROR_STATE)
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
@@ -284,6 +290,17 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
 
     case ERROR_STATE: {
       ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+
+      ros::Time t_now = ros::Time::now();
+      if (is_error_state_first_time_) {
+        prev_time_in_error_state_ = t_now;
+        is_error_state_first_time_ = false;
+        error_state_duration_ = ros::Duration(0.0);
+      }
+      error_state_duration_ += t_now - prev_time_in_error_state_;
+
+
+      // check if all corrections are healthy now
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
@@ -291,10 +308,20 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
           all_corrections_healthy = false;
         }
       }
-      // initialize the estimator again if corrections become healthy
+
       if (all_corrections_healthy && innovation_ok_) {
-        changeState(INITIALIZED_STATE);
+        // initialize the estimator again if corrections become healthy
+        if (error_state_duration_.toSec() > 5.0) {
+          ROS_INFO("[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_.toSec());
+          changeState(INITIALIZED_STATE);
+          is_error_state_first_time_ = true;
+        }
+      } else {
+        is_error_state_first_time_ = true;
       }
+
+      prev_time_in_error_state_ = t_now;
+
       break;
     }
   }
@@ -464,6 +491,7 @@ void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          correction->resetProcessors();
           all_corrections_healthy = false;
         }
       }
@@ -551,6 +579,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
           }
         }
       }
+      innovation_ok_ = true;
     }
   }
 
@@ -569,7 +598,6 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
     } else {
       sc = lkf_->correct(sc, z, R_t::Ones() * R);
     }
-    innovation_ok_ = true;
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
