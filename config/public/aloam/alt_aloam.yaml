@@ -10,7 +10,7 @@ mrs_uav_managers:
           action: "eland" # {"eland", "switch", "mitigate"}
 
         repredictor: # repredictor for correct fusion of delayed measurements
-          enabled: false
+          enabled: true
           buffer_size: 200 # [samples] how many states and corrections are kept in history (i.e. estimator running at the default 100 Hz rate will be able to fuse corrections with up to 2 s delay with buffer size of 200 samples)
 
         process_noise: # process noise covariance (Q)
