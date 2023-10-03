@@ -333,6 +333,10 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 
       ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
+      if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
+        changeState(ERROR_STATE);
+      }
+
       if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
