@@ -11,6 +11,7 @@
 #include <mrs_lib/dynamic_reconfigure_mgr.h>
 #include <mrs_lib/gps_conversions.h>
 #include <mrs_lib/mutex.h>
+#include <mrs_lib/geometry/cyclic.h>
 
 #include <mrs_msgs/RtkGps.h>
 #include <mrs_msgs/EstimatorCorrection.h>
@@ -144,6 +145,8 @@ private:
   void                                                     callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
+  measurement_t                                               prev_hdg_measurement_;
+  bool                                                        got_first_hdg_measurement_ = false;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
@@ -769,7 +772,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::POSITION: {
           measurement_t measurement;
           try {
-            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
+            // obtain heading from orientation
+            measurement(StateId_t::POSITION) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
+            // unwrap heading wrt previous measurement
+            if (got_first_hdg_measurement_) {
+              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
+            } else {
+              got_first_hdg_measurement_ = true;
+            }
+            prev_hdg_measurement_ = measurement;
             return measurement;
           }
           catch (...) {
@@ -877,7 +888,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::POSITION: {
           measurement_t measurement;
           try {
-            measurement(0) = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
+            // obtain heading from orientation
+            measurement(StateId_t::POSITION) = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
+            // unwrap heading wrt previous measurement
+            if (got_first_hdg_measurement_) {
+              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
+            } else {
+              got_first_hdg_measurement_ = true;
+            }
+            prev_hdg_measurement_ = measurement;
             return measurement;
           }
           catch (...) {

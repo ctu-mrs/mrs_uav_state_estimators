@@ -471,25 +471,34 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     return;
   }
 
+  // copy measurement as we might need to modify it (unwrap)
+  z_t meas = z;
+
   // we do not want to perform corrections until the estimator is initialized
   if (!(isInState(SMStates_t::READY_STATE) || isInState(SMStates_t::RUNNING_STATE) || isInState(SMStates_t::STARTED_STATE))) {
     return;
   }
 
+  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
+
   // for position state check the innovation
   if (H_idx == POSITION) {
+
+    // unwrap the hdg measurement wrt current state
+    meas(POSITION) = mrs_lib::geometry::radians::unwrap(meas(POSITION), sc.x(POSITION));
+
     std::scoped_lock lock(mtx_innovation_);
 
-    innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(z(0)), mrs_lib::geometry::radians(getState(POSITION)));
+    innovation_(0) = mrs_lib::geometry::radians::dist(mrs_lib::geometry::radians(meas(0)), mrs_lib::geometry::radians(sc.x(POSITION)));
 
     if (fabs(innovation_(0)) > pos_innovation_limit_) {
       ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - hdg: %.2f", getPrintName().c_str(), innovation_(0));
       innovation_ok_ = false;
       changeState(ERROR_STATE);
     }
+
   }
 
-  statecov_t sc = mrs_lib::get_mutexed(mutex_sc_, sc_);
   try {
     // Apply the correction step
     {
@@ -498,10 +507,9 @@ void HdgGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       H_(H_idx) = 1;
       lkf_->H   = H_;
       if (is_repredictor_enabled_) {
-
-        lkf_rep_->addMeasurement(z, R_t::Ones() * R, meas_stamp, models_[H_idx]);
+        lkf_rep_->addMeasurement(meas, R_t::Ones() * R, meas_stamp, models_[H_idx]);
       } else {
-        sc = lkf_->correct(sc, z, R_t::Ones() * R);
+        sc = lkf_->correct(sc, meas, R_t::Ones() * R);
       }
     }
     innovation_ok_ = true;
