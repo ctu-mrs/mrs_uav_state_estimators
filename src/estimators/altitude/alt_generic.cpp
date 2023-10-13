@@ -32,56 +32,51 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |
-  /* Support::loadParamFile(ros::package::getPath(package_name_) + "/config/estimators/" + getNamespacedName() + ".yaml", nh.getNamespace()); */
 
   if (is_core_plugin_) {
-    bool success = true;
 
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
-
-    if (!success) {
-      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-      ros::shutdown();
-    }
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
   }
 
-  mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
-  param_loader.loadParam("max_flight_z", max_flight_z_);
-  param_loader.loadParam("innovation/limit", pos_innovation_limit_);
-  param_loader.loadParam("innovation/action", exc_innovation_action_name_);
+
+  ph->param_loader->loadParam("max_flight_z", max_flight_z_);
+  ph->param_loader->loadParam("innovation/limit", pos_innovation_limit_);
+  ph->param_loader->loadParam("innovation/action", exc_innovation_action_name_);
   exc_innovation_action_ = map_exc_inno_action.at(exc_innovation_action_name_);
-  param_loader.loadParam("repredictor/enabled", is_repredictor_enabled_);
+  ph->param_loader->loadParam("repredictor/enabled", is_repredictor_enabled_);
   if (is_repredictor_enabled_) {
-    param_loader.loadParam("repredictor/buffer_size", rep_buffer_size_);
+    ph->param_loader->loadParam("repredictor/buffer_size", rep_buffer_size_);
   }
 
   // | --------------- corrections initialization --------------- |
-  param_loader.loadParam("corrections", correction_names_);
+  ph->param_loader->loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
-        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, [this](int a, int b) { return this->getState(a, b); },
+        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
         [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
           return this->doCorrection(meas, R, state);
         }));
   }
 
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+
   // | ----------- initialize process noise covariance ---------- |
   Q_ = Q_t::Zero();
   double tmp_noise;
-  param_loader.loadParam("process_noise/pos", tmp_noise);
+  ph->param_loader->loadParam("process_noise/pos", tmp_noise);
   Q_(POSITION, POSITION) = tmp_noise;
-  param_loader.loadParam("process_noise/vel", tmp_noise);
+  ph->param_loader->loadParam("process_noise/vel", tmp_noise);
   Q_(VELOCITY, VELOCITY) = tmp_noise;
-  param_loader.loadParam("process_noise/acc", tmp_noise);
+  ph->param_loader->loadParam("process_noise/acc", tmp_noise);
   Q_(ACCELERATION, ACCELERATION) = tmp_noise;
 
   // | ------- check if all parameters loaded successfully ------ |
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
@@ -243,7 +238,8 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(0), correction->getStateId());
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                            correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -281,9 +277,9 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
       ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
       ros::Time t_now = ros::Time::now();
       if (is_error_state_first_time_) {
-        prev_time_in_error_state_ = t_now;
+        prev_time_in_error_state_  = t_now;
         is_error_state_first_time_ = false;
-        error_state_duration_ = ros::Duration(0.0);
+        error_state_duration_      = ros::Duration(0.0);
       }
       error_state_duration_ += t_now - prev_time_in_error_state_;
 
@@ -339,7 +335,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  if (!is_repredictor_enabled_) { // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
+  if (!is_repredictor_enabled_) {  // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
     setDt(dt);
   }
 
@@ -424,7 +420,8 @@ void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
           setState(measurement_stamped.value(0), correction->getStateId());
           ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
+          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                            correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -503,7 +500,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
 
   // we do not want to perform corrections until the estimator is initialized
   if (!(isInState(SMStates_t::READY_STATE) || isInState(SMStates_t::RUNNING_STATE) || isInState(SMStates_t::STARTED_STATE))) {
-    return; 
+    return;
   }
 
   // for position state check the innovation

@@ -49,7 +49,7 @@ mrs_uav_managers:
 
           excessive_tilt:
             orientation_topic: "hw_api/orientation"
-            max_tilt: deg(30)
+            max_tilt: 30.0 # [deg]
 
       # Parameters of altitude median filters - buffer_size , max_diff 
         vel_hw_api:

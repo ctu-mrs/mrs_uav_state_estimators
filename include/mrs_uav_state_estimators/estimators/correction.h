@@ -27,6 +27,7 @@
 #include <mrs_uav_managers/estimation_manager/types.h>
 #include <mrs_uav_managers/estimation_manager/support.h>
 #include <mrs_uav_managers/estimation_manager/common_handlers.h>
+#include <mrs_uav_managers/estimation_manager/private_handlers.h>
 
 #include <mrs_uav_state_estimators/processors/processor.h>
 #include <mrs_uav_state_estimators/processors/proc_median_filter.h>
@@ -74,8 +75,9 @@ const std::map<std::string, MessageType_t> map_msg_type{{"nav_msgs/Odometry", Me
 template <int n_measurements>
 class Correction {
 
-  using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
-  using StateId_t        = mrs_uav_managers::estimation_manager::StateId_t;
+  using CommonHandlers_t  = mrs_uav_managers::estimation_manager::CommonHandlers_t;
+  using PrivateHandlers_t = mrs_uav_managers::estimation_manager::PrivateHandlers_t;
+  using StateId_t         = mrs_uav_managers::estimation_manager::StateId_t;
 
 public:
   typedef Eigen::Matrix<double, n_measurements, 1>         measurement_t;
@@ -89,7 +91,7 @@ public:
 
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
-             const std::shared_ptr<CommonHandlers_t>& ch, std::function<double(int, int)> fun_get_state,
+             const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
              std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
 
   std::string getName() const;
@@ -161,11 +163,12 @@ private:
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>      ph_delay_;
 
-  const std::string                 est_name_;
-  const std::string                 name_;
-  const std::string                 ns_frame_id_;
-  const EstimatorType_t             est_type_;
-  std::shared_ptr<CommonHandlers_t> ch_;
+  const std::string                  est_name_;
+  const std::string                  name_;
+  const std::string                  ns_frame_id_;
+  const EstimatorType_t              est_type_;
+  std::shared_ptr<CommonHandlers_t>  ch_;
+  std::shared_ptr<PrivateHandlers_t> ph_;
 
   MessageType_t msg_type_;
   std::string   msg_topic_;
@@ -216,37 +219,38 @@ private:
 template <int n_measurements>
 Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
                                        const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
-                                       std::function<double(int, int)>                            fun_get_state,
+                                       const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
                                        std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
     : est_name_(est_name),
       name_(name),
       ns_frame_id_(ns_frame_id),
       est_type_(est_type),
       ch_(ch),
+      ph_(ph),
       fun_get_state_(fun_get_state),
       fun_apply_correction_(fun_apply_correction) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/");
-  /* param_loader.setPrefix(getNamespacedName() + "/"); */
 
   std::string msg_type_string;
-  param_loader.loadParam("message/type", msg_type_string);
+
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/");
+
+  ph->param_loader->loadParam("message/type", msg_type_string);
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
     ROS_ERROR("[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(), getName().c_str());
     ros::shutdown();
   }
   msg_type_ = map_msg_type.at(msg_type_string);
 
-  param_loader.loadParam("message/topic", msg_topic_);
+  ph->param_loader->loadParam("message/topic", msg_topic_);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
-  param_loader.loadParam("message/limit/delay", msg_delay_limit_);
+  ph->param_loader->loadParam("message/limit/delay", msg_delay_limit_);
   msg_delay_warn_limit_ = msg_delay_limit_ / 2;  // maybe specify this as a param?
-  param_loader.loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
+  ph->param_loader->loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
 
   int state_id_tmp;
-  param_loader.loadParam("state_id", state_id_tmp);
+  ph->param_loader->loadParam("state_id", state_id_tmp);
   if (state_id_tmp < n_StateId_t) {
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
@@ -254,21 +258,21 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ros::shutdown();
   }
   if (state_id_ == VELOCITY) {
-    param_loader.loadParam("body_frame", is_in_body_frame_, true);
+    ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
   }
 
-  param_loader.loadParam("noise", R_);
-  param_loader.loadParam("noise_unhealthy_coeff", R_coeff_);
+  ph->param_loader->loadParam("noise", R_);
+  ph->param_loader->loadParam("noise_unhealthy_coeff", R_coeff_);
   default_R_ = R_;
 
   // | --------------- processors initialization --------------- |
-  param_loader.loadParam("processors", processor_names_);
+  ph->param_loader->loadParam("processors", processor_names_);
 
   for (auto proc_name : processor_names_) {
     processors_[proc_name] = createProcessorFromName(proc_name, nh);
   }
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
@@ -1585,13 +1589,13 @@ template <int n_measurements>
 std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, ros::NodeHandle& nh) {
 
   if (name == "median_filter") {
-    return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_);
+    return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
   } else if (name == "saturate") {
-    return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, state_id_, fun_get_state_);
+    return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_, state_id_, fun_get_state_);
   } else if (name == "excessive_tilt") {
-    return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_);
+    return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
   } else if (name == "tf_to_world") {
-    return std::make_shared<ProcTfToWorld<n_measurements>>(nh, getNamespacedName(), name, ch_);
+    return std::make_shared<ProcTfToWorld<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
   } else {
     ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     ros::shutdown();

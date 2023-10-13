@@ -22,10 +22,11 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcTfToWorld(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
+  ProcTfToWorld(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+                const std::shared_ptr<PrivateHandlers_t>& ph);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
-  void reset();
+  void                   reset();
 
 private:
   bool is_initialized_ = false;
@@ -44,17 +45,16 @@ private:
 /*//{ constructor */
 template <int n_measurements>
 ProcTfToWorld<n_measurements>::ProcTfToWorld(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
-                                             const std::shared_ptr<CommonHandlers_t>& ch)
-    : Processor<n_measurements>(nh, correction_name, name, ch) {
+                                             const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+    : Processor<n_measurements>(nh, correction_name, name, ch, ph) {
 
-  // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
-  param_loader.setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
-  param_loader.loadParam("gnss_topic", gnss_topic_);
+  ph->param_loader->loadParam("gnss_topic", gnss_topic_);
+
   gnss_topic_ = "/" + ch->uav_name + "/" + gnss_topic_;
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
     ros::shutdown();
   }

@@ -24,10 +24,11 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcExcessiveTilt(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch);
+  ProcExcessiveTilt(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+                    const std::shared_ptr<PrivateHandlers_t>& ph);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
-  void reset();
+  void                   reset();
 
 private:
   double max_tilt_sq_;
@@ -39,19 +40,21 @@ private:
 /*//{ constructor */
 template <int n_measurements>
 ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
-                                                     const std::shared_ptr<CommonHandlers_t>& ch)
-    : Processor<n_measurements>(nh, correction_name, name, ch) {
+                                                     const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+    : Processor<n_measurements>(nh, correction_name, name, ch, ph) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
-  param_loader.setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
-  param_loader.loadParam("orientation_topic", orientation_topic_);
+  ph->param_loader->loadParam("orientation_topic", orientation_topic_);
   double max_tilt;
-  param_loader.loadParam("max_tilt", max_tilt);
+  ph->param_loader->loadParam("max_tilt", max_tilt);
+
+  max_tilt = M_PI * (max_tilt / 180.0);
+
   max_tilt_sq_ = std::pow(max_tilt, 2);
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
     ros::shutdown();
   }
@@ -82,7 +85,7 @@ std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process(measurement_t&
     return {false, false};
   }
 
-  bool ok_flag = true;
+  bool ok_flag     = true;
   bool should_fuse = true;
 
   try {
@@ -94,14 +97,14 @@ std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process(measurement_t&
 
     if (is_excessive_tilt) {
       ROS_WARN_THROTTLE(1.0, "[%s]: excessive tilt of %.2f deg. Not fusing correction.", Processor<n_measurements>::getPrintName().c_str(), tilt / M_PI * 180);
-      ok_flag = false;
+      ok_flag     = false;
       should_fuse = false;
     }
   }
   catch (...) {
     ROS_ERROR_THROTTLE(1.0, "[%s]: failed obtaining tilt value", Processor<n_measurements>::getPrintName().c_str());
-      ok_flag = false;
-      should_fuse = false;
+    ok_flag     = false;
+    should_fuse = false;
   }
   return {ok_flag, should_fuse};
 }

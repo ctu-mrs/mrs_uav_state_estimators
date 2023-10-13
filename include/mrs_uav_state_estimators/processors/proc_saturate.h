@@ -22,10 +22,10 @@ public:
 
 public:
   ProcSaturate(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
-               StateId_t state_id, std::function<double(int, int)> fun_get_state);
+               const std::shared_ptr<PrivateHandlers_t>& ph, StateId_t state_id, std::function<double(int, int)> fun_get_state);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
-  void reset();
+  void                   reset();
 
 private:
   const StateId_t                 state_id_;
@@ -40,21 +40,21 @@ private:
 /*//{ constructor */
 template <int n_measurements>
 ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
-                                           const std::shared_ptr<CommonHandlers_t>& ch, const StateId_t state_id, std::function<double(int, int)> fun_get_state)
-    : Processor<n_measurements>(nh, correction_name, name, ch), state_id_(state_id), fun_get_state_(fun_get_state) {
+                                           const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph, const StateId_t state_id,
+                                           std::function<double(int, int)> fun_get_state)
+    : Processor<n_measurements>(nh, correction_name, name, ch, ph), state_id_(state_id), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
-  mrs_lib::ParamLoader param_loader(nh, Processor<n_measurements>::getPrintName());
-  param_loader.setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
-  param_loader.loadParam("start_enabled", this->start_enabled_);
+  ph->param_loader->loadParam("start_enabled", this->start_enabled_);
   this->enabled_ = this->start_enabled_;
-  param_loader.loadParam("keep_enabled", keep_enabled_);
-  param_loader.loadParam("min", saturate_min_);
-  param_loader.loadParam("max", saturate_max_);
-  param_loader.loadParam("limit", innovation_limit_);
+  ph->param_loader->loadParam("keep_enabled", keep_enabled_);
+  ph->param_loader->loadParam("min", saturate_min_);
+  ph->param_loader->loadParam("max", saturate_max_);
+  ph->param_loader->loadParam("limit", innovation_limit_);
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
     ros::shutdown();
   }
@@ -77,7 +77,7 @@ std::tuple<bool, bool> ProcSaturate<n_measurements>::process(measurement_t& meas
     ROS_INFO_ONCE("[%s]: first state[%d][%d]: %.2f", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state);
 
     if (measurement(i) > state + innovation_limit_ || measurement(i) < state - innovation_limit_) {
-      return {true, true}; // do not even try to saturate, trigger innovation-based switch to other estimator
+      return {true, true};  // do not even try to saturate, trigger innovation-based switch to other estimator
     }
 
     if (measurement(i) > state + saturate_max_) {

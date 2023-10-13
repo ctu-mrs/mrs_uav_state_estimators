@@ -19,6 +19,7 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
+  //
   timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerUpdate, this, false, false);  // not running after init
   timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerCheckHealth, this);
 

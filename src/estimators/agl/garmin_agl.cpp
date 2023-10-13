@@ -20,26 +20,19 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | --------------------- load parameters -------------------- |
-  /* mrs_lib::ParamLoader param_loader(nh, getName()); */
+
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
 
   if (is_core_plugin_) {
-    bool success = true;
 
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
-
-    if (!success) {
-      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-      ros::shutdown();
-    }
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  /* param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
-
-  /* if (!param_loader.loadedSuccessfully()) { */
-  /*   ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str()); */
-  /*   ros::shutdown(); */
-  /* } */
+  if (!ph->param_loader->loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    ros::shutdown();
+  }
 
   // | ------------------ timers initialization ----------------- |
   _update_timer_rate_       = 100;                                                                                          // TODO: parametrize

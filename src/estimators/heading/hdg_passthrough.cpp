@@ -22,28 +22,22 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   hdg_covariance_ = covariance_t::Zero();
 
   // | --------------- param loader initialization --------------- |
+
   if (is_core_plugin_) {
-    bool success = true;
 
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getNamespacedName() + ".yaml");
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getNamespacedName() + ".yaml");
-
-    if (!success) {
-      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-      ros::shutdown();
-    }
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
   }
 
-  mrs_lib::ParamLoader param_loader(nh, getPrintName());
-  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   // | --------------------- load parameters -------------------- |
-  param_loader.loadParam("max_flight_z", max_flight_z_);
+  ph->param_loader->loadParam("max_flight_z", max_flight_z_);
 
-  param_loader.loadParam("topics/orientation", orient_topic_);
-  param_loader.loadParam("topics/angular_velocity", ang_vel_topic_);
+  ph->param_loader->loadParam("topics/orientation", orient_topic_);
+  ph->param_loader->loadParam("topics/angular_velocity", ang_vel_topic_);
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }

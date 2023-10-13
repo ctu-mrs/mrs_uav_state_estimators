@@ -21,17 +21,19 @@ public:
   void toggle(bool enable);
 
   virtual std::tuple<bool, bool> process(measurement_t& measurement) = 0;
-  virtual void reset() = 0;
+  virtual void                   reset()                             = 0;
 
 protected:
-  Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch)
-      : correction_name_(correction_name), name_(name), ch_(ch) {
+  Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+            const std::shared_ptr<PrivateHandlers_t>& ph)
+      : correction_name_(correction_name), name_(name), ch_(ch), ph_(ph) {
   }  // protected constructor to prevent instantiation
 
   const std::string correction_name_;
   const std::string name_;
 
-  const std::shared_ptr<CommonHandlers_t> ch_;
+  const std::shared_ptr<CommonHandlers_t>  ch_;
+  const std::shared_ptr<PrivateHandlers_t> ph_;
 
   bool enabled_       = true;
   bool start_enabled_ = true;

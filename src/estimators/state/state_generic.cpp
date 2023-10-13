@@ -16,37 +16,31 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   ros::NodeHandle nh(parent_nh);
 
   if (is_core_plugin_) {
-    bool success = true;
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-    success *= ph_->loadConfigFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
-    if (!success) {
-      ROS_ERROR("[%s]: could not load config file", getPrintName().c_str());
-      ros::shutdown();
-    }
+
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  mrs_lib::ParamLoader param_loader(nh, getPrintName());
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
 
-  param_loader.setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
+  ph->param_loader->loadParam("estimators/lateral/name", est_lat_name_);
+  ph->param_loader->loadParam("estimators/altitude/name", est_alt_name_);
+  ph->param_loader->loadParam("estimators/heading/name", est_hdg_name_);
+  ph->param_loader->loadParam("estimators/heading/passthrough", is_hdg_passthrough_);
 
-  param_loader.loadParam("estimators/lateral/name", est_lat_name_);
-  param_loader.loadParam("estimators/altitude/name", est_alt_name_);
-  param_loader.loadParam("estimators/heading/name", est_hdg_name_);
-  param_loader.loadParam("estimators/heading/passthrough", is_hdg_passthrough_);
-
-  param_loader.loadParam("override_frame_id/enabled", is_override_frame_id_);
+  ph->param_loader->loadParam("override_frame_id/enabled", is_override_frame_id_);
   if (is_override_frame_id_) {
-    param_loader.loadParam("override_frame_id/frame_id", frame_id_);
+    ph->param_loader->loadParam("override_frame_id/frame_id", frame_id_);
   }
 
   std::string topic_orientation;
-  param_loader.loadParam("topics/orientation", topic_orientation);
+  ph->param_loader->loadParam("topics/orientation", topic_orientation);
   topic_orientation_ = "/" + ch_->uav_name + "/" + topic_orientation;
   std::string topic_angular_velocity;
-  param_loader.loadParam("topics/angular_velocity", topic_angular_velocity);
+  ph->param_loader->loadParam("topics/angular_velocity", topic_angular_velocity);
   topic_angular_velocity_ = "/" + ch_->uav_name + "/" + topic_angular_velocity;
 
-  if (!param_loader.loadedSuccessfully()) {
+  if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     ros::shutdown();
   }
