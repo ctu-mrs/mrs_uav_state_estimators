@@ -60,6 +60,8 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
         }));
   }
 
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+
   // | ----------- initialize process noise covariance ---------- |
   Q_ = Q_t::Zero();
   double tmp_noise;
