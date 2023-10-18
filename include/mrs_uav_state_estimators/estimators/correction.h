@@ -146,6 +146,9 @@ private:
   std::optional<measurement_t>                             getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
   void                                                     callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg);
 
+  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_; // for obtaining heading rate
+  std::string orientation_topic_;
+
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
   measurement_t                                               prev_hdg_measurement_;
   bool                                                        got_first_hdg_measurement_ = false;
@@ -257,7 +260,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ROS_ERROR("[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
     ros::shutdown();
   }
-  if (state_id_ == VELOCITY) {
+
+  if (state_id_ == StateId_t::VELOCITY) {
     ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
   }
 
@@ -270,11 +274,6 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   for (auto proc_name : processor_names_) {
     processors_[proc_name] = createProcessorFromName(proc_name, nh);
-  }
-
-  if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
@@ -339,6 +338,14 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
   }
 
+  // | ------ subscribe orientation for obtaingin hdg rate ------ |
+  if (est_type_ == EstimatorType_t::HEADING && state_id_ == StateId_t::VELOCITY) {
+    ph->param_loader->loadParam("message/orientation_topic", orientation_topic_);
+    orientation_topic_ = "/" + ch_->uav_name + "/" + orientation_topic_;
+    sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, orientation_topic_);
+  }
+
+
   // | --------------- initialize publish handlers -------------- |
   if (ch_->debug_topics.correction) {
     ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/raw", 10);
@@ -346,6 +353,12 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
   if (ch_->debug_topics.corr_delay) {
     ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 10);
+  }
+
+  // | --- check whether all parameters were loaded correctly --- |
+  if (!ph->param_loader->loadedSuccessfully()) {
+    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    ros::shutdown();
   }
 
   healthy_time_ = ros::Time(0);
@@ -1204,7 +1217,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1229,7 +1242,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1241,23 +1254,25 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
       switch (state_id_) {
 
-          // TODO: needs orientation
-
-          /* case StateId_t::VELOCITY: { */
-          /*   try { */
-          /*     measurement_t measurement; */
-          /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
-          /*     return measurement; */
-          /*   } */
-          /*   catch (...) { */
-          /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
-          /*     return {}; */
-          /*   } */
-          /*   break; */
-          /* } */
+          case StateId_t::VELOCITY: {
+            try {
+              if (!sh_orientation_.hasMsg()) {
+              ROS_INFO_THROTTLE(1.0, "[%s]: %s orientation on topic: %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), orientation_topic_.c_str());
+                return {};
+              }
+              measurement_t measurement;
+              measurement(0) = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
+              return measurement;
+            }
+            catch (...) {
+              ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromVector())", getPrintName().c_str());
+              return {};
+            }
+            break;
+          }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }

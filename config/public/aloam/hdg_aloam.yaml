@@ -16,16 +16,31 @@ mrs_uav_managers:
           vel: 0.1 # velocity state
 
         corrections: [
-          "hdg_aloam"
+          "hdg_aloam",
+          "hdg_rate_gyro"
         ]
 
         hdg_aloam:
           state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
-          noise: 0.0001 # measurement noise covariance (R)
+          noise: 0.01 # measurement noise covariance (R)
           noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
           message:
             type: "nav_msgs/Odometry"
             topic: "slam/odom" # without uav namespace
+            limit: 
+              delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy
+              time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy
+
+          processors: [] # types of processors attached to this measurement
+
+        hdg_rate_gyro:
+          state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
+          noise: 0.1 # measurement noise covariance (R)
+          noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
+          message:
+            type: "geometry_msgs/Vector3Stamped"
+            topic: "hw_api/angular_velocity" # without uav namespace
+            orientation_topic: "hw_api/orientation" # without uav namespace
             limit: 
               delay: 2.0 # [s] messages with higher delay will flag correction as unhealthy
               time_since_last: 1.0 # [s] larger time step between messages will flag correction as unhealthy
