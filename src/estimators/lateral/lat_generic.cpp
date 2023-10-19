@@ -238,17 +238,10 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         auto res = correction->getProcessedCorrection();
         if (res) {
-          /* auto res_raw = correction->getRawCorrection(); */
-          /* if (!res_raw) { */
-          /*   ROS_ERROR_THROTTLE(1.0, "[%s]: error getting raw correction when processed correction is available, should not happen", getPrintName().c_str());
-           */
-          /*   return; */
-          /* } */
-          auto measurement_stamped = res.value();  // we need to use raw correction for initialization to avoid saturation wrpt previous state (especially
-                                                   // when getting out of ERROR_STATE)
+          auto measurement_stamped = res.value(); 
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
+          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
                             measurement_stamped.value(AXIS_Y));
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getPrintName().c_str());

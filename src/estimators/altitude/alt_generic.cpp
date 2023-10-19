@@ -229,14 +229,13 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
 
     case INITIALIZED_STATE: {
-
       // initialize the estimator with current corrections
       for (auto correction : corrections_) {
         auto res = correction->getProcessedCorrection();
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());
-          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
+          ROS_INFO("[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                             correction->getNamespacedName().c_str());

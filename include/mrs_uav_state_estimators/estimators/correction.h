@@ -1025,6 +1025,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     return {};
   }
 
+  if (msg->fix_type.fix_type != mrs_msgs::RtkFixType::RTK_FIX) {
+    ROS_INFO_THROTTLE(1.0, "[%s] %s RTK FIX", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    return {};
+  }
+
   rtk_pos.header = msg->header;
   mrs_lib::UTM(msg->gps.latitude, msg->gps.longitude, &rtk_pos.pose.position.x, &rtk_pos.pose.position.y);
   rtk_pos.pose.position.z  = msg->gps.altitude;
