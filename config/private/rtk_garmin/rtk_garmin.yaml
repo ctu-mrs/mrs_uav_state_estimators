@@ -1,0 +1,26 @@
+mrs_uav_managers:
+  estimation_manager:
+    rtk_garmin: # namespace of the state estimator
+      requires: # data required from the hw api
+        gnss: false
+        imu: false
+        distance_sensor: true
+        altitude: false
+        magnetometer_heading: false
+        position: false
+        orientation: true
+        velocity: true
+        angular_velocity: false
+
+      estimators: # the names of the partial estimators
+        lateral:
+          name: "lat_rtk"
+        altitude:
+          name: "alt_garmin"
+        heading:
+          name: "hdg_hw_api"
+          passthrough: true # if true, then heading is not estimated but passed through from the orientation topic
+
+      topics:
+        orientation: "hw_api/orientation" # orientation passthrough
+        angular_velocity: "hw_api/angular_velocity" # angular velocity passthrough

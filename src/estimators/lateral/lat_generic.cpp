@@ -241,7 +241,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
           auto measurement_stamped = res.value(); 
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          ROS_INFO("[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
+          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X),
                             measurement_stamped.value(AXIS_Y));
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getPrintName().c_str());
