@@ -22,12 +22,6 @@
   </class>
 </library>
 
-<library path="lib/libMrsUavStateEstimators_Aloam">
-  <class name="mrs_uav_state_estimators/Aloam" type="mrs_uav_state_estimators::aloam::Aloam" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>Aloam state estimator</description>
-  </class>
-</library>
-
 <library path="lib/libMrsUavStateEstimators_HectorGarmin">
   <class name="mrs_uav_state_estimators/HectorGarmin" type="mrs_uav_state_estimators::hector_garmin::HectorGarmin" base_class_type="mrs_uav_managers::StateEstimator">
     <description>HectorGarmin state estimator</description>

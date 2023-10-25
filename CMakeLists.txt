@@ -35,7 +35,6 @@ set(Eigen_LIBRARIES ${Eigen_LIBRARIES})
 
 set(LIBRARIES
   MrsUavStateEstimators_Common
-  MrsUavStateEstimators_Aloam
   MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_GpsBaro
   MrsUavStateEstimators_Rtk
@@ -129,23 +128,6 @@ target_link_libraries(MrsUavStateEstimators_GpsBaro
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(MrsUavStateEstimators_GpsBaro
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  )
-
-add_library(MrsUavStateEstimators_Aloam
-  src/estimators/state/aloam.cpp
-  )
-
-target_link_libraries(MrsUavStateEstimators_Aloam
-  MrsUavStateEstimators_Common
-  ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
-  )
-
-## Add configure headers for dynamic reconfigure
-add_dependencies(MrsUavStateEstimators_Aloam
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
