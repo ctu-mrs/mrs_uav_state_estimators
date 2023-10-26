@@ -39,8 +39,6 @@ set(LIBRARIES
   MrsUavStateEstimators_GpsBaro
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
-  MrsUavStateEstimators_HectorGarmin
-  MrsUavStateEstimators_Vio
   MrsUavStateEstimators_Passthrough
   MrsUavStateEstimators_GroundTruth
   MrsUavStateEstimators_Dummy
@@ -128,40 +126,6 @@ target_link_libraries(MrsUavStateEstimators_GpsBaro
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(MrsUavStateEstimators_GpsBaro
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  )
-
-add_library(MrsUavStateEstimators_HectorGarmin
-  src/estimators/state/hector_garmin.cpp
-  )
-
-target_link_libraries(MrsUavStateEstimators_HectorGarmin
-  MrsUavStateEstimators_Common
-  ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
-  )
-
-## Add configure headers for dynamic reconfigure
-add_dependencies(MrsUavStateEstimators_HectorGarmin
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-  ${PROJECT_NAME}_gencfg
-  )
-
-add_library(MrsUavStateEstimators_Vio
-  src/estimators/state/vio.cpp
-  )
-
-target_link_libraries(MrsUavStateEstimators_Vio
-  MrsUavStateEstimators_Common
-  ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
-  )
-
-## Add configure headers for dynamic reconfigure
-add_dependencies(MrsUavStateEstimators_Vio
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
