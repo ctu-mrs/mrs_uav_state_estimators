@@ -1,0 +1,7 @@
+<launch>
+
+  <include file="$(find mrs_uav_state_estimators)/test/rtk/basic/launch/mrs_uav_system.launch" />
+
+  <test pkg="mrs_uav_state_estimators" type="RtkGarmin_basic" test-name="rtk_garmin_basic" time-limit="60.0" />
+
+</launch>

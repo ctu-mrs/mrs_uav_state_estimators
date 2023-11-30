@@ -230,25 +230,16 @@ add_dependencies(MrsUavStateEstimators_GarminAgl
   ${PROJECT_NAME}_gencfg
   )
 
+## --------------------------------------------------------------
+## |                           Testing                          |
+## --------------------------------------------------------------
+
 if(CATKIN_ENABLE_TESTING)
 
-  find_package(rostest REQUIRED)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
 
-  add_rostest_gtest(CorrectionsTest
-    tests/corrections/corrections.test
-    tests/corrections/test_corrections.cpp
-    )
-
-  target_link_libraries(CorrectionsTest
-    # EstimationManager
-    ${catkin_LIBRARIES}
-    ${GTEST_LIBRARIES}
-    )
-
-  add_dependencies(CorrectionsTest
-    ${${PROJECT_NAME}_EXPORTED_TARGETS}
-    ${catkin_EXPORTED_TARGETS}
-    )
+  add_subdirectory(test)
 
 endif()
 

@@ -1,6 +1,5 @@
-#include <ros/ros.h>
-
 #include <gtest/gtest.h>
+#include <ros/console.h>
 #include <log4cxx/logger.h>
 
 #include <string>
@@ -14,8 +13,8 @@
 
 #include <mrs_msgs/RtkGps.h>
 
-#include "include/estimators/correction.h"
-#include "include/common_handlers.h"
+#include <mrs_uav_state_estimators/estimators/correction.h>
+#include <mrs_uav_managers/estimation_manager/common_handlers.h>
 
 namespace mrs_uav_state_estimation
 {
@@ -38,6 +37,7 @@ typedef Eigen::Matrix<double, 6, 1>              Matrix6d;
 /* correctionTfExpected() //{ */
 
 measurement_t correctionTfExpected(const DataPoint_t& data) {
+
   measurement_t result;
 
   tf2::Quaternion q(data.fcu_qx, data.fcu_qy, data.fcu_qz, data.fcu_qw);
@@ -60,7 +60,7 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
   const std::string name   = "corrections_test";
   ros::NodeHandle   nh;
 
-  std::shared_ptr<CommonHandlers_t> ch = std::make_shared<CommonHandlers_t>();
+  std::shared_ptr<mrs_uav_managers::estimation_manager::CommonHandlers_t> ch = std::make_shared<mrs_uav_managers::estimation_manager::CommonHandlers_t>();
   ch->transformer                      = std::make_shared<mrs_lib::Transformer>(nh, name);
   ch->transformer->retryLookupNewest(true);
   ch->frames.fcu             = "fcu";
@@ -78,7 +78,7 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
   /* ros::AsyncSpinner spinner(10); */
   /* spinner.start(); */
 
-  Correction<n_measurements> correction(nh, name, "lat_rtk/pos_rtk", "uav1/rtk_origin", EstimatorType_t::LATERAL, ch);
+  mrs_uav_state_estimators::Correction<n_measurements> correction(nh, name, "lat_rtk/pos_rtk", "uav1/rtk_origin", mrs_uav_state_estimators::EstimatorType_t::LATERAL, ch);
 
   DataPoint_t data;
   data.fcu_qx    = data_vec[0];

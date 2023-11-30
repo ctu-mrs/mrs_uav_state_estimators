@@ -1,0 +1,15 @@
+outputs:
+  distance_sensor:      true
+  gnss:                 true
+  rtk:                  true
+  imu:                  true
+  altitude:             true
+  magnetometer_heading: true
+  rc_channels:          true
+  battery_state:        true
+  position:             true
+  orientation:          true
+  velocity:             true
+  angular_velocity:     true
+  odometry:             true
+  ground_truth:         false

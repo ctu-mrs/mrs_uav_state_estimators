@@ -1,0 +1,8 @@
+<launch>
+
+  <test pkg="mrs_uav_state_estimation" type="CorrectionsTest" test-name="corrections_test" time-limit="10.0">
+    <rosparam file="$(find mrs_uav_state_estimation)/tests/corrections/config/corrections.yaml" command="load" /> 
+    <rosparam file="$(find mrs_uav_state_estimation)/tests/corrections/config/data.yaml" command="load" /> 
+  </test>
+
+</launch>
