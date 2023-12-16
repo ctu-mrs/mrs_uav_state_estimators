@@ -1,0 +1,1 @@
+add_subdirectory(gps_baro_basic)

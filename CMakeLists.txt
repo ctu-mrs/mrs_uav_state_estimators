@@ -17,6 +17,7 @@ set(CATKIN_DEPENDENCIES
   sensor_msgs
   std_msgs
   tf2_geometry_msgs
+  mrs_uav_testing
   )
 
 find_package(catkin REQUIRED COMPONENTS

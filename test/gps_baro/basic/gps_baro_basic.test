@@ -1,7 +1,0 @@
-<launch>
-
-  <include file="$(find mrs_uav_state_estimators)/test/gps_baro/basic/launch/mrs_uav_system.launch" />
-
-  <test pkg="mrs_uav_state_estimators" type="GpsBaro_basic" test-name="gps_baro_basic" time-limit="60.0" />
-
-</launch>
