@@ -18,7 +18,8 @@ mrs_uav_managers:
           acc: 1.0 # acceleration state
 
         corrections: [
-          "pos_baro",
+          # TODO next camp: check if velocity only fusion is ok, check pixhawk altitude manual mode stabilization vs mrs baro altitude stabilization
+          # "pos_baro",
           "vel_hw_api"
         ]
 
