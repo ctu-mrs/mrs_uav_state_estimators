@@ -89,10 +89,12 @@ void ProcTfToWorld<n_measurements>::callbackGnss(const sensor_msgs::NavSatFix::C
 
   if (!std::isfinite(msg->latitude)) {
     ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->latitude\"!!!", Processor<n_measurements>::getPrintName().c_str());
+    return;
   }
 
   if (!std::isfinite(msg->longitude)) {
     ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->longitude\"!!!", Processor<n_measurements>::getPrintName().c_str());
+    return;
   }
 
   mrs_lib::UTM(msg->latitude, msg->longitude, &gnss_x_, &gnss_y_);
@@ -122,6 +124,7 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
 
   measurement(0) += gnss_x_;
   measurement(1) += gnss_y_;
+    ROS_INFO_THROTTLE(1.0, "[%s]: GNSS offset calculated at: [%.2f %.2f]", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   return {true, true};
 }
 /*//}*/
