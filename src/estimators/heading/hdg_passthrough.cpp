@@ -167,7 +167,7 @@ void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::Vector3Stamped
 /*//}*/
 
 /* timerUpdate() //{*/
-void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
+void HdgPassthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
@@ -180,7 +180,7 @@ void HdgPassthrough::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
+void HdgPassthrough::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -214,7 +214,7 @@ void HdgPassthrough::timerCheckHealth(const ros::TimerEvent &event) {
 
 /*//{ getState() */
 double HdgPassthrough::getState(const int &state_id_in, const int &axis_in) const {
-  return getState(stateIdToIndex(state_id_in, 0));
+  return getState(stateIdToIndex(state_id_in, axis_in));
 }
 
 double HdgPassthrough::getState(const int &state_idx_in) const {
@@ -224,7 +224,7 @@ double HdgPassthrough::getState(const int &state_idx_in) const {
 
 /*//{ setState() */
 void HdgPassthrough::setState(const double &state_in, const int &state_id_in, const int &axis_in) {
-  setState(state_in, stateIdToIndex(state_id_in, 0));
+  setState(state_in, stateIdToIndex(state_id_in, axis_in));
 }
 
 void HdgPassthrough::setState(const double &state_in, const int &state_idx_in) {
@@ -252,7 +252,7 @@ void HdgPassthrough::setStates(const states_t &states_in) {
 
 /*//{ getCovariance() */
 double HdgPassthrough::getCovariance(const int &state_id_in, const int &axis_in) const {
-  return getCovariance(stateIdToIndex(state_id_in, 0));
+  return getCovariance(stateIdToIndex(state_id_in, axis_in));
 }
 
 double HdgPassthrough::getCovariance(const int &state_idx_in) const {
@@ -278,7 +278,7 @@ double HdgPassthrough::getInnovation(const int &state_idx) const {
 }
 
 double HdgPassthrough::getInnovation(const int &state_id_in, const int &axis_in) const {
-  return getInnovation(stateIdToIndex(state_id_in, 0));
+  return getInnovation(stateIdToIndex(state_id_in, axis_in));
 }
 /*//}*/
 

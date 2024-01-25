@@ -363,7 +363,7 @@ void HdgGeneric::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void HdgGeneric::timerCheckHealth(const ros::TimerEvent &event) {
+void HdgGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -561,7 +561,7 @@ void HdgGeneric::setStates(const states_t &states_in) {
 
 /*//{ getCovariance() */
 double HdgGeneric::getCovariance(const int &state_id_in, const int &axis_in) const {
-  return getCovariance(stateIdToIndex(state_id_in, 0));
+  return getCovariance(stateIdToIndex(state_id_in, axis_in));
 }
 
 double HdgGeneric::getCovariance(const int &state_idx_in) const {
@@ -587,7 +587,7 @@ double HdgGeneric::getInnovation(const int &state_idx) const {
 }
 
 double HdgGeneric::getInnovation(const int &state_id_in, const int &axis_in) const {
-  return getInnovation(stateIdToIndex(0, 0));
+  return getInnovation(stateIdToIndex(state_id_in, axis_in));
 }
 /*//}*/
 

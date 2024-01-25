@@ -205,7 +205,7 @@ bool StateGeneric::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
-void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
+void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
@@ -288,7 +288,7 @@ void StateGeneric::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
+void StateGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -362,7 +362,7 @@ void StateGeneric::timerCheckHealth(const ros::TimerEvent &event) {
 /*//}*/
 
 /* timerPubAttitude() //{*/
-void StateGeneric::timerPubAttitude(const ros::TimerEvent &event) {
+void StateGeneric::timerPubAttitude([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -533,7 +533,7 @@ std::optional<double> StateGeneric::getHeading() const {
 /*//}*/
 
 /*//{ setUavState() */
-bool StateGeneric::setUavState(const mrs_msgs::UavState &uav_state) {
+bool StateGeneric::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());

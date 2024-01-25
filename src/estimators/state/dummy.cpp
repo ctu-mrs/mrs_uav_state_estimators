@@ -130,7 +130,7 @@ bool Dummy::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
-void Dummy::timerUpdate(const ros::TimerEvent &event) {
+void Dummy::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
@@ -175,7 +175,7 @@ void Dummy::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void Dummy::timerCheckHealth(const ros::TimerEvent &event) {
+void Dummy::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -206,7 +206,7 @@ bool Dummy::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
-bool Dummy::setUavState(const mrs_msgs::UavState &uav_state) {
+bool Dummy::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());

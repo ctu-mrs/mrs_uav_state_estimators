@@ -24,7 +24,7 @@ public:
   virtual void                   reset()                             = 0;
 
 protected:
-  Processor(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+  Processor([[maybe_unused]] ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
             const std::shared_ptr<PrivateHandlers_t>& ph)
       : correction_name_(correction_name), name_(name), ch_(ch), ph_(ph) {
   }  // protected constructor to prevent instantiation

@@ -75,7 +75,7 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(ros::NodeHandle& nh, const 
 
 /*//{ process() */
 template <int n_measurements>
-std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process([[maybe_unused]] measurement_t& measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
     return {true, true};

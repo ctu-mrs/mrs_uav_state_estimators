@@ -236,7 +236,7 @@ bool GroundTruth::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
-bool GroundTruth::setUavState(const mrs_msgs::UavState &uav_state) {
+bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());

@@ -391,7 +391,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void AltGeneric::timerCheckHealth(const ros::TimerEvent &event) {
+void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -576,7 +576,7 @@ bool AltGeneric::isConverged() {
 
 /*//{ getState() */
 double AltGeneric::getState(const int &state_id_in, const int &axis_in) const {
-  return getState(stateIdToIndex(state_id_in, 0));
+  return getState(stateIdToIndex(state_id_in, axis_in));
 }
 
 double AltGeneric::getState(const int &state_idx_in) const {
@@ -586,7 +586,7 @@ double AltGeneric::getState(const int &state_idx_in) const {
 
 /*//{ setState() */
 void AltGeneric::setState(const double &state_in, const int &state_id_in, const int &axis_in) {
-  setState(state_in, stateIdToIndex(state_id_in, 0));
+  setState(state_in, stateIdToIndex(state_id_in, axis_in));
 }
 
 void AltGeneric::setState(const double &state_in, const int &state_idx_in) {
@@ -608,7 +608,7 @@ void AltGeneric::setStates(const states_t &states_in) {
 
 /*//{ getCovariance() */
 double AltGeneric::getCovariance(const int &state_id_in, const int &axis_in) const {
-  return getCovariance(stateIdToIndex(state_id_in, 0));
+  return getCovariance(stateIdToIndex(state_id_in, axis_in));
 }
 
 double AltGeneric::getCovariance(const int &state_idx_in) const {
@@ -634,7 +634,7 @@ double AltGeneric::getInnovation(const int &state_idx) const {
 }
 
 double AltGeneric::getInnovation(const int &state_id_in, const int &axis_in) const {
-  return getInnovation(stateIdToIndex(0, 0));
+  return getInnovation(stateIdToIndex(state_id_in, axis_in));
 }
 /*//}*/
 

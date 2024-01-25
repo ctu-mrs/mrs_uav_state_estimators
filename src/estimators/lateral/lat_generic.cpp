@@ -412,7 +412,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void LatGeneric::timerCheckHealth(const ros::TimerEvent &event) {
+void LatGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;

@@ -143,7 +143,7 @@ bool GarminAgl::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
-void GarminAgl::timerUpdate(const ros::TimerEvent &event) {
+void GarminAgl::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -173,7 +173,7 @@ void GarminAgl::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void GarminAgl::timerCheckHealth(const ros::TimerEvent &event) {
+void GarminAgl::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
