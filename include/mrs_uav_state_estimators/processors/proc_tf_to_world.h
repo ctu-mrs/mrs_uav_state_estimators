@@ -120,11 +120,11 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
     gnss_x_                    = (gnss_x_ - measurement(0)) - Processor<n_measurements>::ch_->world_origin.x;
     gnss_y_                    = (gnss_y_ - measurement(1)) - Processor<n_measurements>::ch_->world_origin.y;
     is_gnss_offset_calculated_ = true;
+    ROS_INFO_THROTTLE(1.0, "[%s]: GNSS offset calculated as: [%.2f %.2f]", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   }
 
   measurement(0) += gnss_x_;
   measurement(1) += gnss_y_;
-    ROS_INFO_THROTTLE(1.0, "[%s]: GNSS offset calculated at: [%.2f %.2f]", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   return {true, true};
 }
 /*//}*/
