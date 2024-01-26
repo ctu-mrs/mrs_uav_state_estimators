@@ -30,7 +30,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     0, 1, 0, 0, 0, 0;
 
   innovation_ << 
-    0, 0, 0, 0, 0, 0;
+    0, 0;
 
 
   // clang-format on

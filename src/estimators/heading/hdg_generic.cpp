@@ -30,7 +30,7 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
     1, 0;
 
   innovation_ << 
-    0, 0;
+    0;
 
 
   // clang-format on
