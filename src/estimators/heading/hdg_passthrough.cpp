@@ -21,6 +21,10 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   hdg_state_      = states_t::Zero();
   hdg_covariance_ = covariance_t::Zero();
 
+  innovation_ << 
+    0, 0;
+
+
   // | --------------- param loader initialization --------------- |
 
   if (is_core_plugin_) {

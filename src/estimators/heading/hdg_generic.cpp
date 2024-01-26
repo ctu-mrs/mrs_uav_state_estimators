@@ -29,6 +29,10 @@ void HdgGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   H_ <<
     1, 0;
 
+  innovation_ << 
+    0, 0;
+
+
   // clang-format on
 
   // | --------------- initialize parameter loader -------------- |

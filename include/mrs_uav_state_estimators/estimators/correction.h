@@ -1193,6 +1193,8 @@ void Correction<n_measurements>::callbackVector(const geometry_msgs::Vector3Stam
   auto res = getCorrectionFromVector(msg);
   if (res) {
     applyCorrection(res.value(), msg->header.stamp);
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Vector3Stamped msg", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -1241,6 +1243,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             measurement = res.value();
             return measurement;
           } else {
+            ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain untilted Z velocity", getPrintName().c_str());
             return {};
           }
           break;
