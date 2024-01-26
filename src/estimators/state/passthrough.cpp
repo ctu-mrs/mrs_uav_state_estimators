@@ -136,7 +136,7 @@ bool Passthrough::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
-void Passthrough::timerUpdate(const ros::TimerEvent &event) {
+void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
@@ -203,7 +203,7 @@ void Passthrough::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void Passthrough::timerCheckHealth(const ros::TimerEvent &event) {
+void Passthrough::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -239,7 +239,7 @@ bool Passthrough::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
-bool Passthrough::setUavState(const mrs_msgs::UavState &uav_state) {
+bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());

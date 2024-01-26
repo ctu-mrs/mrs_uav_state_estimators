@@ -133,7 +133,7 @@ bool GroundTruth::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
-void GroundTruth::timerUpdate(const ros::TimerEvent &event) {
+void GroundTruth::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
 
   if (!isInitialized()) {
@@ -200,7 +200,7 @@ void GroundTruth::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void GroundTruth::timerCheckHealth(const ros::TimerEvent &event) {
+void GroundTruth::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;

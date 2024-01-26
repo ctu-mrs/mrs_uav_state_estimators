@@ -533,7 +533,7 @@ bool HdgGeneric::isConverged() {
 
 /*//{ getState() */
 double HdgGeneric::getState(const int &state_id_in, const int &axis_in) const {
-  return getState(stateIdToIndex(state_id_in, 0));
+  return getState(stateIdToIndex(state_id_in, axis_in));
 }
 
 double HdgGeneric::getState(const int &state_idx_in) const {
@@ -543,7 +543,7 @@ double HdgGeneric::getState(const int &state_idx_in) const {
 
 /*//{ setState() */
 void HdgGeneric::setState(const double &state_in, const int &state_id_in, const int &axis_in) {
-  setState(state_in, stateIdToIndex(state_id_in, 0));
+  setState(state_in, stateIdToIndex(state_id_in, axis_in));
 }
 
 void HdgGeneric::setState(const double &state_in, const int &state_idx_in) {
