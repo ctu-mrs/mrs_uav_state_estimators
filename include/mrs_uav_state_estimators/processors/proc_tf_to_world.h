@@ -98,6 +98,7 @@ void ProcTfToWorld<n_measurements>::callbackGnss(const sensor_msgs::NavSatFix::C
   }
 
   mrs_lib::UTM(msg->latitude, msg->longitude, &gnss_x_, &gnss_y_);
+  ROS_INFO("[%s]: First GNSS obtained: %.2f %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   got_gnss_ = true;
 }
 /*//}*/
@@ -117,10 +118,12 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
 
   if (!is_gnss_offset_calculated_) {
 
+    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_x_: %.2f, measurement(0): %.2f, world_origin.x: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, measurement(0), Processor<n_measurements>::ch_->world_origin.x);
+    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_y_: %.2f, measurement(1): %.2f, world_origin.y: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_y_, measurement(1), Processor<n_measurements>::ch_->world_origin.y);
     gnss_x_                    = (gnss_x_ - measurement(0)) - Processor<n_measurements>::ch_->world_origin.x;
     gnss_y_                    = (gnss_y_ - measurement(1)) - Processor<n_measurements>::ch_->world_origin.y;
     is_gnss_offset_calculated_ = true;
-    ROS_INFO_THROTTLE(1.0, "[%s]: GNSS offset calculated as: [%.2f %.2f]", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
+    ROS_INFO_THROTTLE(1.0, "[%s]: GNSS world offset calculated as: [%.2f %.2f]", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   }
 
   measurement(0) += gnss_x_;
