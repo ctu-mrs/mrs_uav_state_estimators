@@ -33,10 +33,11 @@ private:
 
   std::string gnss_topic_;
 
-  bool   got_gnss_                  = false;
-  bool   is_gnss_offset_calculated_ = false;
-  double gnss_x_;
-  double gnss_y_;
+  std::mutex       mtx_gnss_;
+  std::atomic_bool got_gnss_                  = false;
+  std::atomic_bool is_gnss_offset_calculated_ = false;
+  double           gnss_x_;
+  double           gnss_y_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_gnss_;
   void                                              callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg);
@@ -97,6 +98,7 @@ void ProcTfToWorld<n_measurements>::callbackGnss(const sensor_msgs::NavSatFix::C
     return;
   }
 
+  std::scoped_lock lock(mtx_gnss_);
   mrs_lib::UTM(msg->latitude, msg->longitude, &gnss_x_, &gnss_y_);
   ROS_INFO("[%s]: First GNSS obtained: %.2f %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, gnss_y_);
   got_gnss_ = true;
@@ -111,6 +113,8 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
     return {true, true};
   }
 
+  std::scoped_lock lock(mtx_gnss_);
+
   if (!got_gnss_) {
     ROS_WARN_THROTTLE(1.0, "[%s]: Missing GNSS data on topic: %s", Processor<n_measurements>::getPrintName().c_str(), gnss_topic_.c_str());
     return {false, false};
@@ -118,8 +122,10 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
 
   if (!is_gnss_offset_calculated_) {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_x_: %.2f, measurement(0): %.2f, world_origin.x: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_x_, measurement(0), Processor<n_measurements>::ch_->world_origin.x);
-    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_y_: %.2f, measurement(1): %.2f, world_origin.y: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_y_, measurement(1), Processor<n_measurements>::ch_->world_origin.y);
+    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_x_: %.2f, measurement(0): %.2f, world_origin.x: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_x_,
+                      measurement(0), Processor<n_measurements>::ch_->world_origin.x);
+    ROS_INFO_THROTTLE(1.0, "[%s]: debug: gnss_y_: %.2f, measurement(1): %.2f, world_origin.y: %.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_y_,
+                      measurement(1), Processor<n_measurements>::ch_->world_origin.y);
     gnss_x_                    = (gnss_x_ - measurement(0)) - Processor<n_measurements>::ch_->world_origin.x;
     gnss_y_                    = (gnss_y_ - measurement(1)) - Processor<n_measurements>::ch_->world_origin.y;
     is_gnss_offset_calculated_ = true;
@@ -128,6 +134,13 @@ std::tuple<bool, bool> ProcTfToWorld<n_measurements>::process(measurement_t& mea
 
   measurement(0) += gnss_x_;
   measurement(1) += gnss_y_;
+
+  if (measurement(0) > 10000 || measurement(0) < -10000 || measurement(1) > 10000 || measurement(1) < -10000) {
+    ROS_WARN_THROTTLE(
+        1.0,
+        "[%s]: debug: Not expected to fly further than 10 km. This is most likely a bug. measurement(0): %.2f measurement(1): %.2f gnss_x_: %.2f gnss_y_: %.2f",
+        Processor<n_measurements>::getPrintName().c_str(), measurement(0), measurement(1), gnss_x_, gnss_y_);
+  }
   return {true, true};
 }
 /*//}*/
