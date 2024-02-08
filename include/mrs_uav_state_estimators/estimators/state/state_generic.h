@@ -57,12 +57,13 @@ private:
 
   std::string                                                 topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
+  void                                                        callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg);
 
   std::string                                              topic_angular_velocity_;
   mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_hw_api_ang_vel_;
 
-  ros::Timer timer_update_;
-  void       timerUpdate(const ros::TimerEvent &event);
+  /* ros::Timer timer_update_; */
+  /* void       timerUpdate(const ros::TimerEvent &event); */
 
   ros::Timer timer_check_health_;
   void       timerCheckHealth(const ros::TimerEvent &event);
@@ -91,7 +92,7 @@ public:
 
   std::optional<double> getHeading() const;
 
-  void updateUavState();
+  void updateUavState(const geometry_msgs::QuaternionStamped::ConstPtr msg);
 };
 
 }  // namespace mrs_uav_state_estimators

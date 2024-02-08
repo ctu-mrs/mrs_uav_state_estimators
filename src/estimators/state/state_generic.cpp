@@ -48,7 +48,7 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init
+  /* timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init */
   /* timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerCheckHealth, this); */
   timer_pub_attitude_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerPubAttitude, this);
 
@@ -62,7 +62,7 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_);
+  sh_hw_api_orient_  = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, topic_orientation_, &StateGeneric::callbackOrientation, this);
   sh_hw_api_ang_vel_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
@@ -204,15 +204,15 @@ bool StateGeneric::reset(void) {
 }
 /*//}*/
 
-/* timerUpdate() //{*/
-void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
+/* callbackOrientation() //{*/
+void StateGeneric::callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg) {
 
 
   if (!isInitialized()) {
     return;
   }
 
-  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::timerUpdate", ch_->scope_timer.logger, ch_->scope_timer.enabled);
+  mrs_lib::ScopeTimer scope_timer = mrs_lib::ScopeTimer("StateGeneric::callbackOrientation", ch_->scope_timer.logger, ch_->scope_timer.enabled);
 
   switch (getCurrentSmState()) {
 
@@ -221,7 +221,7 @@ void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     }
     case INITIALIZED_STATE: {
 
-      if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
+      if (sh_hw_api_ang_vel_.hasMsg()) {
         if (est_lat_->isInitialized() && est_alt_->isInitialized() && est_hdg_->isInitialized()) {
           changeState(READY_STATE);
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
@@ -277,7 +277,7 @@ void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     return;
   }
 
-  updateUavState();
+  updateUavState(msg);
 
   publishUavState();
   publishOdom();
@@ -428,7 +428,7 @@ bool StateGeneric::isConverged() {
 /*//}*/
 
 /*//{ updateUavState() */
-void StateGeneric::updateUavState() {
+void StateGeneric::updateUavState(const geometry_msgs::QuaternionStamped::ConstPtr msg) {
 
   if (!sh_hw_api_orient_.hasMsg()) {
     ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(), sh_hw_api_orient_.topicName().c_str());
@@ -444,11 +444,11 @@ void StateGeneric::updateUavState() {
   const ros::Time time_now = ros::Time::now();
 
   mrs_msgs::UavState uav_state = uav_state_init_;
-  uav_state.header.stamp       = time_now;
+  uav_state.header.stamp       = msg->header.stamp;
 
   // do not rotate orientation if passthrough hdg
   if (est_hdg_name_ == "hdg_passthrough") {
-    uav_state.pose.orientation = sh_hw_api_orient_.getMsg()->quaternion;
+    uav_state.pose.orientation = msg->quaternion;
   } else {
     double hdg;
     if (isError()) {
@@ -457,7 +457,7 @@ void StateGeneric::updateUavState() {
       hdg = est_hdg_->getState(POSITION);
     }
 
-    auto res = rotateQuaternionByHeading(sh_hw_api_orient_.getMsg()->quaternion, hdg);
+    auto res = rotateQuaternionByHeading(msg->quaternion, hdg);
     if (res) {
       uav_state.pose.orientation = res.value();
     } else {
