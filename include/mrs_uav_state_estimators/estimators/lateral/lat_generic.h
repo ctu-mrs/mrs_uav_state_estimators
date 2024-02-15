@@ -38,37 +38,38 @@ class LatGeneric : public LateralEstimator<lat_generic::n_states> {
 
   typedef mrs_lib::DynamicReconfigureMgr<LateralEstimatorConfig> drmgr_t;
 
-  using lkf_t      = mrs_lib::LKF<lat_generic::n_states, lat_generic::n_inputs, lat_generic::n_measurements>;
-  using A_t        = lkf_t::A_t;
-  using B_t        = lkf_t::B_t;
-  using H_t        = lkf_t::H_t;
-  using Q_t        = lkf_t::Q_t;
-  using x_t        = lkf_t::x_t;
-  using P_t        = lkf_t::P_t;
-  using u_t        = lkf_t::u_t;
-  using z_t        = lkf_t::z_t;
-  using R_t        = lkf_t::R_t;
-  using statecov_t = lkf_t::statecov_t;
+  using lkf_t         = mrs_lib::LKF<lat_generic::n_states, lat_generic::n_inputs, lat_generic::n_measurements>;
+  using varstep_lkf_t = mrs_lib::varstepLKF<lat_generic::n_states, lat_generic::n_inputs, lat_generic::n_measurements>;
+  using A_t           = lkf_t::A_t;
+  using B_t           = lkf_t::B_t;
+  using H_t           = lkf_t::H_t;
+  using Q_t           = lkf_t::Q_t;
+  using x_t           = lkf_t::x_t;
+  using P_t           = lkf_t::P_t;
+  using u_t           = lkf_t::u_t;
+  using z_t           = lkf_t::z_t;
+  using R_t           = lkf_t::R_t;
+  using statecov_t    = lkf_t::statecov_t;
 
-  typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
+  typedef mrs_lib::Repredictor<varstep_lkf_t> rep_lkf_t;
 
 private:
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   std::string parent_state_est_name_;
 
-  double                              dt_;
-  double                              input_coeff_, default_input_coeff_;
-  A_t                                 A_;
-  B_t                                 B_;
-  H_t                                 H_;
-  Q_t                                 Q_;
-  std::shared_ptr<lkf_t>              lkf_;
-  std::unique_ptr<rep_lkf_t>          lkf_rep_;
-  std::vector<std::shared_ptr<lkf_t>> models_;
-  mutable std::mutex                  mutex_lkf_;
-  statecov_t                          sc_;
-  mutable std::mutex                  mutex_sc_;
+  double                                      dt_;
+  double                                      input_coeff_, default_input_coeff_;
+  A_t                                         A_;
+  B_t                                         B_;
+  H_t                                         H_;
+  Q_t                                         Q_;
+  std::shared_ptr<lkf_t>                      lkf_;
+  std::unique_ptr<rep_lkf_t>                  lkf_rep_;
+  std::vector<std::shared_ptr<varstep_lkf_t>> models_;
+  mutable std::mutex                          mutex_lkf_;
+  statecov_t                                  sc_;
+  mutable std::mutex                          mutex_sc_;
 
   std::unique_ptr<drmgr_t> drmgr_;
   void                     callbackReconfigure(LateralEstimatorConfig &config, [[maybe_unused]] uint32_t level);
@@ -76,9 +77,9 @@ private:
   z_t                innovation_;
   mutable std::mutex mtx_innovation_;
 
-  bool is_error_state_first_time_ = true;
+  bool          is_error_state_first_time_ = true;
   ros::Duration error_state_duration_;
-  ros::Time prev_time_in_error_state_;
+  ros::Time     prev_time_in_error_state_;
 
   bool is_repredictor_enabled_;
   int  rep_buffer_size_ = 200;
@@ -116,7 +117,10 @@ private:
 public:
   LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin,
              std::function<std::optional<double>()> fun_get_hdg)
-      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin), fun_get_hdg_(fun_get_hdg) {
+      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id),
+        parent_state_est_name_(parent_state_est_name),
+        is_core_plugin_(is_core_plugin),
+        fun_get_hdg_(fun_get_hdg) {
   }
 
   ~LatGeneric(void) {
@@ -147,6 +151,8 @@ public:
 
   void setDt(const double &dt);
   void setInputCoeff(const double &input_coeff);
+
+  void generateRepredictorModels(const double input_coeff);
 
   void generateA();
   void generateB();
