@@ -39,38 +39,39 @@ class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
 
   typedef mrs_lib::DynamicReconfigureMgr<HeadingEstimatorConfig> drmgr_t;
 
-  using lkf_t      = mrs_lib::LKF<hdg_generic::n_states, hdg_generic::n_inputs, hdg_generic::n_measurements>;
-  using A_t        = lkf_t::A_t;
-  using B_t        = lkf_t::B_t;
-  using H_t        = lkf_t::H_t;
-  using Q_t        = lkf_t::Q_t;
-  using x_t        = lkf_t::x_t;
-  using P_t        = lkf_t::P_t;
-  using u_t        = lkf_t::u_t;
-  using z_t        = lkf_t::z_t;
-  using R_t        = lkf_t::R_t;
-  using statecov_t = lkf_t::statecov_t;
+  using lkf_t         = mrs_lib::LKF<hdg_generic::n_states, hdg_generic::n_inputs, hdg_generic::n_measurements>;
+  using varstep_lkf_t = mrs_lib::varstepLKF<hdg_generic::n_states, hdg_generic::n_inputs, hdg_generic::n_measurements>;
+  using A_t           = lkf_t::A_t;
+  using B_t           = lkf_t::B_t;
+  using H_t           = lkf_t::H_t;
+  using Q_t           = lkf_t::Q_t;
+  using x_t           = lkf_t::x_t;
+  using P_t           = lkf_t::P_t;
+  using u_t           = lkf_t::u_t;
+  using z_t           = lkf_t::z_t;
+  using R_t           = lkf_t::R_t;
+  using statecov_t    = lkf_t::statecov_t;
 
-  typedef mrs_lib::Repredictor<lkf_t> rep_lkf_t;
+  typedef mrs_lib::Repredictor<varstep_lkf_t> rep_lkf_t;
 
   using StateId_t = mrs_uav_managers::estimation_manager::StateId_t;
 
 private:
   std::string parent_state_est_name_;
 
-  double                              dt_;
-  double                              input_coeff_;
-  double                              default_input_coeff_;
-  A_t                                 A_;
-  B_t                                 B_;
-  H_t                                 H_;
-  Q_t                                 Q_;
-  std::shared_ptr<lkf_t>              lkf_;
-  std::unique_ptr<rep_lkf_t>          lkf_rep_;
-  std::vector<std::shared_ptr<lkf_t>> models_;
-  mutable std::mutex                  mutex_lkf_;
-  statecov_t                          sc_;
-  mutable std::mutex                  mutex_sc_;
+  double                                      dt_;
+  double                                      input_coeff_;
+  double                                      default_input_coeff_;
+  A_t                                         A_;
+  B_t                                         B_;
+  H_t                                         H_;
+  Q_t                                         Q_;
+  std::shared_ptr<lkf_t>                      lkf_;
+  std::unique_ptr<rep_lkf_t>                  lkf_rep_;
+  std::vector<std::shared_ptr<varstep_lkf_t>> models_;
+  mutable std::mutex                          mutex_lkf_;
+  statecov_t                                  sc_;
+  mutable std::mutex                          mutex_sc_;
 
   std::unique_ptr<drmgr_t> drmgr_;
   void                     callbackReconfigure(HeadingEstimatorConfig &config, [[maybe_unused]] uint32_t level);
@@ -142,6 +143,8 @@ public:
 
   void setDt(const double &dt);
   void setInputCoeff(const double &input_coeff);
+
+  void generateRepredictorModels(const double input_coeff);
 
   void generateA();
   void generateB();
