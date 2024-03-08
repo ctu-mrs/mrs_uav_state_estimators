@@ -18,6 +18,7 @@
 #include <mrs_msgs/Float64Stamped.h>
 
 #include <sensor_msgs/Range.h>
+#include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 
 #include <std_srvs/SetBool.h>
@@ -56,17 +57,19 @@ typedef enum
   POSE,
   POSECOV,
   RANGE,
+  IMU,
   RTK_GPS,
   POINT,
   VECTOR,
   QUAT,
 } MessageType_t;
-const int n_MessageType_t = 9;
+const int n_MessageType_t = 10;
 
 const std::map<std::string, MessageType_t> map_msg_type{{"nav_msgs/Odometry", MessageType_t::ODOMETRY},
                                                         {"geometry_msgs/PoseStamped", MessageType_t::POSE},
                                                         {"geometry_msgs/PoseWithCovarianceStamped", MessageType_t::POSECOV},
                                                         {"sensor_msgs/Range", MessageType_t::RANGE},
+                                                        {"sensor_msgs/Imu", MessageType_t::IMU},
                                                         {"mrs_msgs/RtkGps", MessageType_t::RTK_GPS},
                                                         {"geometry_msgs/PointStamped", MessageType_t::POINT},
                                                         {"geometry_msgs/Vector3Stamped", MessageType_t::VECTOR},
@@ -153,6 +156,10 @@ private:
   measurement_t                                               prev_hdg_measurement_;
   bool                                                        got_first_hdg_measurement_ = false;
 
+  mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_imu_;
+  std::optional<measurement_t>                             getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
+  void                                                     callbackImu(const sensor_msgs::Imu::ConstPtr msg);
+
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
   void                                          callbackRange(const sensor_msgs::Range::ConstPtr msg);
@@ -183,12 +190,13 @@ private:
   std::mutex mtx_R_;
   StateId_t  state_id_;
   bool       is_in_body_frame_ = true;
+  double     gravity_norm_ = 9.8066;
 
   std::unique_ptr<drmgr_t> drmgr_;
 
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
-  std::optional<measurement_t> getVelInFrame(const geometry_msgs::Vector3& vel_in, const std_msgs::Header& source_header, const std::string target_frame);
+  std::optional<measurement_t> getVecInFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
 
   std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
 
@@ -264,6 +272,11 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (state_id_ == StateId_t::VELOCITY) {
     ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
   }
+  
+  if (state_id_ == StateId_t::ACCELERATION) {
+    ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
+    ph->param_loader->loadParam("gravity_norm", gravity_norm_, 9.8066);
+  }
 
   ph->param_loader->loadParam("noise", R_);
   ph->param_loader->loadParam("noise_unhealthy_coeff", R_coeff_);
@@ -311,6 +324,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       std::string       node_name = ros::this_node::getName().substr(found + 1);
       ser_toggle_range_ =
           nh.advertiseService(ros::this_node::getName() + "/" + getNamespacedName() + "/toggle_range_in", &Correction::callbackToggleRange, this);
+      break;
+    }
+    case MessageType_t::IMU: {
+      sh_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, msg_topic_, &Correction::callbackImu, this);
       break;
     }
     case MessageType_t::RTK_GPS: {
@@ -540,6 +557,33 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       break;
     }
 
+    case MessageType_t::IMU: {
+
+      if (!sh_imu_.hasMsg()) {
+        ROS_ERROR_THROTTLE(1.0, " no imu msgs so far");
+        return {};
+      }
+
+      auto msg                  = sh_imu_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromImu(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
+        return {};
+      }
+
+      break;
+    }
+
     case MessageType_t::RTK_GPS: {
 
       if (!sh_rtk_.hasMsg()) {
@@ -715,7 +759,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
           if (is_in_body_frame_) {
             std_msgs::Header header = msg->header;
             header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is published in body frame
-            auto res                = getVelInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+            auto res                = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
             if (res) {
               measurement_t measurement;
               measurement = res.value();
@@ -989,6 +1033,110 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
+/*//{ callbackImu() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackImu(const sensor_msgs::Imu::ConstPtr msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromImu(msg);
+  if (res) {
+    applyCorrection(res.value(), msg->header.stamp);
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Imu msg", getPrintName().c_str());
+  }
+}
+/*//}*/
+
+/*//{ getCorrectionFromImu() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(
+    const sensor_msgs::ImuConstPtr msg) {
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      switch (state_id_) {
+
+        case StateId_t::ACCELERATION: {
+          if (is_in_body_frame_) {
+            auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_+"_att_only").c_str());
+              return {};
+            }
+          } else {
+            measurement_t measurement;
+            measurement(0) = msg->linear_acceleration.x;
+            measurement(1) = msg->linear_acceleration.y;
+            return measurement;
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      switch (state_id_) {
+
+        case StateId_t::ACCELERATION: {
+          if (is_in_body_frame_) {
+            auto res = getZVelUntilted(msg->linear_acceleration, msg->header);
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              measurement(0) -= gravity_norm_;
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU Z acceleration", getPrintName().c_str());
+              return {};
+            }
+          } else {
+            measurement_t measurement;
+            measurement(0) = msg->linear_acceleration.z - gravity_norm_;
+            return measurement;
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle heading estimators
+    case EstimatorType_t::HEADING: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::HEADING in getCorrectionFromImu() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
 /*//{ callbackRtk() */
 template <int n_measurements>
 void Correction<n_measurements>::callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg) {
@@ -1212,7 +1360,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       switch (state_id_) {
 
         case StateId_t::VELOCITY: {
-          auto res = getVelInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
+          auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
           if (res) {
             measurement_t measurement;
             measurement = res.value();
@@ -1428,30 +1576,27 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
-/*//{ getVelInFrame() */
+/*//{ getVecInFrame() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVelInFrame(const geometry_msgs::Vector3& vel_in,
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::Vector3& vec_in,
                                                                                                             const std_msgs::Header&       source_header,
                                                                                                             const std::string             target_frame) {
 
   measurement_t measurement;
 
-  geometry_msgs::Vector3Stamped vel;
-  vel.header = source_header;
-  vel.vector = vel_in;
-  /* body.vector.x = vel.x; */
-  /* body.vector.y = vel.y; */
-  /* body.vector.z = vel.z; */
+  geometry_msgs::Vector3Stamped vec;
+  vec.header = source_header;
+  vec.vector = vec_in;
 
   geometry_msgs::Vector3Stamped transformed_vel;
-  auto                          res = ch_->transformer->transformSingle(vel, target_frame);
+  auto                          res = ch_->transformer->transformSingle(vec, target_frame);
   if (res) {
     transformed_vel = res.value();
     measurement(0)  = transformed_vel.vector.x;
     measurement(1)  = transformed_vel.vector.y;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), vel.header.frame_id.c_str(), target_frame.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
