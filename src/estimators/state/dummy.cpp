@@ -18,6 +18,16 @@ void Dummy::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
+  // | --------------- param loader initialization -------------- |
+
+  ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+  ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
+
+  // | --------------------- load parameters -------------------- |
+  ph->param_loader->loadParam("max_flight_z", max_flight_z_);
+
   // | ------------------ timers initialization ----------------- |
   //
   timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Dummy::timerUpdate, this, false, false);  // not running after init
