@@ -45,13 +45,13 @@ mrs_uav_managers:
           saturate:
             start_enabled: true # saturate processor can start as disabled and then be enabled by a service or a trigger condition
             keep_enabled: true # keep enabled even after the corrections are near the value of state
-            min: -0.2
-            max: 0.2
-            limit: 1.0
+            min: -0.9
+            max: 0.9
+            limit: 0.9
 
         vel_hw_api:
           state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
-          noise: 0.01 # measurement noise covariance (R)
+          noise: 10.0 # measurement noise covariance (R)
           noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
           message:
             type: "geometry_msgs/Vector3Stamped"
