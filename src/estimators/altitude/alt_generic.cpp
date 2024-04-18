@@ -517,25 +517,25 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       innovation_ok_ = false;
       switch (exc_innovation_action_) {
         case ExcInnoAction_t::ELAND: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::SWITCH: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
           innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::MITIGATE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
           innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           is_mitigating_jump_ = true;
           setState(z(0), POSITION);
           break;
         }
         case ExcInnoAction_t::NONE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", getPrintName().c_str());
           break;
         }
       }
