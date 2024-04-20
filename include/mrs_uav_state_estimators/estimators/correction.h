@@ -1736,6 +1736,10 @@ bool Correction<n_measurements>::isTimestampOk() {
 template <int n_measurements>
 bool Correction<n_measurements>::isMsgComing() {
 
+  if (first_timestamp_) {
+    return true;
+  }
+
   const ros::Time msg_time = mrs_lib::get_mutexed(mtx_msg_time_, msg_time_);
   const double    delta    = ros::Time::now().toSec() - msg_time.toSec();
 
