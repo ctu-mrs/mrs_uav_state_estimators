@@ -340,7 +340,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
 
   // obtain dt for state prediction
   double dt = (event.current_real - event.last_real).toSec();
-  if (dt <= 0.0) {  // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick
+  if (dt <= 0.0 || dt > 1.0) {  // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick, in case of stopping and starting the timer, the last_real is 0
     return;
   }
 
