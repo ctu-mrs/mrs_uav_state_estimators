@@ -101,15 +101,11 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   lkf_ = std::make_shared<lkf_t>(A_, B_, H_);
   if (is_repredictor_enabled_) {
 
-    for (int i = 0; i < alt_generic::n_states; i++) {
-      H_t H = H_t::Zero();
-      H(i)  = 1;
-      models_.push_back(std::make_shared<lkf_t>(A_, B_, H));
-    }
+    generateRepredictorModels(input_coeff_);
 
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time::now();
-    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
 
     setDt(1.0 / ch_->desired_uav_state_rate);
   }
@@ -202,7 +198,7 @@ bool AltGeneric::reset(void) {
 
     const u_t       u0 = u_t::Zero();
     const ros::Time t0 = ros::Time(0);
-    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<lkf_t>>(x0, P0, u0, Q_, t0, lkf_, rep_buffer_size_);
+    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
   }
 
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
@@ -333,11 +329,11 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   double dt = (event.current_real - event.last_real).toSec();
-  if (dt <= 0.0) {
+  if (dt <= 0.0 || dt > 1.0) {
     return;
   }
 
-  if (!is_repredictor_enabled_) {  // repredictor requires constant dt TODO: how to handle repredictor + variable rate?
+  if (!is_repredictor_enabled_) {  // repredictor calculates dt on its own
     setDt(dt);
   }
 
@@ -348,12 +344,16 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     mrs_msgs::EstimatorInputConstPtr msg            = sh_control_input_.getMsg();
     const tf2::Vector3               des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
     input_stamp                                     = msg->header.stamp;
-    setInputCoeff(default_input_coeff_);
+    if (input_coeff_ != default_input_coeff_){
+      setInputCoeff(default_input_coeff_);
+    }
     u(0) = des_acc_global.getZ();
   } else {
     ROS_DEBUG_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = ros::Time::now();
-    setInputCoeff(0);
+    if (input_coeff_ != 0){
+      setInputCoeff(0);
+    }
     u = u_t::Zero();
   }
 
@@ -373,7 +373,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     // Apply the prediction step
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
-      lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, lkf_);
+      lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, models_[0]);
       sc = lkf_rep_->predictTo(ros::Time::now());
     } else {
       sc = lkf_->predict(sc, u, Q, dt_);
@@ -517,25 +517,25 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
       innovation_ok_ = false;
       switch (exc_innovation_action_) {
         case ExcInnoAction_t::ELAND: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::SWITCH: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
           innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::MITIGATE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
           innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           is_mitigating_jump_ = true;
           setState(z(0), POSITION);
           break;
         }
         case ExcInnoAction_t::NONE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", ros::this_node::getName().c_str());
+          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", getPrintName().c_str());
           break;
         }
       }
@@ -660,6 +660,45 @@ void AltGeneric::setInputCoeff(const double &input_coeff) {
   std::scoped_lock lock(mutex_lkf_);
   lkf_->A = A_;
   lkf_->B = B_;
+
+  if (is_repredictor_enabled_) {
+    models_.clear();
+    generateRepredictorModels(input_coeff_);
+  }
+}
+/*//}*/
+
+/*//{ generateRepredictorModels() */
+void AltGeneric::generateRepredictorModels(const double input_coeff) {
+
+    for (int i = 0; i < alt_generic::n_states; i++) {
+
+      auto lambda_generateA = [input_coeff](const double dt) {
+        A_t A;
+        // clang-format off
+        A <<
+          1, dt, 0.5 * dt * dt,
+          0, 1, dt,
+          0, 0, 1-(input_coeff * dt);
+        // clang-format on
+        return A;
+      };
+
+      auto lambda_generateB = [input_coeff]([[maybe_unused]] const double dt) {
+        B_t B = B.Zero();
+        // clang-format off
+        B <<
+          0,
+          0,
+          (input_coeff * dt);
+        // clang-format on
+        return B;
+      };
+
+      H_t H = H_t::Zero();
+      H(i)  = 1;
+      models_.push_back(std::make_shared<varstep_lkf_t>(lambda_generateA, lambda_generateB, H));
+    }
 }
 /*//}*/
 

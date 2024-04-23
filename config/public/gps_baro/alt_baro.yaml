@@ -18,22 +18,9 @@ mrs_uav_managers:
           acc: 1.0 # acceleration state
 
         corrections: [
-          # TODO next camp: check if velocity only fusion is ok, check pixhawk altitude manual mode stabilization vs mrs baro altitude stabilization
-          # "pos_baro",
+          # positional correction only makes the estimator unstable, vel_hw_api is not a derivative of pos_hw_api, vel_hw_api_only works best
           "vel_hw_api"
         ]
-
-        pos_baro:
-          state_id: 0 # 0 - position, 1 - velocity, 2 - acceleration
-          noise: 10000.0 # measurement noise covariance (R)
-          noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
-          message:
-            type: "geometry_msgs/PointStamped"
-            topic: "hw_api/position" # without uav namespace
-            limit: 
-              delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
-              time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
-          processors: [] # types of processors attached to this measurement
 
         vel_hw_api:
           state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
