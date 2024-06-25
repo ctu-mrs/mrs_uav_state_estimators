@@ -196,6 +196,7 @@ bool HdgGeneric::reset(void) {
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
   }
 
+  changeState(INITIALIZED_STATE);
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
   return true;

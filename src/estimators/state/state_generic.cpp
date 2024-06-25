@@ -48,7 +48,7 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerUpdate, this);
   /* timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerCheckHealth, this); */
   timer_pub_attitude_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &StateGeneric::timerPubAttitude, this);
 
@@ -193,10 +193,11 @@ bool StateGeneric::reset(void) {
     return false;
   }
 
-  est_lat_->pause();
-  est_alt_->pause();
-  est_hdg_->pause();
   changeState(STOPPED_STATE);
+  est_lat_->reset();
+  est_alt_->reset();
+  est_hdg_->reset();
+  changeState(INITIALIZED_STATE);
 
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
@@ -244,6 +245,10 @@ void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     case STARTED_STATE: {
 
       ROS_INFO_THROTTLE(1.0, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+      if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
+        changeState(ERROR_STATE);
+      }
 
       if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());

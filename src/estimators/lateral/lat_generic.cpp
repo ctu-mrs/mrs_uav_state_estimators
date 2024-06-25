@@ -115,7 +115,7 @@ void LatGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerUpdate, this);  // not running after init
+  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerUpdate, this); 
   /* timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &LatGeneric::timerCheckHealth, this); */
 
   // | --------------- subscribers initialization --------------- |
@@ -207,6 +207,7 @@ bool LatGeneric::reset(void) {
     lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_[0], rep_buffer_size_);
   }
 
+  changeState(INITIALIZED_STATE);
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
