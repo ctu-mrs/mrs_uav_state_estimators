@@ -1010,6 +1010,12 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     return {};
   }
 
+  const double eps = 1e-3;
+  if (msg->range <= msg->min_range + eps ||  msg->range >= msg->max_range - eps) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: range measurement %.2f outside of its valid range (%.2f, %.2f)", ros::this_node::getName().c_str(), msg->range, msg->min_range, msg->max_range);
+    return {};
+  }
+
   geometry_msgs::PoseStamped range_point;
 
   range_point.header           = msg->header;

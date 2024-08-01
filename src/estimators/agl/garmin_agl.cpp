@@ -179,26 +179,61 @@ void GarminAgl::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) 
     return;
   }
 
-  if (isInState(INITIALIZED_STATE)) {
+  switch (getCurrentSmState()) {
 
-    if (est_agl_garmin_->isReady()) {
-      changeState(READY_STATE);
-      ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
-    } else {
-      ROS_INFO("[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      return;
+    case UNINITIALIZED_STATE: {
+      break;
     }
-  }
 
+    case INITIALIZED_STATE: {
 
-  if (isInState(STARTED_STATE)) {
-    ROS_INFO("[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      if (est_agl_garmin_->isInitialized()) {
+        changeState(READY_STATE);
+        ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
+      } else {
+        ROS_INFO("[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
+        return;
+      }
+      break;
+    }
 
-    if (est_agl_garmin_->isRunning()) {
-      ROS_INFO("[%s]: Subestimators converged", getPrintName().c_str());
-      changeState(RUNNING_STATE);
-    } else {
-      return;
+    case READY_STATE: {
+      break;
+    }
+
+    case STARTED_STATE: {
+
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+      if (est_agl_garmin_->isError()) {
+        changeState(ERROR_STATE);
+      }
+
+      if (est_agl_garmin_->isRunning()) {
+        ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
+        changeState(RUNNING_STATE);
+      } else {
+        return;
+      }
+      break;
+    }
+
+    case RUNNING_STATE: {
+      if (est_agl_garmin_->isError()) {
+        changeState(ERROR_STATE);
+      }
+      break;
+    }
+
+    case STOPPED_STATE: {
+      break;
+    }
+
+    case ERROR_STATE: {
+      if (est_agl_garmin_->isReady()) {
+        changeState(READY_STATE);
+      }
+      break;
     }
   }
 }
