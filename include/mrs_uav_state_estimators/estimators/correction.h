@@ -157,8 +157,8 @@ private:
   bool                                                        got_first_hdg_measurement_ = false;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_imu_;
-  std::optional<measurement_t>                             getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
-  void                                                     callbackImu(const sensor_msgs::Imu::ConstPtr msg);
+  std::optional<measurement_t>                getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
+  void                                        callbackImu(const sensor_msgs::Imu::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
@@ -190,13 +190,18 @@ private:
   std::mutex mtx_R_;
   StateId_t  state_id_;
   bool       is_in_body_frame_ = true;
-  double     gravity_norm_ = 9.8066;
+  double     gravity_norm_     = 9.8066;
+
+  bool        transform_to_frame_enabled_ = false;
+  std::string transform_to_frame_;
+  std::string transform_from_frame_;
 
   std::unique_ptr<drmgr_t> drmgr_;
 
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
   std::optional<measurement_t> getVecInFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
+  std::optional<geometry_msgs::Point> getInFrame(const geometry_msgs::Point& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
 
   std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
 
@@ -269,10 +274,19 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     ros::shutdown();
   }
 
+  ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_, false);
+  if (transform_to_frame_enabled_) {
+    ph->param_loader->loadParam("transform/from_frame", transform_from_frame_);
+    transform_from_frame_ = ch_->uav_name + "/" + transform_from_frame_;
+    ph->param_loader->loadParam("transform/to_frame", transform_to_frame_);
+    transform_to_frame_ = ch_->uav_name + "/" + transform_to_frame_;
+  }
+
+
   if (state_id_ == StateId_t::VELOCITY) {
     ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
   }
-  
+
   if (state_id_ == StateId_t::ACCELERATION) {
     ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
     ph->param_loader->loadParam("gravity_norm", gravity_norm_, 9.8066);
@@ -749,8 +763,24 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement_t measurement;
-          measurement(0) = msg->pose.pose.position.x;
-          measurement(1) = msg->pose.pose.position.y;
+          if (transform_to_frame_enabled_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = transform_from_frame_;
+            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            if (res) {
+              measurement_t measurement;
+              measurement(0) = res.value().x;
+              measurement(1) = res.value().y;
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              return {};
+            }
+
+          } else {
+            measurement(0) = msg->pose.pose.position.x;
+            measurement(1) = msg->pose.pose.position.y;
+          }
           return measurement;
           break;
         }
@@ -792,7 +822,22 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement_t measurement;
-          measurement(0) = msg->pose.pose.position.z;
+          if (transform_to_frame_enabled_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = transform_from_frame_;
+            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            if (res) {
+              measurement_t measurement;
+              measurement(0) = res.value().z;
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              return {};
+            }
+
+          } else {
+            measurement(0) = msg->pose.pose.position.z;
+          }
           return measurement;
           break;
         }
@@ -832,9 +877,30 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement_t measurement;
+          std::unique_ptr<mrs_lib::AttitudeConverter> attitude;
+
+          if (transform_to_frame_enabled_) {
+
+            auto res = ch_->transformer->getTransform(transform_from_frame_, transform_to_frame_, msg->header.stamp);
+            if (!res) {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not find transform from '%s' to '%s'", ros::this_node::getName().c_str(), transform_from_frame_.c_str(),
+                                transform_to_frame_.c_str());
+              return{};
+            }
+
+            Eigen::Matrix3d R_from_to = mrs_lib::AttitudeConverter(res.value().transform.rotation);
+
+            Eigen::Matrix3d R_odom = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
+
+            // obtain heading from orientation
+            attitude =  std::make_unique<mrs_lib::AttitudeConverter>(R_odom * R_from_to);
+          } else {
+            attitude = std::make_unique<mrs_lib::AttitudeConverter>(msg->pose.pose.orientation);
+          }
+
           try {
             // obtain heading from orientation
-            measurement(StateId_t::POSITION) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeading();
+            measurement(StateId_t::POSITION) = attitude->getHeading();
             // unwrap heading wrt previous measurement
             if (got_first_hdg_measurement_) {
               measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
@@ -1011,8 +1077,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   }
 
   const double eps = 1e-3;
-  if (msg->range <= msg->min_range + eps ||  msg->range >= msg->max_range - eps) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: range measurement %.2f outside of its valid range (%.2f, %.2f)", ros::this_node::getName().c_str(), msg->range, msg->min_range, msg->max_range);
+  if (msg->range <= msg->min_range + eps || msg->range >= msg->max_range - eps) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: range measurement %.2f outside of its valid range (%.2f, %.2f)", ros::this_node::getName().c_str(), msg->range,
+                      msg->min_range, msg->max_range);
     return {};
   }
 
@@ -1058,8 +1125,7 @@ void Correction<n_measurements>::callbackImu(const sensor_msgs::Imu::ConstPtr ms
 
 /*//{ getCorrectionFromImu() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(
-    const sensor_msgs::ImuConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg) {
 
   switch (est_type_) {
 
@@ -1076,7 +1142,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
               measurement = res.value();
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_+"_att_only").c_str());
+              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_ + "_att_only").c_str());
               return {};
             }
           } else {
@@ -1594,15 +1660,38 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   vec.header = source_header;
   vec.vector = vec_in;
 
-  geometry_msgs::Vector3Stamped transformed_vel;
+  geometry_msgs::Vector3Stamped transformed_vec;
   auto                          res = ch_->transformer->transformSingle(vec, target_frame);
   if (res) {
-    transformed_vel = res.value();
-    measurement(0)  = transformed_vel.vector.x;
-    measurement(1)  = transformed_vel.vector.y;
+    transformed_vec = res.value();
+    measurement(0)  = transformed_vec.vector.x;
+    measurement(1)  = transformed_vec.vector.y;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of velocity from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of vector from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
+    return {};
+  }
+}
+/*//}*/
+
+/*//{ getInFrame() */
+template <int n_measurements>
+std::optional<geometry_msgs::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::Point& pt_in, const std_msgs::Header& source_header,
+                                                            const std::string target_frame) {
+
+  geometry_msgs::PointStamped pt;
+  pt.header = source_header;
+  pt.point = pt_in;
+
+  geometry_msgs::PointStamped transformed_pt;
+  auto                        res = ch_->transformer->transformSingle(pt, target_frame);
+  if (res) {
+    transformed_pt = res.value();
+    geometry_msgs::Point pt_out;
+    pt_out = transformed_pt.point;
+    return pt_out;
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of point from %s to %s failed.", getPrintName().c_str(), pt.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
