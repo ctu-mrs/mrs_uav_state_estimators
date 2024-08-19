@@ -9,6 +9,7 @@ set(CATKIN_DEPENDENCIES
   message_runtime
   mrs_lib
   mrs_msgs
+  mrs_errorgraph
   mrs_uav_managers
   nav_msgs
   nodelet

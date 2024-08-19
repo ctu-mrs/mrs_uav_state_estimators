@@ -18,6 +18,7 @@
   <depend>message_generation</depend>
   <depend>message_runtime</depend>
   <depend>mrs_lib</depend>
+  <depend>mrs_errorgraph</depend>
   <depend>mrs_msgs</depend>
   <depend>mrs_uav_managers</depend>
   <depend>nav_msgs</depend>

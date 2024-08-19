@@ -16,6 +16,8 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_errorgraph::ErrorPublisher>(nh, "EstimationManager", name_);
+
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // clang-format off
@@ -63,7 +65,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
         nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
         [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
           return this->doCorrection(meas, R, state);
-        }));
+        }, error_publisher_.get()));
   }
 
   ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
