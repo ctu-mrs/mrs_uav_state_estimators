@@ -15,6 +15,8 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
 
   ros::NodeHandle nh(parent_nh);
 
+  error_publisher_ = std::make_unique<mrs_errorgraph::ErrorPublisher>(nh_, "EstimationManager", name_);
+
   if (is_core_plugin_) {
 
     ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
@@ -42,7 +44,8 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
 
   if (!ph->param_loader->loadedSuccessfully()) {
     ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
+    error_publisher_->addOneshotError("Could not load all parameters.");
+    error_publisher_->flushAndShutdown();
   }
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
@@ -122,6 +125,7 @@ void StateGeneric::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<
     ROS_INFO("[%s]: Estimator initialized", getPrintName().c_str());
   } else {
     ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
+    error_publisher_->addOneshotError("Could not initialize.");
   }
 }
 /*//}*/
@@ -157,9 +161,19 @@ bool StateGeneric::start(void) {
       changeState(STARTED_STATE);
       return true;
     }
+    else
+    {
+      if (!est_lat_start_successful)
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+      if (!est_alt_start_successful)
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+      if (!est_hdg_start_successful)
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+    }
 
   } else {
     ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    error_publisher_->addGeneralError(error_type_t::not_in_ready_state, "Not in READY_STATE.");
     ros::Duration(1.0).sleep();
   }
   return false;
@@ -228,10 +242,19 @@ void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: %s subestimators to be initialized", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+          if (!est_lat_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+          if (!est_alt_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+          if (!est_hdg_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+
           return;
         }
       } else {
         ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_hw_api_orient_.topicName().c_str());
+        error_publisher_->addWaitingForNodeError({"HwApiManager", "main"});
         return;
       }
 
@@ -254,6 +277,14 @@ void StateGeneric::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       } else {
+
+        if (!est_lat_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+        if (!est_alt_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+        if (!est_hdg_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+
         return;
       }
       break;
@@ -314,10 +345,19 @@ void StateGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &even
           ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
         } else {
           ROS_INFO_THROTTLE(1.0, "[%s]: %s subestimators to be initialized", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+          if (!est_lat_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+          if (!est_alt_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+          if (!est_hdg_->isInitialized())
+            error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+
           return;
         }
       } else {
         ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_hw_api_orient_.topicName().c_str());
+        error_publisher_->addWaitingForNodeError({"HwApiManager", "main"});
         return;
       }
 
@@ -338,6 +378,14 @@ void StateGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &even
 
       if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
         ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
+
+        if (!est_lat_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+        if (!est_alt_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+        if (!est_hdg_->isRunning())
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+
         changeState(RUNNING_STATE);
       } else {
         return;

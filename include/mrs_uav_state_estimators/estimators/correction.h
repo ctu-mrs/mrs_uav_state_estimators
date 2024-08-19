@@ -41,6 +41,8 @@
 
 #include <mrs_uav_state_estimators/CorrectionConfig.h>
 
+#include <mrs_errorgraph/error_publisher.h>
+
 
 namespace mrs_uav_state_estimators
 {
@@ -105,7 +107,7 @@ public:
 public:
   Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
              const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
-             std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
+             std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction, mrs_errorgraph::ErrorPublisher* const error_pub_ptr);
 
   std::string getName() const;
   std::string getNamespacedName() const;
@@ -257,6 +259,18 @@ private:
   std::function<double(int, int)>                            fun_get_state_;
   std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction_;
 
+  enum class error_type_t : uint16_t
+  {
+    no_imu_msgs,
+    no_imu_correction,
+    no_rtk_msgs,
+    no_rtk_correction,
+    nan_correction,
+  };
+
+  // non-owning pointer, hence raw! DO NOT DELETE!!
+  mrs_errorgraph::ErrorPublisher* error_pub_ptr_;
+
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
 };
@@ -266,7 +280,7 @@ template <int n_measurements>
 Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
                                        const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
                                        const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
-                                       std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
+                                       std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction, mrs_errorgraph::ErrorPublisher* const error_pub_ptr)
     : est_name_(est_name),
       name_(name),
       ns_frame_id_(ns_frame_id),
@@ -274,7 +288,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       ch_(ch),
       ph_(ph),
       fun_get_state_(fun_get_state),
-      fun_apply_correction_(fun_apply_correction) {
+      fun_apply_correction_(fun_apply_correction),
+      error_pub_ptr_(error_pub_ptr) {
 
   // | --------------------- load parameters -------------------- |
 
@@ -285,7 +300,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   ph->param_loader->loadParam("message/type", msg_type_string);
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
     ROS_ERROR("[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(), getName().c_str());
-    ros::shutdown();
+    error_pub_ptr_->addOneshotError("Wrong correction message type.");
+    error_pub_ptr_->flushAndShutdown();
   }
   msg_type_ = map_msg_type.at(msg_type_string);
 
@@ -301,7 +317,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
     ROS_ERROR("[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
-    ros::shutdown();
+    error_pub_ptr_->addOneshotError("Wrong state ID of correction.");
+    error_pub_ptr_->flushAndShutdown();
   }
 
   ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_, false);
@@ -622,6 +639,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::IMU: {
 
       if (!sh_imu_.hasMsg()) {
+        error_pub_ptr_->addGeneralError(error_type_t::no_imu_msgs, "No IMU messages.");
         ROS_ERROR_THROTTLE(1.0, " no imu msgs so far");
         return {};
       }
@@ -640,6 +658,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
         measurement_stamped.value = res.value();
       } else {
         ROS_ERROR_THROTTLE(1.0, "[%s]: could not get imu correction", ros::this_node::getName().c_str());
+        error_pub_ptr_->addGeneralError(error_type_t::no_imu_correction, "Could not get IMU correction.");
         return {};
       }
 
@@ -650,6 +669,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
       if (!sh_rtk_.hasMsg()) {
         ROS_ERROR_THROTTLE(1.0, " no rtk msgs so far");
+        error_pub_ptr_->addGeneralError(error_type_t::no_rtk_msgs, "No RTK messages.");
         return {};
       }
 
@@ -667,6 +687,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
         measurement_stamped.value = res.value();
       } else {
         ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
+        error_pub_ptr_->addGeneralError(error_type_t::no_rtk_correction, "Could not get RTK correction.");
         return {};
       }
 
@@ -822,6 +843,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   for (int i = 0; i < measurement_stamped.value.rows(); i++) {
     if (!std::isfinite(measurement_stamped.value(i))) {
       ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getPrintName().c_str(), ++counter_nan_);
+      error_pub_ptr_->addGeneralError(error_type_t::nan_correction, "NaN in correction.");
       is_nan_free_ = false;
       return {};
     }

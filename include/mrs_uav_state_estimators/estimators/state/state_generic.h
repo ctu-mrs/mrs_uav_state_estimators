@@ -17,6 +17,8 @@
 
 #include <mrs_uav_managers/state_estimator.h>
 
+#include <mrs_errorgraph/error_publisher.h>
+
 #include <mrs_uav_state_estimators/estimators/lateral/lat_generic.h>
 #include <mrs_uav_state_estimators/estimators/altitude/alt_generic.h>
 #include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
@@ -54,6 +56,11 @@ private:
   bool is_override_frame_id_;
 
   const bool is_core_plugin_;
+
+  enum class error_type_t : uint16_t
+  {
+    not_in_ready_state,
+  };
 
   std::string                                                 topic_orientation_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
