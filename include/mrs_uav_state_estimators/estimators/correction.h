@@ -155,6 +155,8 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
   measurement_t                                               prev_hdg_measurement_;
   bool                                                        got_first_hdg_measurement_ = false;
+  bool                                                        init_hdg_in_zero_ = false;
+  double                                                        first_hdg_measurement_ = 0.0;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_imu_;
   std::optional<measurement_t>                getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
@@ -375,6 +377,11 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     orientation_topic_ = "/" + ch_->uav_name + "/" + orientation_topic_;
     sh_orientation_    = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, orientation_topic_);
   }
+
+  if (est_type_ == EstimatorType_t::HEADING) {
+    ph->param_loader->loadParam("init_hdg_in_zero", init_hdg_in_zero_, false);
+  }
+
 
 
   // | --------------- initialize publish handlers -------------- |
@@ -876,7 +883,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       switch (state_id_) {
 
         case StateId_t::POSITION: {
-          measurement_t measurement;
+          measurement_t                               measurement;
           std::unique_ptr<mrs_lib::AttitudeConverter> attitude;
 
           if (transform_to_frame_enabled_) {
@@ -885,15 +892,17 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             if (!res) {
               ROS_WARN_THROTTLE(1.0, "[%s]: could not find transform from '%s' to '%s'", ros::this_node::getName().c_str(), transform_from_frame_.c_str(),
                                 transform_to_frame_.c_str());
-              return{};
+              return {};
             }
 
-            Eigen::Matrix3d R_from_to = mrs_lib::AttitudeConverter(res.value().transform.rotation);
+            // R_to_from = R^to_from
+            Eigen::Matrix3d R_to_from = mrs_lib::AttitudeConverter(res.value().transform.rotation);
 
             Eigen::Matrix3d R_odom = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
 
             // obtain heading from orientation
-            attitude =  std::make_unique<mrs_lib::AttitudeConverter>(R_odom * R_from_to);
+            attitude = std::make_unique<mrs_lib::AttitudeConverter>(R_to_from * R_odom);
+
           } else {
             attitude = std::make_unique<mrs_lib::AttitudeConverter>(msg->pose.pose.orientation);
           }
@@ -901,10 +910,17 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
           try {
             // obtain heading from orientation
             measurement(StateId_t::POSITION) = attitude->getHeading();
+
+            // subtract initial heading to start with zero heading
+            if (init_hdg_in_zero_ && got_first_hdg_measurement_) {
+              measurement(StateId_t::POSITION) = measurement(StateId_t::POSITION) - first_hdg_measurement_;
+            }
+
             // unwrap heading wrt previous measurement
             if (got_first_hdg_measurement_) {
-              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
+              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(StateId_t::POSITION), prev_hdg_measurement_(StateId_t::POSITION));
             } else {
+              first_hdg_measurement_ = measurement(StateId_t::POSITION);
               got_first_hdg_measurement_ = true;
             }
             prev_hdg_measurement_ = measurement;
@@ -1677,11 +1693,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 /*//{ getInFrame() */
 template <int n_measurements>
 std::optional<geometry_msgs::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::Point& pt_in, const std_msgs::Header& source_header,
-                                                            const std::string target_frame) {
+                                                                           const std::string target_frame) {
 
   geometry_msgs::PointStamped pt;
   pt.header = source_header;
-  pt.point = pt_in;
+  pt.point  = pt_in;
 
   geometry_msgs::PointStamped transformed_pt;
   auto                        res = ch_->transformer->transformSingle(pt, target_frame);
