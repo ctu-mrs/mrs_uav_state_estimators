@@ -37,6 +37,7 @@ class Passthrough : public mrs_uav_managers::StateEstimator {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
+
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_passthrough";
@@ -48,15 +49,20 @@ private:
   const bool is_core_plugin_;
 
   mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_passthrough_odom_;
+  void                                          callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg);
   double                                        _critical_timeout_passthrough_odom_;
   std::string                                   msg_topic_;
+
+  ros::Timer       timer_check_passthrough_odom_hz_;
+  void             timerCheckPassthroughOdomHz(const ros::TimerEvent &event);
+  std::atomic<int> counter_odom_msgs_ = 0;
+  ros::WallTime    t_check_hz_last_;
+  double           prev_avg_hz_ = 0;
 
   ros::Timer                 timer_update_;
   void                       timerUpdate(const ros::TimerEvent &event);
   nav_msgs::OdometryConstPtr prev_msg_;
   bool                       first_iter_ = true;
-  ros::Timer                 timer_check_health_;
-  void                       timerCheckHealth(const ros::TimerEvent &event);
 
   bool isConverged();
 
@@ -69,7 +75,7 @@ public:
   ~Passthrough(void) {
   }
 
-  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
+  void initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
