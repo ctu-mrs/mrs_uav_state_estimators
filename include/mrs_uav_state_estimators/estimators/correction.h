@@ -59,6 +59,7 @@ typedef enum
   RANGE,
   IMU,
   RTK_GPS,
+  MAG_HDG,
   POINT,
   VECTOR,
   QUAT,
@@ -71,6 +72,7 @@ const std::map<std::string, MessageType_t> map_msg_type{{"nav_msgs/Odometry", Me
                                                         {"sensor_msgs/Range", MessageType_t::RANGE},
                                                         {"sensor_msgs/Imu", MessageType_t::IMU},
                                                         {"mrs_msgs/RtkGps", MessageType_t::RTK_GPS},
+                                                        {"mrs_msgs/Float64Stamped", MessageType_t::MAG_HDG},
                                                         {"geometry_msgs/PointStamped", MessageType_t::POINT},
                                                         {"geometry_msgs/Vector3Stamped", MessageType_t::VECTOR},
                                                         {"geometry_msgs/QuaternionStamped", MessageType_t::QUAT}};
@@ -155,12 +157,18 @@ private:
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
   measurement_t                                               prev_hdg_measurement_;
   bool                                                        got_first_hdg_measurement_ = false;
-  bool                                                        init_hdg_in_zero_ = false;
-  double                                                        first_hdg_measurement_ = 0.0;
+  bool                                                        init_hdg_in_zero_          = false;
+  double                                                      first_hdg_measurement_     = 0.0;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_imu_;
   std::optional<measurement_t>                getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
   void                                        callbackImu(const sensor_msgs::Imu::ConstPtr msg);
+
+  mrs_lib::SubscribeHandler<mrs_msgs::Float64Stamped> sh_mag_hdg_;
+  std::optional<measurement_t>                        getCorrectionFromMagHeading(const mrs_msgs::Float64StampedConstPtr msg);
+  void                                                callbackMagHeading(const mrs_msgs::Float64Stamped::ConstPtr msg);
+  double                                              mag_hdg_previous_;
+  bool                                                got_first_mag_hdg_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
@@ -203,7 +211,9 @@ private:
   std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
   std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
   std::optional<measurement_t> getVecInFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
-  std::optional<geometry_msgs::Point> getInFrame(const geometry_msgs::Point& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
+  std::optional<geometry_msgs::Vector3> transformVecToFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header,
+                                                            const std::string target_frame);
+  std::optional<geometry_msgs::Point>   getInFrame(const geometry_msgs::Point& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
 
   std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
 
@@ -350,6 +360,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
       break;
     }
+    case MessageType_t::MAG_HDG: {
+      sh_mag_hdg_ = mrs_lib::SubscribeHandler<mrs_msgs::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
+      break;
+    }
     case MessageType_t::POINT: {
       sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
       break;
@@ -372,16 +386,15 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   }
 
   // | ------ subscribe orientation for obtaingin hdg rate ------ |
-  if (est_type_ == EstimatorType_t::HEADING && state_id_ == StateId_t::VELOCITY) {
-    ph->param_loader->loadParam("message/orientation_topic", orientation_topic_);
-    orientation_topic_ = "/" + ch_->uav_name + "/" + orientation_topic_;
-    sh_orientation_    = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, orientation_topic_);
-  }
+  /* if (est_type_ == EstimatorType_t::HEADING && state_id_ == StateId_t::VELOCITY) { */
+  /*   ph->param_loader->loadParam("message/orientation_topic", orientation_topic_); */
+  /*   orientation_topic_ = "/" + ch_->uav_name + "/" + orientation_topic_; */
+  /*   sh_orientation_    = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, orientation_topic_); */
+  /* } */
 
   if (est_type_ == EstimatorType_t::HEADING) {
     ph->param_loader->loadParam("init_hdg_in_zero", init_hdg_in_zero_, false);
   }
-
 
 
   // | --------------- initialize publish handlers -------------- |
@@ -598,7 +611,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       if (res) {
         measurement_stamped.value = res.value();
       } else {
-        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
+        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get imu correction", ros::this_node::getName().c_str());
         return {};
       }
 
@@ -629,6 +642,28 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
         return {};
       }
 
+      break;
+    }
+
+    case MessageType_t::MAG_HDG: {
+
+      if (!sh_mag_hdg_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_mag_hdg_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromMagHeading(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
       break;
     }
 
@@ -918,9 +953,10 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
             // unwrap heading wrt previous measurement
             if (got_first_hdg_measurement_) {
-              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(StateId_t::POSITION), prev_hdg_measurement_(StateId_t::POSITION));
+              measurement(StateId_t::POSITION) =
+                  mrs_lib::geometry::radians::unwrap(measurement(StateId_t::POSITION), prev_hdg_measurement_(StateId_t::POSITION));
             } else {
-              first_hdg_measurement_ = measurement(StateId_t::POSITION);
+              first_hdg_measurement_     = measurement(StateId_t::POSITION);
               got_first_hdg_measurement_ = true;
             }
             prev_hdg_measurement_ = measurement;
@@ -1214,12 +1250,33 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle heading estimators
     case EstimatorType_t::HEADING: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::HEADING in getCorrectionFromImu() not implemented", getPrintName().c_str());
-      return {};
+      switch (state_id_) {
+
+        case StateId_t::VELOCITY: {
+          geometry_msgs::Quaternion orientation;
+          auto                      res = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, ros::Time::now());
+          if (res) {
+            orientation = res.value().transform.rotation;
+          } else {
+            ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
+                               ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
+            return {};
+          }
+
+          measurement_t measurement;
+          measurement(0) = mrs_lib::AttitudeConverter(orientation).getHeadingRate(msg->angular_velocity);
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          return {};
+        }
+      }
       break;
     }
   }
-
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
@@ -1335,6 +1392,69 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getPrintName().c_str());
       return {};
       break;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
+/*//{ callbackMagHeading() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::Float64Stamped::ConstPtr msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromMagHeading(msg);
+  if (res) {
+    applyCorrection(res.value(), msg->header.stamp);
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Float64Stamped msg", getPrintName().c_str());
+  }
+}
+/*//}*/
+
+/*//{ getCorrectionFromMagHeading() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagHeading(
+    const mrs_msgs::Float64StampedConstPtr msg) {
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+
+    // handle heading estimators
+    case EstimatorType_t::HEADING: {
+
+      measurement_t measurement;
+
+      const double mag_hdg = msg->value / 180 * M_PI;
+
+      if (!got_first_mag_hdg_) {
+        mag_hdg_previous_  = mag_hdg;
+        got_first_mag_hdg_ = true;
+      }
+
+      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
+      mag_hdg_previous_ = mag_hdg;
+      return measurement;
     }
   }
 
@@ -1666,25 +1786,35 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getVecInFrame() */
 template <int n_measurements>
+std::optional<geometry_msgs::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::Vector3& vec_in,
+                                                                                      const std_msgs::Header& source_header, const std::string target_frame) {
+
+  geometry_msgs::Vector3Stamped vec;
+  vec.header = source_header;
+  vec.vector = vec_in;
+
+  auto res = ch_->transformer->transformSingle(vec, target_frame);
+  if (res) {
+    return res.value().vector;
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of vector from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
+    return {};
+  }
+}
+
+template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::Vector3& vec_in,
                                                                                                             const std_msgs::Header&       source_header,
                                                                                                             const std::string             target_frame) {
 
   measurement_t measurement;
 
-  geometry_msgs::Vector3Stamped vec;
-  vec.header = source_header;
-  vec.vector = vec_in;
-
-  geometry_msgs::Vector3Stamped transformed_vec;
-  auto                          res = ch_->transformer->transformSingle(vec, target_frame);
+  auto res = transformVecToFrame(vec_in, source_header, target_frame);
   if (res) {
-    transformed_vec = res.value();
-    measurement(0)  = transformed_vec.vector.x;
-    measurement(1)  = transformed_vec.vector.y;
+    measurement(0) = res.value().x;
+    measurement(1) = res.value().y;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of vector from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
