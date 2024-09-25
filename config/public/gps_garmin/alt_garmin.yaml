@@ -31,7 +31,7 @@ mrs_uav_managers:
             topic: "hw_api/distance_sensor" # without uav namespace
             limit: 
               delay: 0.5 # [s] messages with higher delay will flag correction as unhealthy
-              time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
+              time_since_last: 2.0 # [s] larger time step between messages will flag correction as unhealthy
 
           processors: ["excessive_tilt", "median_filter", "saturate"] # types of processors attached to this measurement (the processors are called in exactly this order)
           
