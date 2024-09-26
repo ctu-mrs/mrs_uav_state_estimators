@@ -35,6 +35,7 @@
 #include <mrs_uav_state_estimators/processors/proc_saturate.h>
 #include <mrs_uav_state_estimators/processors/proc_excessive_tilt.h>
 #include <mrs_uav_state_estimators/processors/proc_tf_to_world.h>
+#include <mrs_uav_state_estimators/processors/proc_mag_declination.h>
 
 #include <mrs_uav_state_estimators/CorrectionConfig.h>
 
@@ -2010,6 +2011,8 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
     return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
   } else if (name == "tf_to_world") {
     return std::make_shared<ProcTfToWorld<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
+  } else if (name == "mag_declination") {
+    return std::make_shared<ProcMagDeclination<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
   } else {
     ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     ros::shutdown();
