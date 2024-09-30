@@ -19,6 +19,7 @@
 
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/MagneticField.h>
 #include <nav_msgs/Odometry.h>
 
 #include <std_srvs/SetBool.h>
@@ -61,6 +62,7 @@ typedef enum
   IMU,
   RTK_GPS,
   MAG_HDG,
+  MAG_FIELD,
   POINT,
   VECTOR,
   QUAT,
@@ -74,6 +76,7 @@ const std::map<std::string, MessageType_t> map_msg_type{{"nav_msgs/Odometry", Me
                                                         {"sensor_msgs/Imu", MessageType_t::IMU},
                                                         {"mrs_msgs/RtkGps", MessageType_t::RTK_GPS},
                                                         {"mrs_msgs/Float64Stamped", MessageType_t::MAG_HDG},
+                                                        {"sensor_msgs/MagneticField", MessageType_t::MAG_FIELD},
                                                         {"geometry_msgs/PointStamped", MessageType_t::POINT},
                                                         {"geometry_msgs/Vector3Stamped", MessageType_t::VECTOR},
                                                         {"geometry_msgs/QuaternionStamped", MessageType_t::QUAT}};
@@ -170,6 +173,10 @@ private:
   void                                                callbackMagHeading(const mrs_msgs::Float64Stamped::ConstPtr msg);
   double                                              mag_hdg_previous_;
   bool                                                got_first_mag_hdg_;
+
+  mrs_lib::SubscribeHandler<sensor_msgs::MagneticField> sh_mag_field_;
+  std::optional<measurement_t>                        getCorrectionFromMagField(const sensor_msgs::MagneticFieldConstPtr msg);
+  void                                                callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
@@ -363,6 +370,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
     case MessageType_t::MAG_HDG: {
       sh_mag_hdg_ = mrs_lib::SubscribeHandler<mrs_msgs::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
+      break;
+    }
+    case MessageType_t::MAG_FIELD: {
+      sh_mag_field_ = mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
       break;
     }
     case MessageType_t::POINT: {
@@ -660,6 +671,28 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       /*   return {}; */
       /* } */
       auto res = getCorrectionFromMagHeading(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::MAG_FIELD: {
+
+      if (!sh_mag_field_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_mag_field_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromMagField(msg);
       if (res) {
         measurement_stamped.value = res.value();
       } else {
@@ -1454,6 +1487,88 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
 
       measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
+      mag_hdg_previous_ = mag_hdg;
+      return measurement;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
+/*//{ callbackMagField() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromMagField(msg);
+  if (res) {
+    applyCorrection(res.value(), msg->header.stamp);
+  } else {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from sensor_msgs::MagneticField msg", getPrintName().c_str());
+  }
+}
+/*//}*/
+
+/*//{ getCorrectionFromMagField() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagField(
+    const sensor_msgs::MagneticFieldConstPtr msg) {
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+
+    // handle heading estimators
+    case EstimatorType_t::HEADING: {
+
+      Eigen::Matrix3d rot;
+
+      auto res = ch_->transformer->getTransform(ch_->frames.ns_fcu, ch_->frames.ns_fcu_untilted, msg->header.stamp);
+      if (res) {
+        rot = Eigen::Matrix3d(mrs_lib::AttitudeConverter(res.value().transform.rotation));
+      } else {
+        ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
+                           ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
+        return {};
+      }
+
+      const Eigen::Vector3d mag_vec(msg->magnetic_field.x, msg->magnetic_field.y, msg->magnetic_field.z);
+      const Eigen::Vector3d proj_mag_field = rot * mag_vec; 
+      /* mrs_msgs::Float64Stamped hdg_stamped; */
+      /* hdg_stamped.header = msg->header; */
+      /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
+      const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x());
+
+      measurement_t measurement;
+
+      /* const double mag_hdg = msg->value / 180 * M_PI; */
+
+      if (!got_first_mag_hdg_) {
+        mag_hdg_previous_  = mag_hdg;
+        got_first_mag_hdg_ = true;
+      }
+
+      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
+      /* measurement(0) = mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_); */
       mag_hdg_previous_ = mag_hdg;
       return measurement;
     }
