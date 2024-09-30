@@ -20,6 +20,7 @@
 #include <sensor_msgs/Range.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
 
 #include <std_srvs/SetBool.h>
@@ -61,6 +62,7 @@ typedef enum
   RANGE,
   IMU,
   RTK_GPS,
+  NAVSATFIX,
   MAG_HDG,
   MAG_FIELD,
   POINT,
@@ -75,6 +77,7 @@ const std::map<std::string, MessageType_t> map_msg_type{{"nav_msgs/Odometry", Me
                                                         {"sensor_msgs/Range", MessageType_t::RANGE},
                                                         {"sensor_msgs/Imu", MessageType_t::IMU},
                                                         {"mrs_msgs/RtkGps", MessageType_t::RTK_GPS},
+                                                        {"sensor_msgs/NavSatFix", MessageType_t::NAVSATFIX},
                                                         {"mrs_msgs/Float64Stamped", MessageType_t::MAG_HDG},
                                                         {"sensor_msgs/MagneticField", MessageType_t::MAG_FIELD},
                                                         {"geometry_msgs/PointStamped", MessageType_t::POINT},
@@ -142,10 +145,15 @@ private:
   mrs_lib::SubscribeHandler<mrs_msgs::RtkGps> sh_rtk_;
   void                                        callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg);
   std::optional<measurement_t>                getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
-  void                                        getAvgRtkInitZ(const double rtk_z);
-  bool                                        got_avg_init_rtk_z_ = false;
-  double                                      rtk_init_z_avg_     = 0.0;
-  int                                         got_rtk_counter_    = 0;
+
+  mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_navsatfix_;
+  void                                              callbackNavSatFix(const sensor_msgs::NavSatFix::ConstPtr msg);
+  std::optional<measurement_t>                      getCorrectionFromNavSatFix(const sensor_msgs::NavSatFixConstPtr msg);
+
+  void   getAvgInitZ(const double z);
+  bool   got_avg_init_z_ = false;
+  double init_z_avg_     = 0.0;
+  int    got_z_counter_  = 0;
 
   mrs_lib::SubscribeHandler<geometry_msgs::PointStamped> sh_point_;
   void                                                   callbackPoint(const geometry_msgs::PointStamped::ConstPtr msg);
@@ -175,8 +183,8 @@ private:
   bool                                                got_first_mag_hdg_;
 
   mrs_lib::SubscribeHandler<sensor_msgs::MagneticField> sh_mag_field_;
-  std::optional<measurement_t>                        getCorrectionFromMagField(const sensor_msgs::MagneticFieldConstPtr msg);
-  void                                                callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg);
+  std::optional<measurement_t>                          getCorrectionFromMagField(const sensor_msgs::MagneticFieldConstPtr msg);
+  void                                                  callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg);
 
   mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
   std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
@@ -366,6 +374,10 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
     case MessageType_t::RTK_GPS: {
       sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
+      break;
+    }
+    case MessageType_t::NAVSATFIX: {
+      sh_navsatfix_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, msg_topic_, &Correction::callbackNavSatFix, this);
       break;
     }
     case MessageType_t::MAG_HDG: {
@@ -651,6 +663,33 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
         measurement_stamped.value = res.value();
       } else {
         ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
+        return {};
+      }
+
+      break;
+    }
+
+    case MessageType_t::NAVSATFIX: {
+
+      if (!sh_navsatfix_.hasMsg()) {
+        ROS_ERROR_THROTTLE(1.0, " no navsatfix msgs so far");
+        return {};
+      }
+
+      auto msg                  = sh_navsatfix_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromNavSatFix(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get navsatfix correction", ros::this_node::getName().c_str());
         return {};
       }
 
@@ -1405,11 +1444,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::POSITION: {
           measurement(0) = rtk_pos.pose.position.z;
-          if (!got_avg_init_rtk_z_) {
-            getAvgRtkInitZ(measurement(0));
+          if (!got_avg_init_z_) {
+            getAvgInitZ(measurement(0));
             return {};
           }
-          measurement(0) -= rtk_init_z_avg_;
+          measurement(0) -= init_z_avg_;
           return measurement;
           break;
         }
@@ -1424,6 +1463,116 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
     case EstimatorType_t::HEADING: {
       ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getPrintName().c_str());
+      return {};
+      break;
+    }
+  }
+
+  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  return {};
+}
+/*//}*/
+
+/*//{ callbackNavSatFix() */
+template <int n_measurements>
+void Correction<n_measurements>::callbackNavSatFix(const sensor_msgs::NavSatFix::ConstPtr msg) {
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  auto res = getCorrectionFromNavSatFix(msg);
+  if (res) {
+    applyCorrection(res.value(), msg->header.stamp);
+  }
+}
+/*//}*/
+
+/*//{ getCorrectionFromNavSatFix() */
+template <int n_measurements>
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromNavSatFix(
+    const sensor_msgs::NavSatFixConstPtr msg) {
+
+  geometry_msgs::PointStamped navsatfix_pos;
+
+  if (!std::isfinite(msg->latitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->latitude\"!!!", getPrintName().c_str());
+    return {};
+  }
+
+  if (!std::isfinite(msg->longitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->longitude\"!!!", getPrintName().c_str());
+    return {};
+  }
+
+  if (!std::isfinite(msg->altitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->altitude\"!!!", getPrintName().c_str());
+    return {};
+  }
+
+  if (msg->status.status == sensor_msgs::NavSatStatus::STATUS_NO_FIX) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NavSatFix has no GNSS fix!!!", getPrintName().c_str());
+    return {};
+  }
+
+  navsatfix_pos.header = msg->header;
+  mrs_lib::UTM(msg->latitude, msg->longitude, &navsatfix_pos.point.x, &navsatfix_pos.point.y);
+  navsatfix_pos.point.x -= ch_->world_origin.x;
+  navsatfix_pos.point.y -= ch_->world_origin.y;
+  navsatfix_pos.point.z = msg->altitude;
+
+  Correction::measurement_t measurement;
+
+  // TODO transform position from GNSS antenna to FCU
+
+  switch (est_type_) {
+
+    // handle lateral estimators
+    case EstimatorType_t::LATERAL: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = navsatfix_pos.point.x;
+          measurement(1) = navsatfix_pos.point.y;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle altitude estimators
+    case EstimatorType_t::ALTITUDE: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = navsatfix_pos.point.z;
+          if (!got_avg_init_z_) {
+            getAvgInitZ(measurement(0));
+            return {};
+          }
+          measurement(0) -= init_z_avg_;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    case EstimatorType_t::HEADING: {
+      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromNavSatFix() switch", getPrintName().c_str());
       return {};
       break;
     }
@@ -1552,7 +1701,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
 
       const Eigen::Vector3d mag_vec(msg->magnetic_field.x, msg->magnetic_field.y, msg->magnetic_field.z);
-      const Eigen::Vector3d proj_mag_field = rot * mag_vec; 
+      const Eigen::Vector3d proj_mag_field = rot * mag_vec;
       /* mrs_msgs::Float64Stamped hdg_stamped; */
       /* hdg_stamped.header = msg->header; */
       /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
@@ -2003,27 +2152,27 @@ std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu
 }
 /*//}*/
 
-/*//{ getAvgRtkInitZ() */
+/*//{ getAvgInitZ() */
 template <int n_measurements>
-void Correction<n_measurements>::getAvgRtkInitZ(const double rtk_z) {
+void Correction<n_measurements>::getAvgInitZ(const double z) {
 
-  if (!got_avg_init_rtk_z_) {
+  if (!got_avg_init_z_) {
 
-    double rtk_avg = rtk_init_z_avg_ / got_rtk_counter_;
+    double z_avg = init_z_avg_ / got_z_counter_;
 
-    if (got_rtk_counter_ < 10 || (got_rtk_counter_ < 300 && std::fabs(rtk_z - rtk_avg) > 0.1)) {
+    if (got_z_counter_ < 10 || (got_z_counter_ < 300 && std::fabs(z - z_avg) > 0.1)) {
 
-      rtk_init_z_avg_ += rtk_z;
-      got_rtk_counter_++;
-      rtk_avg = rtk_init_z_avg_ / got_rtk_counter_;
-      ROS_INFO("[%s]: RTK ASL altitude sample #%d: %.2f; avg: %.2f", getPrintName().c_str(), got_rtk_counter_, rtk_z, rtk_avg);
+      init_z_avg_ += z;
+      got_z_counter_++;
+      z_avg = init_z_avg_ / got_z_counter_;
+      ROS_INFO("[%s]: AMSL altitude sample #%d: %.2f; avg: %.2f", getPrintName().c_str(), got_z_counter_, z, z_avg);
       return;
 
     } else {
 
-      rtk_init_z_avg_     = rtk_avg;
-      got_avg_init_rtk_z_ = true;
-      ROS_INFO("[%s]: RTK ASL altitude avg: %f", getPrintName().c_str(), rtk_avg);
+      init_z_avg_     = z_avg;
+      got_avg_init_z_ = true;
+      ROS_INFO("[%s]: AMSL altitude avg: %f", getPrintName().c_str(), z_avg);
     }
   }
 }
