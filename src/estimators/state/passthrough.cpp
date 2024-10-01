@@ -33,6 +33,7 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   // | --------------------- load parameters -------------------- |
   ph_->param_loader->loadParam("max_flight_z", max_flight_z_);
   ph_->param_loader->loadParam("message/topic", msg_topic_);
+  ph_->param_loader->loadParam("kickoff", kickoff_, false);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 
   // | --------------- subscribers initialization --------------- |
@@ -171,9 +172,9 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       }
 
       // the message rate must be higher than required by the control manager
-      if (avg_hz < ch_->desired_uav_state_rate) {
+      if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate) {
         ROS_ERROR(
-            "[%s]: rate of passthrough odom: %.2f Hz lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
+            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
             "or use a higher-level controller.",
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly

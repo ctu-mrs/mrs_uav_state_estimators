@@ -37,7 +37,6 @@ class Passthrough : public mrs_uav_managers::StateEstimator {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
-
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_passthrough";
@@ -58,6 +57,7 @@ private:
   std::atomic<int> counter_odom_msgs_ = 0;
   ros::WallTime    t_check_hz_last_;
   double           prev_avg_hz_ = 0;
+  bool             kickoff_     = false;
 
   ros::Timer                 timer_update_;
   void                       timerUpdate(const ros::TimerEvent &event);
