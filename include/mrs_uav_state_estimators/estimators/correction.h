@@ -49,9 +49,10 @@ typedef enum
 {
   LATERAL,
   ALTITUDE,
-  HEADING
+  HEADING,
+  LATALT,
 } EstimatorType_t;
-const int n_EstimatorType_t = 3;
+const int n_EstimatorType_t = 4;
 
 typedef enum
 {
@@ -1062,6 +1063,68 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          if (transform_to_frame_enabled_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = transform_from_frame_;
+            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            if (res) {
+              measurement_t measurement;
+              measurement(0) = res.value().x;
+              measurement(1) = res.value().y;
+              measurement(2) = res.value().z;
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              return {};
+            }
+
+          } else {
+            measurement(0) = msg->pose.pose.position.x;
+            measurement(1) = msg->pose.pose.position.y;
+            measurement(2) = msg->pose.pose.position.z;
+          }
+          return measurement;
+          break;
+        }
+
+        case StateId_t::VELOCITY: {
+          if (is_in_body_frame_) {
+            std_msgs::Header header = msg->header;
+            header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is published in body frame
+            auto res                = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              return {};
+            }
+          } else {
+            measurement_t measurement;
+            measurement(0) = msg->twist.twist.linear.x;
+            measurement(1) = msg->twist.twist.linear.y;
+            measurement(2) = msg->twist.twist.linear.z;
+            return measurement;
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1165,6 +1228,29 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
+                                   
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          measurement(0) = msg->pose.position.x;
+          measurement(1) = msg->pose.position.y;
+          measurement(2) = msg->pose.position.z;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1297,7 +1383,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             auto res = getZVelUntilted(msg->linear_acceleration, msg->header);
             if (res) {
               measurement_t measurement;
-              measurement = res.value();
+              measurement =  res.value();
               measurement(0) -= gravity_norm_;
               return measurement;
             } else {
@@ -1349,6 +1435,41 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::ACCELERATION: {
+          if (is_in_body_frame_) {
+            auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
+            if (res) {
+              measurement_t measurement;
+              measurement = res.value();
+              return measurement;
+            } else {
+              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_ + "_att_only").c_str());
+              return {};
+            }
+          } else {
+            measurement_t measurement;
+            measurement(0) = msg->linear_acceleration.x;
+            measurement(1) = msg->linear_acceleration.y;
+            measurement(2) = msg->linear_acceleration.z;
+            return measurement;
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
   }
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
@@ -1466,6 +1587,27 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       return {};
       break;
     }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = rtk_pos.pose.position.x;
+          measurement(1) = rtk_pos.pose.position.y;
+          measurement(2) = rtk_pos.pose.position.z;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1576,6 +1718,28 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       return {};
       break;
     }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement(0) = navsatfix_pos.point.x;
+          measurement(1) = navsatfix_pos.point.y;
+          measurement(2) = navsatfix_pos.point.z;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1638,6 +1802,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
       mag_hdg_previous_ = mag_hdg;
       return measurement;
+    }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      return {};
+      break;
     }
   }
 
@@ -1717,9 +1889,16 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
 
       measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
-      /* measurement(0) = mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_); */
       mag_hdg_previous_ = mag_hdg;
       return measurement;
+    }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      return {};
+      break;
     }
   }
 
@@ -1764,7 +1943,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1784,7 +1963,37 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
+    // handle heading estimators
+    case EstimatorType_t::HEADING: {
+
+      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::Heading in getCorrectionFromPoint() not implemented", getPrintName().c_str());
+      return {};
+      break;
+    }
+
+    // handle latalt estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::POSITION: {
+          measurement_t measurement;
+          measurement(0) = msg->point.x;
+          measurement(1) = msg->point.y;
+          measurement(2) = msg->point.z;
+          return measurement;
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1792,7 +2001,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
 
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
       return {};
     }
   }
@@ -1908,6 +2117,32 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
+
+    // handle lateral estimators
+    case EstimatorType_t::LATALT: {
+
+      switch (state_id_) {
+
+        case StateId_t::VELOCITY: {
+          auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
+          if (res) {
+            measurement_t measurement;
+            measurement = res.value();
+            return measurement;
+          } else {
+            return {};
+          }
+          break;
+        }
+
+        default: {
+          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+          return {};
+        }
+      }
+      break;
+    }
+
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -2049,7 +2284,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 }
 /*//}*/
 
-/*//{ getVecInFrame() */
+/*//{ transformVecToFrame() */
 template <int n_measurements>
 std::optional<geometry_msgs::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::Vector3& vec_in,
                                                                                       const std_msgs::Header& source_header, const std::string target_frame) {
@@ -2078,6 +2313,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   if (res) {
     measurement(0) = res.value().x;
     measurement(1) = res.value().y;
+    if (n_measurements == 3) {
+      measurement(2) = res.value().z;
+    }
     return measurement;
   } else {
     return {};
