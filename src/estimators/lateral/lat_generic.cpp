@@ -267,6 +267,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
           changeState(ERROR_STATE);
         }
       }
@@ -295,6 +296,7 @@ void LatGeneric::timerUpdate(const ros::TimerEvent &event) {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
           all_corrections_healthy = false;
         }
       }
@@ -468,6 +470,7 @@ void LatGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
           changeState(ERROR_STATE);
         }
       }
@@ -485,6 +488,7 @@ void LatGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
           ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
           correction->resetProcessors();
           all_corrections_healthy = false;
         }

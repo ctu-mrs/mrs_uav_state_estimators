@@ -29,6 +29,10 @@ mrs_uav_managers:
           noise: 0.001 # measurement noise covariance (R)
           noise_unhealthy_coeff: 1000.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
 
+          source: # which node of the system provides the corrections (for error reporting)
+            node: "HwApiManager"
+            component: "main"
+
           message:
             type: "mrs_msgs/RtkGps"
             topic: "hw_api/rtk" # without uav namespace
@@ -53,6 +57,11 @@ mrs_uav_managers:
           state_id: 1 # 0 - position, 1 - velocity, 2 - acceleration
           noise: 10.0 # measurement noise covariance (R)
           noise_unhealthy_coeff: 100.0 # covariance gets multiplied by this coefficient when correction is unhealthy (R)
+
+          source: # which node of the system provides the corrections (for error reporting)
+            node: "HwApiManager"
+            component: "main"
+
           message:
             type: "geometry_msgs/Vector3Stamped"
             topic: "hw_api/velocity" # without uav namespace
