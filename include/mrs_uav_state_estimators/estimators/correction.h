@@ -112,6 +112,7 @@ public:
   std::string getName() const;
   std::string getNamespacedName() const;
   std::string getPrintName() const;
+  mrs_errorgraph::node_id_t getSourceNodeId() const;
 
   double    getR();
   void      setR(const double R);
@@ -270,6 +271,7 @@ private:
 
   // non-owning pointer, hence raw! DO NOT DELETE!!
   mrs_errorgraph::ErrorPublisher* error_pub_ptr_;
+  mrs_errorgraph::node_id_t source_node_id_;
 
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
@@ -295,7 +297,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   std::string msg_type_string;
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/");
+  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
 
   ph->param_loader->loadParam("message/type", msg_type_string);
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
@@ -310,6 +312,9 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   ph->param_loader->loadParam("message/limit/delay", msg_delay_limit_);
   msg_delay_warn_limit_ = msg_delay_limit_ / 2;  // maybe specify this as a param?
   ph->param_loader->loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
+  
+  ph->param_loader->loadParam("source/node", source_node_id_.node);
+  ph->param_loader->loadParam("source/component", source_node_id_.component);
 
   int state_id_tmp;
   ph->param_loader->loadParam("state_id", state_id_tmp);
@@ -481,6 +486,13 @@ std::string Correction<n_measurements>::getNamespacedName() const {
 template <int n_measurements>
 std::string Correction<n_measurements>::getPrintName() const {
   return ch_->nodelet_name + "/" + est_name_ + "/" + name_;
+}
+/*//}*/
+
+/*//{ getSourceNodeId() */
+template <int n_measurements>
+mrs_errorgraph::node_id_t Correction<n_measurements>::getSourceNodeId() const {
+  return source_node_id_;
 }
 /*//}*/
 
