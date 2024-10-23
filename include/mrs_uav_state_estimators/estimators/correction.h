@@ -387,6 +387,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
     case MessageType_t::MAG_FIELD: {
       sh_mag_field_ = mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
+
       break;
     }
     case MessageType_t::POINT: {
@@ -1228,7 +1229,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
-                                   
+
     // handle latalt estimators
     case EstimatorType_t::LATALT: {
 
@@ -1250,7 +1251,6 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
-
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1383,7 +1383,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             auto res = getZVelUntilted(msg->linear_acceleration, msg->header);
             if (res) {
               measurement_t measurement;
-              measurement =  res.value();
+              measurement = res.value();
               measurement(0) -= gravity_norm_;
               return measurement;
             } else {
@@ -1469,7 +1469,6 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
-
   }
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
@@ -1739,7 +1738,6 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
-
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1861,23 +1859,42 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle heading estimators
     case EstimatorType_t::HEADING: {
 
-      Eigen::Matrix3d rot;
+      /* Eigen::Matrix3d rot; */
 
-      auto res = ch_->transformer->getTransform(ch_->frames.ns_fcu, ch_->frames.ns_fcu_untilted, msg->header.stamp);
-      if (res) {
-        rot = Eigen::Matrix3d(mrs_lib::AttitudeConverter(res.value().transform.rotation));
-      } else {
-        ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
-                           ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
-        return {};
+      /* auto res = ch_->transformer->getTransform(ch_->frames.ns_fcu, ch_->frames.ns_fcu_untilted, msg->header.stamp); */
+      /* if (res) { */
+      /*   rot = Eigen::Matrix3d(mrs_lib::AttitudeConverter(res.value().transform.rotation)); */
+      /* } else { */
+      /*   ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(), */
+      /*                      ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str()); */
+      /*   return {}; */
+      /* } */
+
+      geometry_msgs::Vector3 mag_vec;
+      mag_vec.x = msg->magnetic_field.x;
+      mag_vec.y = msg->magnetic_field.y;
+      mag_vec.z = msg->magnetic_field.z;
+
+      if (transform_to_frame_enabled_) {
+        std_msgs::Header header = msg->header;
+        header.frame_id         = transform_from_frame_;
+        auto res                = transformVecToFrame(mag_vec, header, transform_to_frame_);
+        if (res) {
+          mag_vec.x = res.value().x;
+          mag_vec.y = res.value().y;
+          mag_vec.z = res.value().z;
+        } else {
+          ROS_WARN_THROTTLE(1.0, "[%s]: could not transform mag field vector", getPrintName().c_str());
+        }
       }
 
-      const Eigen::Vector3d mag_vec(msg->magnetic_field.x, msg->magnetic_field.y, msg->magnetic_field.z);
-      const Eigen::Vector3d proj_mag_field = rot * mag_vec;
+      const double mag_hdg = atan2(mag_vec.y, mag_vec.x);
+      /* const Eigen::Vector3d mag_vec(mag_vec_pt.x, mag_vec_pt.y, mag_vec_pt.z); */
+      /* const Eigen::Vector3d proj_mag_field = rot * mag_vec; */
       /* mrs_msgs::Float64Stamped hdg_stamped; */
       /* hdg_stamped.header = msg->header; */
       /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
-      const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x());
+      /* const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x()); */
 
       measurement_t measurement;
 
@@ -2142,7 +2159,6 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       }
       break;
     }
-
   }
 
   ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
