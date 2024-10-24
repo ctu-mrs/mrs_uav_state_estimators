@@ -199,6 +199,7 @@ private:
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_raw_;
   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
   mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>      ph_delay_;
+  mrs_lib::PublisherHandler<geometry_msgs::PointStamped>   ph_mag_field_untilted_;
 
   const std::string                  est_name_;
   const std::string                  name_;
@@ -387,6 +388,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
     }
     case MessageType_t::MAG_FIELD: {
       sh_mag_field_ = mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
+      ph_mag_field_untilted_ = mrs_lib::PublisherHandler<geometry_msgs::PointStamped>(nh, est_name_ + "/correction/" + getName() + "/fcu_untilted", 10);
 
       break;
     }
@@ -1887,7 +1889,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
           ROS_WARN_THROTTLE(1.0, "[%s]: could not transform mag field vector", getPrintName().c_str());
         }
       }
-
+      
+      geometry_msgs::PointStamped mag_vec_msg;
+      mag_vec_msg.header.stamp = msg->header.stamp;
+      mag_vec_msg.header.frame_id = transform_to_frame_;
+      mag_vec_msg.point.x = mag_vec.x;
+      mag_vec_msg.point.y = mag_vec.y;
+      mag_vec_msg.point.z = mag_vec.z;
+      ph_mag_field_untilted_.publish(mag_vec_msg);
       const double mag_hdg = atan2(mag_vec.y, mag_vec.x);
       /* const Eigen::Vector3d mag_vec(mag_vec_pt.x, mag_vec_pt.y, mag_vec_pt.z); */
       /* const Eigen::Vector3d proj_mag_field = rot * mag_vec; */
@@ -1905,7 +1914,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         got_first_mag_hdg_ = true;
       }
 
-      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
+      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_);  // may be weirdness of px4 heading (NED vs ENU or something)
       mag_hdg_previous_ = mag_hdg;
       return measurement;
     }
