@@ -16,6 +16,8 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_errorgraph::ErrorPublisher>(nh, "EstimationManager", name_);
+
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   hdg_state_      = states_t::Zero();
@@ -301,6 +303,12 @@ std::string HdgPassthrough::getNamespacedName() const {
 /*//{ getPrintName() */
 std::string HdgPassthrough::getPrintName() const {
   return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
+}
+/*//}*/
+
+/*//{ getSourceNodeId() */
+mrs_errorgraph::node_id_t HdgPassthrough::getSourceNodeId() const {
+  return source_node_id_;
 }
 /*//}*/
 

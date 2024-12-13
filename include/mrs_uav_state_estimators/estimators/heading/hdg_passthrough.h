@@ -13,6 +13,8 @@
 #include <mrs_lib/subscribe_handler.h>
 #include <mrs_lib/geometry/cyclic.h>
 
+#include <mrs_errorgraph/error_publisher.h>
+
 #include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
 
 //}
@@ -49,6 +51,15 @@ private:
 
   const bool is_core_plugin_;
 
+
+  enum class error_type_t : uint16_t
+  {
+    not_in_ready_state,
+  };
+
+  std::unique_ptr<mrs_errorgraph::ErrorPublisher> error_pub_ptr_;
+  mrs_errorgraph::node_id_t source_node_id_;
+
   std::string                                                 orient_topic_;
   mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
   void                                                        callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg);
@@ -64,6 +75,8 @@ private:
 
   ros::Timer timer_check_health_;
   void       timerCheckHealth(const ros::TimerEvent &event);
+
+  mrs_errorgraph::node_id_t getSourceNodeId() const;
 
 public:
   HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
@@ -101,7 +114,9 @@ public:
   std::string getNamespacedName() const;
 
   std::string getPrintName() const;
+
 };
+
 }  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_HEADING_HDG_PASSTHROUGH_H
