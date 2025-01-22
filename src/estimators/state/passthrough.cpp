@@ -172,7 +172,7 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       }
 
       // the message rate must be higher than required by the control manager
-      if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate) {
+      if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
         ROS_ERROR(
             "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
             "or use a higher-level controller.",
