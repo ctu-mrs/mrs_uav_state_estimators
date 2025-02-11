@@ -123,6 +123,8 @@ bool HdgPassthrough::reset(void) {
   }
 
   changeState(STOPPED_STATE);
+  // nothing to do during reset of passthrough estimator 
+  changeState(INITIALIZED_STATE);
 
   ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
 

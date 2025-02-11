@@ -55,7 +55,7 @@ private:
   ros::Timer       timer_check_passthrough_odom_hz_;
   void             timerCheckPassthroughOdomHz(const ros::TimerEvent &event);
   std::atomic<int> counter_odom_msgs_ = 0;
-  ros::WallTime    t_check_hz_last_;
+  ros::Time        t_check_hz_last_;
   double           prev_avg_hz_ = 0;
   bool             kickoff_     = false;
 

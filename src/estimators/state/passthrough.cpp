@@ -49,7 +49,7 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   sh_passthrough_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Passthrough::callbackPassthroughOdom, this);
 
   // | ------------------ timers initialization ----------------- |
-  t_check_hz_last_                 = ros::WallTime::now();
+  t_check_hz_last_                 = ros::Time::now();
   prev_avg_hz_                     = 0;
   timer_check_passthrough_odom_hz_ = nh.createTimer(ros::Rate(1.0), &Passthrough::timerCheckPassthroughOdomHz, this);
 
@@ -156,7 +156,7 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
 
     // calculate average rate of messages
     if (counter_odom_msgs_ > 0) {
-      ros::WallTime t_now  = ros::WallTime::now();
+      ros::Time t_now  = ros::Time::now();
       double        dt     = (t_now - t_check_hz_last_).toSec();
       double        avg_hz = counter_odom_msgs_ / dt;
       t_check_hz_last_     = t_now;
@@ -172,7 +172,7 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       }
 
       // the message rate must be higher than required by the control manager
-      if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate) {
+      if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
         ROS_ERROR(
             "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
             "or use a higher-level controller.",
