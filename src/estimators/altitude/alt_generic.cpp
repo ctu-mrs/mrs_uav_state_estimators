@@ -188,6 +188,11 @@ bool AltGeneric::reset(void) {
 
   changeState(STOPPED_STATE);
 
+  // reset processors of corrections
+  for (auto correction : corrections_) {
+    correction->resetProcessors();
+  }
+
   // Initialize LKF state and covariance
   const x_t        x0 = x_t::Zero();
   const P_t        P0 = 1e6 * P_t::Identity();
