@@ -1,4 +1,4 @@
-<library path="libMrsUavStateEstimators_GpsGarmin">
+<library path="MrsUavStateEstimators_GpsGarmin">
   <class type="mrs_uav_state_estimators::gps_garmin::GpsGarmin" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GpsGarmin state estimator</description>
   </class>

@@ -7,7 +7,7 @@ namespace gps_garmin
 {
 
 const char estimator_name[] = "gps_garmin";
-const bool is_core_plugin = true;
+const bool is_core_plugin   = true;
 
 class GpsGarmin : public StateGeneric {
 public:
@@ -21,5 +21,6 @@ public:
 }  // namespace gps_garmin
 }  // namespace mrs_uav_state_estimators
 
-#include <pluginlib/class_list_macros.h>
+
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::gps_garmin::GpsGarmin, mrs_uav_managers::StateEstimator)

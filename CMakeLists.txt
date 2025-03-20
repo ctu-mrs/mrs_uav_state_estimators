@@ -54,13 +54,13 @@ include_directories(
 set(LIBRARIES
   MrsUavStateEstimators_Common
   MrsUavStateEstimators_GpsBaro
-  # MrsUavStateEstimators_GpsGarmin
+  MrsUavStateEstimators_GpsGarmin
+  MrsUavStateEstimators_GarminAgl
   # MrsUavStateEstimators_Rtk
   # MrsUavStateEstimators_RtkGarmin
   # MrsUavStateEstimators_Passthrough
   # MrsUavStateEstimators_GroundTruth
   # MrsUavStateEstimators_Dummy
-  # MrsUavStateEstimators_GarminAgl
   )
 
 # Common estimators
@@ -92,6 +92,42 @@ target_link_libraries(MrsUavStateEstimators_GpsBaro
 ament_target_dependencies(MrsUavStateEstimators_GpsBaro
   ${DEPENDENCIES}
   )
+
+# GPS Garmin
+
+add_library(MrsUavStateEstimators_GpsGarmin SHARED
+  src/estimators/state/gps_garmin.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(MrsUavStateEstimators_GpsGarmin
+  MrsUavStateEstimators_Common
+  )
+
+## Add configure headers for dynamic reconfigure
+ament_target_dependencies(MrsUavStateEstimators_GpsGarmin
+  ${DEPENDENCIES}
+  )
+
+# Garmin AGL
+
+add_library(MrsUavStateEstimators_GarminAgl SHARED
+  src/estimators/agl/garmin_agl.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(MrsUavStateEstimators_GarminAgl
+  MrsUavStateEstimators_Common
+  )
+
+## Add configure headers for dynamic reconfigure
+ament_target_dependencies(MrsUavStateEstimators_GarminAgl
+  ${DEPENDENCIES}
+  )
+
+## --------------------------------------------------------------
+## |                       export plugins                       |
+## --------------------------------------------------------------
 
 # <package of the base class>, <relative path to the xml>
 pluginlib_export_plugin_description_file(mrs_uav_managers estimator_plugins.xml)

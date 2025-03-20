@@ -4,6 +4,12 @@
 
 //}
 
+/* using //{ */
+
+using namespace std::chrono_literals;
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -11,11 +17,13 @@ namespace garmin_agl
 {
 
 /* initialize() //{*/
-void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+
+  node_  = node;
+  clock_ = node->get_clock();
 
   ch_ = ch;
   ph_ = ph;
-  nh_ = nh;
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
@@ -25,57 +33,71 @@ void GarminAgl::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHand
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
   // | ------------------ timers initialization ----------------- |
-  _update_timer_rate_       = 100;                                                                                          // TODO: parametrize
-  timer_update_             = nh.createTimer(ros::Rate(_update_timer_rate_), &GarminAgl::timerUpdate, this, false, false);  // not running after init
-  _check_health_timer_rate_ = 1;                                                                                            // TODO: parametrize
-  timer_check_health_       = nh.createTimer(ros::Rate(_check_health_timer_rate_), &GarminAgl::timerCheckHealth, this);
 
-  // | --------------- subscribers initialization --------------- |
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = ros::Duration(0.5);
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
+  {
+    mrs_lib::TimerHandlerOptions opts;
+
+    opts.node      = node_;
+    opts.autostart = false;
+
+    std::function<void()> callback_fcn = std::bind(&GarminAgl::timerUpdate, this);
+
+    // TODO: parametrize the rate
+    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(100, clock_), callback_fcn);
+  }
+
+  {
+    mrs_lib::TimerHandlerOptions opts;
+
+    opts.node      = node_;
+    opts.autostart = true;
+
+    std::function<void()> callback_fcn = std::bind(&GarminAgl::timerCheckHealth, this);
+
+    // TODO: parametrize the rate
+    timer_check_health_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(1, clock_), callback_fcn);
+  }
 
   // | ---------------- publishers initialization --------------- |
-  ph_agl_height_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, Support::toSnakeCase(getName()) + "/agl_height", 10);
+
+  ph_agl_height_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64Stamped>(node_, Support::toSnakeCase("~/" + getName()) + "/agl_height");
+
   if (ch_->debug_topics.covariance) {
-    ph_agl_height_cov_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/agl_height_cov", 10);
+    ph_agl_height_cov_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, Support::toSnakeCase("~/" + getName()) + "/agl_height_cov");
   }
+
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 10);
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, Support::toSnakeCase("~/" + getName()) + "/diagnostics");
   }
 
   // | ---------------- estimators initialization --------------- |
 
   est_agl_garmin_ = std::make_unique<AltGeneric>(est_agl_name_, frame_id_, getName(), is_core_plugin_);
-  est_agl_garmin_->initialize(nh, ch_, ph_);
+  est_agl_garmin_->initialize(node_, ch_, ph_);
 
   max_flight_z_ = est_agl_garmin_->getMaxFlightZ();
 
   // | ------------------ initialize published messages ------------------ |
+
   agl_height_init_.header.frame_id     = ns_frame_id_;
   agl_height_cov_init_.header.frame_id = ns_frame_id_;
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator initialized", getPrintName().c_str());
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -95,18 +117,18 @@ bool GarminAgl::start(void) {
     }
 
     if (est_agl_garmin_start_successful) {
-      timer_update_.start();
+      timer_update_->start();
       changeState(STARTED_STATE);
       return true;
     }
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
-    ros::Duration(1.0).sleep();
+    RCLCPP_WARN(node_->get_logger(), "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    clock_->sleep_for(1s);
   }
   return false;
 
-  ROS_ERROR("[%s]: Failed to start", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: Failed to start", getPrintName().c_str());
   return false;
 }
 /*//}*/
@@ -129,33 +151,33 @@ bool GarminAgl::pause(void) {
 bool GarminAgl::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
   est_agl_garmin_->pause();
   changeState(STOPPED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
+  RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
 /*//}*/
 
 /* timerUpdate() //{*/
-void GarminAgl::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
+void GarminAgl::timerUpdate() {
 
   if (!isInitialized()) {
     return;
   }
 
-  const ros::Time time_now = ros::Time::now();
+  const rclcpp::Time time_now = clock_->now();
 
-  mrs_msgs::Float64Stamped agl_height = agl_height_init_;
-  agl_height.header.stamp             = time_now;
-  agl_height.value                    = est_agl_garmin_->getState(POSITION);
+  mrs_msgs::msg::Float64Stamped agl_height = agl_height_init_;
+  agl_height.header.stamp                  = time_now;
+  agl_height.value                         = est_agl_garmin_->getState(POSITION);
 
-  mrs_msgs::Float64ArrayStamped agl_height_cov;
+  mrs_msgs::msg::Float64ArrayStamped agl_height_cov;
   agl_height_cov.header.stamp = time_now;
 
   const int n_states = 2;  // TODO this should be defined somewhere else
@@ -173,7 +195,7 @@ void GarminAgl::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void GarminAgl::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
+void GarminAgl::timerCheckHealth() {
 
   if (!isInitialized()) {
     return;
@@ -189,9 +211,9 @@ void GarminAgl::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) 
 
       if (est_agl_garmin_->isInitialized()) {
         changeState(READY_STATE);
-        ROS_INFO("[%s]: Estimator is ready to start", getPrintName().c_str());
+        RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator is ready to start", getPrintName().c_str());
       } else {
-        ROS_INFO("[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
+        RCLCPP_INFO(node_->get_logger(), "[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
         return;
       }
       break;
@@ -203,14 +225,14 @@ void GarminAgl::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) 
 
     case STARTED_STATE: {
 
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (est_agl_garmin_->isError()) {
         changeState(ERROR_STATE);
       }
 
       if (est_agl_garmin_->isRunning()) {
-        ROS_INFO_THROTTLE(1.0, "[%s]: Subestimators converged", getPrintName().c_str());
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       } else {
         return;
@@ -250,7 +272,7 @@ bool GarminAgl::isConverged() {
 /*//}*/
 
 /*//{ getUavAglHeight() */
-mrs_msgs::Float64Stamped GarminAgl::getUavAglHeight() const {
+mrs_msgs::msg::Float64Stamped GarminAgl::getUavAglHeight() const {
   return mrs_lib::get_mutexed(mtx_agl_height_, agl_height_);
 }
 /*//}*/
@@ -265,5 +287,5 @@ std::vector<double> GarminAgl::getHeightCovariance() const {
 
 }  // namespace mrs_uav_state_estimators
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::garmin_agl::GarminAgl, mrs_uav_managers::AglEstimator)

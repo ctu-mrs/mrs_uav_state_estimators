@@ -201,9 +201,11 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   if (ch_->debug_topics.input) {
     ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, getNamespacedName() + "/input");
   }
+
   if (ch_->debug_topics.output) {
     ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node_, getNamespacedName() + "/output");
   }
+
   if (ch_->debug_topics.diag) {
     ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, getNamespacedName() + "/diagnostics");
   }
