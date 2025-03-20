@@ -107,9 +107,9 @@ private:
   rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 
 public:
-  LatGeneric(const rclcpp::Node::SharedPtr &node, const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name,
-             const bool is_core_plugin, std::function<std::optional<double>()> fun_get_hdg)
-      : LateralEstimator<lat_generic::n_states>(node, name, ns_frame_id),
+  LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin,
+             std::function<std::optional<double>()> fun_get_hdg)
+      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id),
         parent_state_est_name_(parent_state_est_name),
         is_core_plugin_(is_core_plugin),
         fun_get_hdg_(fun_get_hdg) {

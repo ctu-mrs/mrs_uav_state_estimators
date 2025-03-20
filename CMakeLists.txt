@@ -53,8 +53,8 @@ include_directories(
 
 set(LIBRARIES
   MrsUavStateEstimators_Common
+  MrsUavStateEstimators_GpsBaro
   # MrsUavStateEstimators_GpsGarmin
-  # MrsUavStateEstimators_GpsBaro
   # MrsUavStateEstimators_Rtk
   # MrsUavStateEstimators_RtkGarmin
   # MrsUavStateEstimators_Passthrough
@@ -63,7 +63,7 @@ set(LIBRARIES
   # MrsUavStateEstimators_GarminAgl
   )
 
-# HW Api Plugin
+# Common estimators
 
 add_library(MrsUavStateEstimators_Common SHARED
   src/estimators/state/state_generic.cpp
@@ -77,12 +77,32 @@ ament_target_dependencies(MrsUavStateEstimators_Common
   ${DEPENDENCIES}
 )
 
+# GPS Baro
+
+add_library(MrsUavStateEstimators_GpsBaro SHARED
+  src/estimators/state/gps_baro.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(MrsUavStateEstimators_GpsBaro
+  MrsUavStateEstimators_Common
+  )
+
+## Add configure headers for dynamic reconfigure
+ament_target_dependencies(MrsUavStateEstimators_GpsBaro
+  ${DEPENDENCIES}
+  )
+
 # <package of the base class>, <relative path to the xml>
-pluginlib_export_plugin_description_file(mrs_uav_hw_api estimator_plugins.xml)
+pluginlib_export_plugin_description_file(mrs_uav_managers estimator_plugins.xml)
 
 ## --------------------------------------------------------------
 ## |                           install                          |
 ## --------------------------------------------------------------
+
+ament_export_libraries(
+  ${LIBRARIES}
+)
 
 install(
   TARGETS ${LIBRARIES}
@@ -92,27 +112,32 @@ install(
   RUNTIME DESTINATION bin
 )
 
-install(DIRECTORY include
+install(
+  DIRECTORY include
   DESTINATION .
 )
 
-install(DIRECTORY config
+install(
+  DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(DIRECTORY scripts
+install(
+  DIRECTORY scripts
   USE_SOURCE_PERMISSIONS
   DESTINATION share/${PROJECT_NAME}
 )
 
-ament_export_libraries(
-  ${LIBRARIES}
+ament_export_include_directories(
+  include
 )
 
 ament_export_targets(
-  export_${PROJECT_NAME}
+  export_${PROJECT_NAME} HAS_LIBRARY_TARGET
 )
 
-ament_export_include_directories(include)
+ament_export_dependencies(
+  ${DEPENDENCIES}
+)
 
 ament_package()

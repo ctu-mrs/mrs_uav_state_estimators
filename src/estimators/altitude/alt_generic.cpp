@@ -13,6 +13,13 @@ namespace mrs_uav_state_estimators
 /* initialize() //{*/
 void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
+
+  node_ = node->create_sub_node(getNamespacedName());
+
+  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
+
+  clock_ = node->get_clock();
+
   ch_ = ch;
   ph_ = ph;
 
@@ -62,7 +69,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
-        node, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
+        node_, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
         [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
           return this->doCorrection(meas, R, state);
         }));
@@ -109,7 +116,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
-    node_->declare_parameter("pos", 0.0, param_desc);
+    node_->declare_parameter(node_->get_sub_namespace() + "/pos", 0.0, param_desc);
   }
 
   {
@@ -124,7 +131,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
-    node_->declare_parameter("vel", 0.0, param_desc);
+    node_->declare_parameter(node_->get_sub_namespace() + "/vel", 0.0, param_desc);
   }
 
   {
@@ -139,7 +146,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
-    node_->declare_parameter("acc", 0.0, param_desc);
+    node_->declare_parameter(node_->get_sub_namespace() + "/acc", 0.0, param_desc);
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -182,7 +189,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   // subscriber to odometry
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node;
+  shopts.node               = node_;
   shopts.node_name          = getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
@@ -192,13 +199,13 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
-    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node, getNamespacedName() + "/input");
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, getNamespacedName() + "/input");
   }
   if (ch_->debug_topics.output) {
-    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node, getNamespacedName() + "/output");
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node_, getNamespacedName() + "/output");
   }
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node, getNamespacedName() + "/diagnostics");
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, getNamespacedName() + "/diagnostics");
   }
 
   // | ------------------ finish initialization ----------------- |

@@ -17,6 +17,8 @@
 #include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
 #include <mrs_uav_state_estimators/estimators/correction.h>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 //}
 
 namespace mrs_uav_state_estimators
@@ -102,9 +104,8 @@ private:
   rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 
 public:
-  HdgGeneric(const rclcpp::Node::SharedPtr &node, const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name,
-             const bool is_core_plugin)
-      : HeadingEstimator<hdg_generic::n_states>(node, name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
+  HdgGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
+      : HeadingEstimator<hdg_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~HdgGeneric(void) {

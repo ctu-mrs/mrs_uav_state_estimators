@@ -22,8 +22,7 @@ template <int n_states>
 class LateralEstimator : public PartialEstimator<n_states, lateral::n_axes> {
 
 protected:
-  LateralEstimator(const rclcpp::Node::SharedPtr& node, const std::string& name, const std::string& frame_id)
-      : PartialEstimator<n_states, lateral::n_axes>(node, lateral::type, name, frame_id) {
+  LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, lateral::n_axes>(lateral::type, name, frame_id) {
   }
 
   ~LateralEstimator(void) {

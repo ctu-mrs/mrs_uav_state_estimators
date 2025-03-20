@@ -23,6 +23,8 @@
 #include <mrs_uav_state_estimators/estimators/heading/hdg_generic.h>
 #include <mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 //}
 
 namespace mrs_uav_state_estimators
@@ -55,20 +57,17 @@ private:
 
   const bool is_core_plugin_;
 
-  std::string                                                 topic_orientation_;
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_hw_api_orient_;
+  std::string                                                       topic_orientation_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_hw_api_orient_;
 
-  std::string                                              topic_angular_velocity_;
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_hw_api_ang_vel_;
+  std::string                                                    topic_angular_velocity_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped> sh_hw_api_ang_vel_;
 
-  ros::Timer timer_update_;
-  void       timerUpdate(const ros::TimerEvent &event);
+  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
+  void                               timerUpdate();
 
-  ros::Timer timer_check_health_;
-  void       timerCheckHealth(const ros::TimerEvent &event);
-
-  ros::Timer timer_pub_attitude_;
-  void       timerPubAttitude(const ros::TimerEvent &event);
+  std::shared_ptr<mrs_lib::ROSTimer> timer_pub_attitude_;
+  void                               timerPubAttitude();
 
   bool isConverged();
 
@@ -82,12 +81,12 @@ public:
   ~StateGeneric(void) {
   }
 
-  void initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
+  void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
 
-  bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::msg::UavState &uav_state) override;
 
   std::optional<double> getHeading() const;
 

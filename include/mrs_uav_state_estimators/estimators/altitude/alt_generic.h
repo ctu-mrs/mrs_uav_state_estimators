@@ -107,12 +107,8 @@ private:
   mutable std::mutex mtx_Q_;
 
 public:
-  AltGeneric(const rclcpp::Node::SharedPtr &node, const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name,
-             const bool is_core_plugin)
-      : AltitudeEstimator<alt_generic::n_states>(node, name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
-
-    node_  = node;
-    clock_ = node->get_clock();
+  AltGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
+      : AltitudeEstimator<alt_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~AltGeneric(void) {

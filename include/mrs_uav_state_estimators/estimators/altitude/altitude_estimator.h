@@ -27,8 +27,7 @@ template <int n_states>
 class AltitudeEstimator : public PartialEstimator<n_states, 1> {
 
 protected:
-  AltitudeEstimator(const rclcpp::Node::SharedPtr& node, const std::string& name, const std::string& frame_id)
-      : PartialEstimator<n_states, 1>(node, altitude::type, name, frame_id) {
+  AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id) {
   }
 
   virtual ~AltitudeEstimator(void) {

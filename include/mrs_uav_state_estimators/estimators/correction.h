@@ -2344,11 +2344,14 @@ void Correction<n_measurements>::applyCorrection(const measurement_t& meas, cons
   MeasurementStamped meas_stamped;
   meas_stamped.value = meas;
   meas_stamped.stamp = stamp;
+
   publishCorrection(meas_stamped, ph_correction_raw_);
+
   if (process(meas_stamped.value)) {
     publishCorrection(meas_stamped, ph_correction_proc_);
     fun_apply_correction_(meas_stamped, getR(), getStateId());
   }
+
 }
 /*//}*/
 
@@ -2411,6 +2414,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     return {};
   }
 }
+
 /*//}*/
 
 /*//{ transformVecToFrame() */

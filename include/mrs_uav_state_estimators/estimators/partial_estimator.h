@@ -56,8 +56,7 @@ private:
   static const int _n_measurements_;
 
 public:
-  PartialEstimator(const rclcpp::Node::SharedPtr &node, const std::string &type, const std::string &name, const std::string &frame_id)
-      : Estimator(node, type, name, frame_id) {
+  PartialEstimator(const std::string &type, const std::string &name, const std::string &frame_id) : Estimator(type, name, frame_id) {
   }
 
   ~PartialEstimator(void) {
