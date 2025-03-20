@@ -86,21 +86,21 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   sh_hw_api_ang_vel_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, topic_angular_velocity_);
 
   // | ---------------- publishers initialization --------------- |
-  ph_odom_     = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, Support::toSnakeCase(getName()) + "/odom");
-  ph_attitude_ = mrs_lib::PublisherHandler<geometry_msgs::msg::QuaternionStamped>(node_, Support::toSnakeCase(getName()) + "/attitude");
+  ph_odom_     = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, Support::toSnakeCase("~/" + getName()) + "/odom");
+  ph_attitude_ = mrs_lib::PublisherHandler<geometry_msgs::msg::QuaternionStamped>(node_, Support::toSnakeCase("~/" + getName()) + "/attitude");
 
   if (ch_->debug_topics.state) {
     ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, Support::toSnakeCase(getName()) + "/uav_state");
   }
   if (ch_->debug_topics.covariance) {
-    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, Support::toSnakeCase(getName()) + "/pose_covariance");
-    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, Support::toSnakeCase(getName()) + "/twist_covariance");
+    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, Support::toSnakeCase("~/" + getName()) + "/pose_covariance");
+    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, Support::toSnakeCase("~/" + getName()) + "/twist_covariance");
   }
   if (ch_->debug_topics.innovation) {
-    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, Support::toSnakeCase(getName()) + "/innovation");
+    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, Support::toSnakeCase("~/" + getName()) + "/innovation");
   }
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, Support::toSnakeCase(getName()) + "/diagnostics");
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, Support::toSnakeCase("~/" + getName()) + "/diagnostics");
   }
 
   // | ---------------- estimators initialization --------------- |
