@@ -5,10 +5,12 @@
 #include <mrs_uav_state_estimators/processors/processor.h>
 #include <mrs_uav_state_estimators/processors/mag_declination/geo_mag_declination.h>
 
-#include <sensor_msgs/NavSatFix.h>
+#include <mrs_uav_managers/estimation_manager/support.h>
+
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 
 #include <mrs_lib/gps_conversions.h>
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/param_loader.h>
 
 namespace mrs_uav_state_estimators
@@ -23,8 +25,8 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcMagDeclination(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
-                     const std::shared_ptr<PrivateHandlers_t>& ph);
+  ProcMagDeclination(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
+                     const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
   void                   reset();
@@ -40,15 +42,15 @@ private:
   double           gnss_lat_;
   double           gnss_lon_;
 
-  mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_gnss_;
-  void                                              callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg);
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix> sh_gnss_;
+  void                                                    callbackGnss(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
 };
 
 /*//{ constructor */
 template <int n_measurements>
-ProcMagDeclination<n_measurements>::ProcMagDeclination(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
-                                             const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
-    : Processor<n_measurements>(nh, correction_name, name, ch, ph) {
+ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
+                                                       const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+    : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
 
@@ -63,21 +65,21 @@ ProcMagDeclination<n_measurements>::ProcMagDeclination(ros::NodeHandle& nh, cons
   gnss_topic_ = "/" + ch->uav_name + "/" + gnss_topic_;
 
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(this->node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.",
+                 Processor<n_measurements>::getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
   // | -------------- initialize subscribe handlers ------------- |
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
+  mrs_lib::SubscriberHandlerOptions shopts;
+
+  shopts.node               = node;
   shopts.node_name          = Processor<n_measurements>::getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_gnss_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, gnss_topic_, &ProcMagDeclination::callbackGnss, this);
+  sh_gnss_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, gnss_topic_, &ProcMagDeclination::callbackGnss, this);
 
   is_initialized_ = true;
 }
@@ -85,7 +87,7 @@ ProcMagDeclination<n_measurements>::ProcMagDeclination(ros::NodeHandle& nh, cons
 
 /*//{ callbackGnss() */
 template <int n_measurements>
-void ProcMagDeclination<n_measurements>::callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg) {
+void ProcMagDeclination<n_measurements>::callbackGnss(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -96,19 +98,22 @@ void ProcMagDeclination<n_measurements>::callbackGnss(const sensor_msgs::NavSatF
   }
 
   if (!std::isfinite(msg->latitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->latitude\"!!!", Processor<n_measurements>::getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(this->node_->get_logger(), *(this->clock_), 1000, "[%s] NaN detected in GNSS variable \"msg->latitude\"!!!",
+                          Processor<n_measurements>::getPrintName().c_str());
     return;
   }
 
   if (!std::isfinite(msg->longitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->longitude\"!!!", Processor<n_measurements>::getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(this->node_->get_logger(), *(this->clock_), 1000, "[%s] NaN detected in GNSS variable \"msg->longitude\"!!!",
+                          Processor<n_measurements>::getPrintName().c_str());
     return;
   }
 
   std::scoped_lock lock(mtx_gnss_);
   gnss_lat_ = msg->latitude;
   gnss_lon_ = msg->longitude;
-  ROS_INFO("[%s]: First GNSS obtained: lat:%.2f lon:%.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_lat_, gnss_lon_);
+  RCLCPP_INFO(this->node_->get_logger(), "[%s]: First GNSS obtained: lat:%.2f lon:%.2f", Processor<n_measurements>::getPrintName().c_str(), gnss_lat_,
+              gnss_lon_);
   got_gnss_ = true;
 }
 /*//}*/
@@ -124,7 +129,8 @@ std::tuple<bool, bool> ProcMagDeclination<n_measurements>::process(measurement_t
   std::scoped_lock lock(mtx_gnss_);
 
   if (!got_gnss_) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Missing GNSS data on topic: %s", Processor<n_measurements>::getPrintName().c_str(), gnss_topic_.c_str());
+    RCLCPP_WARN_THROTTLE(this->node_->get_logger(), *(this->clock_), 1000, "[%s]: Missing GNSS data on topic: %s",
+                         Processor<n_measurements>::getPrintName().c_str(), gnss_topic_.c_str());
     return {false, false};
   }
 
@@ -139,7 +145,7 @@ std::tuple<bool, bool> ProcMagDeclination<n_measurements>::process(measurement_t
 /*//{ reset() */
 template <int n_measurements>
 void ProcMagDeclination<n_measurements>::reset() {
-  got_gnss_                  = false;
+  got_gnss_ = false;
 }
 /*//}*/
 }  // namespace mrs_uav_state_estimators

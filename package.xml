@@ -1,42 +1,42 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
 
   <name>mrs_uav_state_estimators</name>
-  <version>0.0.3</version>
-  <description>The mrs_uav_state_estimators package</description>
 
-  <author email="matej.petrlik@fel.cvut.cz">Matej Petrlik</author>
-  <maintainer email="matej.petrlik@fel.cvut.cz">Matej Petrlik</maintainer>
+  <version>2.0.0</version>
+  <description>The MRS Multirotor simulator</description>
 
-  <license>MIT</license>
+  <author email="tomas.baca@fel.cvut.cz">klaxalk</author>
+  <maintainer email="tomas.baca@fel.cvut.cz">klaxalk</maintainer>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <license>BSD 3-Clause</license>
 
-  <depend>cmake_modules</depend>
-  <depend>dynamic_reconfigure</depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>pluginlib</depend>
+  <depend>builtin_interfaces</depend>
+
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>geometry_msgs</depend>
-  <depend>message_generation</depend>
-  <depend>message_runtime</depend>
+  <depend>tf2_ros</depend>
+  <depend>nav_msgs</depend>
+  <depend>eigen</depend>
+  <depend>tf2_geometry_msgs</depend>
+
   <depend>mrs_lib</depend>
   <depend>mrs_msgs</depend>
   <depend>mrs_uav_managers</depend>
-  <depend>nav_msgs</depend>
-  <depend>nodelet</depend>
-  <depend>roscpp</depend>
-  <depend>roslint</depend>
-  <depend>sensor_msgs</depend>
-  <depend>std_msgs</depend>
-  <depend>tf2_geometry_msgs</depend>
-  <depend>mrs_uav_testing</depend>
-
-  <exec_depend>pluginlib</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>plotjuggler</exec_depend>
-
-  <test_depend>rostest</test_depend>
 
   <export>
-    <mrs_uav_managers plugin="${prefix}/estimator_plugins.xml" />
+    <build_type>ament_cmake</build_type>
   </export>
 
 </package>

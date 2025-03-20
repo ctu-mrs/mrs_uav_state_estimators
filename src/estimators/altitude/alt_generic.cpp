@@ -11,7 +11,7 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
   ph_ = ph;
@@ -29,7 +29,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
   H_ <<
     1, 0, 0;
 
-  innovation_ << 
+  innovation_ <<
     0;
 
   // clang-format on
@@ -38,8 +38,10 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
   }
 
   ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
@@ -60,7 +62,7 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   for (auto corr_name : correction_names_) {
     corrections_.push_back(std::make_shared<Correction<alt_generic::n_measurements>>(
-        nh, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
+        node, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
         [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
           return this->doCorrection(meas, R, state);
         }));
@@ -80,19 +82,68 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
   // | ------- check if all parameters loaded successfully ------ |
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_ =
-      std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&AltGeneric::callbackReconfigure, this, _1, _2));
-  drmgr_->config.pos = Q_(POSITION, POSITION);
-  drmgr_->config.vel = Q_(VELOCITY, VELOCITY);
-  drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION);
-  drmgr_->update_config(drmgr_->config);
+
+  // original ROS1 dynamic reconfigure
+  /* drmgr_ = */
+  /*     std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&AltGeneric::callbackReconfigure, this, _1,
+   * _2)); */
+  /* drmgr_->config.pos = Q_(POSITION, POSITION); */
+  /* drmgr_->config.vel = Q_(VELOCITY, VELOCITY); */
+  /* drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION); */
+  /* drmgr_->update_config(drmgr_->config); */
+
+  {
+    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+
+    rcl_interfaces::msg::FloatingPointRange range;
+
+    range.from_value = 0.0;
+    range.to_value   = 100000.0;
+
+    param_desc.floating_point_range = {range};
+
+    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+
+    node_->declare_parameter("pos", 0.0, param_desc);
+  }
+
+  {
+    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+
+    rcl_interfaces::msg::FloatingPointRange range;
+
+    range.from_value = 0.0;
+    range.to_value   = 100000.0;
+
+    param_desc.floating_point_range = {range};
+
+    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+
+    node_->declare_parameter("vel", 0.0, param_desc);
+  }
+
+  {
+    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+
+    rcl_interfaces::msg::FloatingPointRange range;
+
+    range.from_value = 0.0;
+    range.to_value   = 100000.0;
+
+    param_desc.floating_point_range = {range};
+
+    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+
+    node_->declare_parameter("acc", 0.0, param_desc);
+  }
 
   // | --------------- Kalman filter intialization -------------- |
+
   const x_t        x0 = x_t::Zero();
   const P_t        P0 = 1e3 * P_t::Identity();
   const statecov_t sc0({x0, P0});
@@ -103,47 +154,59 @@ void AltGeneric::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHan
 
     generateRepredictorModels(input_coeff_);
 
-    const u_t       u0 = u_t::Zero();
-    const ros::Time t0 = ros::Time::now();
-    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
+    const u_t          u0 = u_t::Zero();
+    const rclcpp::Time t0 = clock_->now();
+    lkf_rep_              = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
 
     setDt(1.0 / ch_->desired_uav_state_rate);
   }
 
-  // | ------------------ timers initialization ----------------- |
-  timer_update_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &AltGeneric::timerUpdate, this);  // not running after init
+  // | ------------------------- timers ------------------------- |
+
+  mrs_lib::TimerHandlerOptions opts;
+
+  opts.node      = node_;
+  opts.autostart = true;
+
+  {
+    std::function<void()> callback_fcn = std::bind(&AltGeneric::timerUpdate, this);
+
+    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+
+    timer_update_last_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
+  }
+
   /* timer_check_health_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &AltGeneric::timerCheckHealth, this); */
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
+  mrs_lib::SubscriberHandlerOptions shopts;
+
+  shopts.node               = node;
   shopts.node_name          = getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_control_input_ = mrs_lib::SubscribeHandler<mrs_msgs::EstimatorInput>(shopts, "control_input_in");
+  sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "control_input_in");
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
-    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, getNamespacedName() + "/input", 10);
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node, getNamespacedName() + "/input");
   }
   if (ch_->debug_topics.output) {
-    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node, getNamespacedName() + "/output");
   }
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node, getNamespacedName() + "/diagnostics");
   }
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getPrintName().c_str(), VERSION);
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator initialized, version %s", getPrintName().c_str(), VERSION);
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -157,7 +220,7 @@ bool AltGeneric::start(void) {
     return true;
 
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }
@@ -180,7 +243,7 @@ bool AltGeneric::pause(void) {
 bool AltGeneric::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
@@ -201,20 +264,20 @@ bool AltGeneric::reset(void) {
   lkf_ = std::make_shared<lkf_t>(A_, B_, H_);
   if (is_repredictor_enabled_) {
 
-    const u_t       u0 = u_t::Zero();
-    const ros::Time t0 = ros::Time(0);
-    lkf_rep_           = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
+    const u_t          u0 = u_t::Zero();
+    const rclcpp::Time t0 = rclcpp::Time(0, 0, clock_->get_clock_type());
+    lkf_rep_              = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_.at(0), rep_buffer_size_);
   }
 
   changeState(INITIALIZED_STATE);
-  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
+  RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
 /*//}*/
 
 /* timerUpdate() //{*/
-void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
+void AltGeneric::timerUpdate(void) {
 
 
   if (!isInitialized()) {
@@ -224,12 +287,12 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
@@ -240,23 +303,23 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());
-          ROS_INFO("[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
+          RCLCPP_INFO(node_->get_logger(), "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                            correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                               correction->getNamespacedName().c_str());
           return;
         }
       }
       changeState(READY_STATE);
-      ROS_INFO_THROTTLE(1.0, "[%s]: Ready to start", getPrintName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
       break;
     }
 
     case STARTED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (isConverged()) {
-        ROS_INFO_THROTTLE(1.0, "[%s]: LKF converged", getPrintName().c_str());
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       }
       break;
@@ -265,7 +328,8 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -273,34 +337,35 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     }
 
     case STOPPED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getPrintName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
       break;
     }
 
     case ERROR_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
-      ros::Time t_now = ros::Time::now();
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+      rclcpp::Time t_now = clock_->now();
       if (is_error_state_first_time_) {
         prev_time_in_error_state_  = t_now;
         is_error_state_first_time_ = false;
-        error_state_duration_      = ros::Duration(0.0);
+        error_state_duration_      = 0;
       }
-      error_state_duration_ += t_now - prev_time_in_error_state_;
+      error_state_duration_ += t_now.seconds() - prev_time_in_error_state_.seconds();
 
 
       // check if all corrections are healthy now
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
 
       if (all_corrections_healthy && innovation_ok_) {
         // initialize the estimator again if corrections become healthy
-        if (error_state_duration_.toSec() > 5.0) {
-          ROS_INFO("[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_.toSec());
+        if (error_state_duration_ > 5.0) {
+          RCLCPP_INFO(node_->get_logger(), "[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_);
           changeState(INITIALIZED_STATE);
           is_error_state_first_time_ = true;
         }
@@ -319,9 +384,9 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+  if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
+                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 
@@ -334,7 +399,10 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     return;
   }
 
-  double dt = (event.current_real - event.last_real).toSec();
+  double dt = (clock_->now() - timer_update_last_time_).seconds();
+
+  timer_update_last_time_ = clock_->now();
+
   if (dt <= 0.0 || dt > 1.0) {
     return;
   }
@@ -344,20 +412,21 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
   }
 
   // prediction step
-  u_t       u;
-  ros::Time input_stamp;
+  u_t          u;
+  rclcpp::Time input_stamp;
   if (is_input_ready_) {
-    mrs_msgs::EstimatorInputConstPtr msg            = sh_control_input_.getMsg();
-    const tf2::Vector3               des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
-    input_stamp                                     = msg->header.stamp;
-    if (input_coeff_ != default_input_coeff_){
+    mrs_msgs::msg::EstimatorInput::ConstSharedPtr msg            = sh_control_input_.getMsg();
+    const tf2::Vector3                            des_acc_global = getAccGlobal(msg, 0);  // we don't care about heading
+    input_stamp                                                  = msg->header.stamp;
+    if (input_coeff_ != default_input_coeff_) {
       setInputCoeff(default_input_coeff_);
     }
     u(0) = des_acc_global.getZ();
   } else {
-    ROS_DEBUG_THROTTLE(1.0, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
-    input_stamp = ros::Time::now();
-    if (input_coeff_ != 0){
+    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable",
+                          getPrintName().c_str());
+    input_stamp = clock_->now();
+    if (input_coeff_ != 0) {
       setInputCoeff(0);
     }
     u = u_t::Zero();
@@ -380,14 +449,14 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
     std::scoped_lock lock(mutex_lkf_);
     if (is_repredictor_enabled_) {
       lkf_rep_->addInputChangeWithNoise(u, Q, input_stamp, models_[0]);
-      sc = lkf_rep_->predictTo(ros::Time::now());
+      sc = lkf_rep_->predictTo(clock_->now());
     } else {
       sc = lkf_->predict(sc, u, Q, dt_);
     }
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
-    ROS_ERROR("[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: LKF prediction failed: %s", getPrintName().c_str(), e.what());
   }
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
@@ -400,7 +469,7 @@ void AltGeneric::timerUpdate(const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
+void AltGeneric::timerCheckHealth() {
 
   if (!isInitialized()) {
     return;
@@ -409,12 +478,12 @@ void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
   switch (getCurrentSmState()) {
 
     case UNINITIALIZED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
     case READY_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
       break;
     }
 
@@ -426,23 +495,24 @@ void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());
-          ROS_INFO_THROTTLE(1.0, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(),
+                               measurement_stamped.value(0));
         } else {
-          ROS_INFO_THROTTLE(1.0, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                            correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                               correction->getNamespacedName().c_str());
           return;
         }
       }
       changeState(READY_STATE);
-      ROS_INFO_THROTTLE(1.0, "[%s]: Ready to start", getPrintName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
       break;
     }
 
     case STARTED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
 
       if (isConverged()) {
-        ROS_INFO_THROTTLE(1.0, "[%s]: LKF converged", getPrintName().c_str());
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
         changeState(RUNNING_STATE);
       }
       break;
@@ -451,7 +521,8 @@ void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -459,16 +530,17 @@ void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
     }
 
     case STOPPED_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is stopped", getPrintName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
       break;
     }
 
     case ERROR_STATE: {
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -485,9 +557,9 @@ void AltGeneric::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event)
   }
 
   // check age of input
-  if (is_input_ready_ && (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec() > 0.1) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-                      (ros::Time::now() - sh_control_input_.lastMsgTime()).toSec());
+  if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
+                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 }
@@ -500,7 +572,7 @@ void AltGeneric::doCorrection(const Correction<alt_generic::n_measurements>::Mea
 /*//}*/
 
 /*//{ doCorrection() */
-void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const ros::Time &meas_stamp) {
+void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const rclcpp::Time &meas_stamp) {
 
   if (!isInitialized()) {
     return;
@@ -519,29 +591,30 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     innovation_(0)      = z(0) - getState(POSITION);
 
     if (fabs(innovation_(0)) > pos_innovation_limit_) {
-      ROS_WARN_THROTTLE(1.0, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), pos_innovation_limit_);
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0),
+                           pos_innovation_limit_);
       innovation_ok_ = false;
       switch (exc_innovation_action_) {
         case ExcInnoAction_t::ELAND: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::SWITCH: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
           innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           changeState(ERROR_STATE);
           break;
         }
         case ExcInnoAction_t::MITIGATE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
           innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
           is_mitigating_jump_ = true;
           setState(z(0), POSITION);
           break;
         }
         case ExcInnoAction_t::NONE: {
-          ROS_WARN_THROTTLE(1.0, "[%s]: large innovation ignored", getPrintName().c_str());
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation ignored", getPrintName().c_str());
           break;
         }
       }
@@ -567,7 +640,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
   }
   catch (const std::exception &e) {
     // In case of error, alert the user
-    ROS_ERROR("[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: LKF correction failed: %s", getPrintName().c_str(), e.what());
   }
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
@@ -677,34 +750,34 @@ void AltGeneric::setInputCoeff(const double &input_coeff) {
 /*//{ generateRepredictorModels() */
 void AltGeneric::generateRepredictorModels(const double input_coeff) {
 
-    for (int i = 0; i < alt_generic::n_states; i++) {
+  for (int i = 0; i < alt_generic::n_states; i++) {
 
-      auto lambda_generateA = [input_coeff](const double dt) {
-        A_t A;
-        // clang-format off
+    auto lambda_generateA = [input_coeff](const double dt) {
+      A_t A;
+      // clang-format off
         A <<
           1, dt, 0.5 * dt * dt,
           0, 1, dt,
           0, 0, 1-(input_coeff * dt);
-        // clang-format on
-        return A;
-      };
+      // clang-format on
+      return A;
+    };
 
-      auto lambda_generateB = [input_coeff]([[maybe_unused]] const double dt) {
-        B_t B = B.Zero();
-        // clang-format off
+    auto lambda_generateB = [input_coeff]([[maybe_unused]] const double dt) {
+      B_t B = B.Zero();
+      // clang-format off
         B <<
           0,
           0,
           (input_coeff * dt);
-        // clang-format on
-        return B;
-      };
+      // clang-format on
+      return B;
+    };
 
-      H_t H = H_t::Zero();
-      H(i)  = 1;
-      models_.push_back(std::make_shared<varstep_lkf_t>(lambda_generateA, lambda_generateB, H));
-    }
+    H_t H = H_t::Zero();
+    H(i)  = 1;
+    models_.push_back(std::make_shared<varstep_lkf_t>(lambda_generateA, lambda_generateB, H));
+  }
 }
 /*//}*/
 
@@ -732,20 +805,59 @@ void AltGeneric::generateB() {
 }
 /*//}*/
 
-/*//{ callbackReconfigure() */
-void AltGeneric::callbackReconfigure(AltitudeEstimatorConfig &config, [[maybe_unused]] uint32_t level) {
+/* callbackParameters() //{ */
 
-  if (!isInitialized()) {
-    return;
+rcl_interfaces::msg::SetParametersResult AltGeneric::callbackParameters(std::vector<rclcpp::Parameter> parameters) {
+
+  rcl_interfaces::msg::SetParametersResult result;
+
+  // Note that setting a parameter to a nonsensical value (such as setting the `param_namespace.floating_number` parameter to `hello`)
+  // doesn't have any effect - it doesn't even call this callback.
+  for (auto &param : parameters) {
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
+
+    if (param.get_name() == "pos") {
+
+      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
+
+      Q(POSITION, POSITION) = param.as_double();
+
+      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
+
+    } else if (param.get_name() == "vel") {
+
+      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
+
+      Q(VELOCITY, VELOCITY) = param.as_double();
+
+      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
+
+    } else if (param.get_name() == "acc") {
+
+      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
+
+      Q(ACCELERATION, ACCELERATION) = param.as_double();
+
+      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
+
+    } else {
+
+      RCLCPP_WARN_STREAM(node_->get_logger(), "parameter: '" << param.get_name() << "' is not dynamically reconfigurable!");
+      result.successful = false;
+      result.reason     = "Parameter '" + param.get_name() + "' is not dynamically reconfigurable!";
+      return result;
+    }
   }
 
-  Q_t Q;
-  Q(POSITION, POSITION)         = config.pos;
-  Q(VELOCITY, VELOCITY)         = config.vel;
-  Q(ACCELERATION, ACCELERATION) = config.acc;
-  mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
+  RCLCPP_INFO(node_->get_logger(), "params updated");
+  result.successful = true;
+  result.reason     = "OK";
+
+  return result;
 }
-/*//}*/
+
+//}
 
 /*//{ getNamespacedName() */
 std::string AltGeneric::getNamespacedName() const {

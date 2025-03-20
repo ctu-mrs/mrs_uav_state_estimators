@@ -2,6 +2,11 @@
 #ifndef PROCESSORS_PROCESSOR_H
 #define PROCESSORS_PROCESSOR_H
 
+#include <string>
+#include <rclcpp/rclcpp.hpp>
+#include <mrs_uav_managers/estimation_manager/common_handlers.h>
+#include <mrs_uav_managers/estimation_manager/private_handlers.h>
+
 namespace mrs_uav_state_estimators
 {
 
@@ -24,9 +29,11 @@ public:
   virtual void                   reset()                             = 0;
 
 protected:
-  Processor([[maybe_unused]] ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+  Processor(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
             const std::shared_ptr<PrivateHandlers_t>& ph)
       : correction_name_(correction_name), name_(name), ch_(ch), ph_(ph) {
+    node_  = node;
+    clock_ = node->get_clock();
   }  // protected constructor to prevent instantiation
 
   const std::string correction_name_;
@@ -37,6 +44,9 @@ protected:
 
   bool enabled_       = true;
   bool start_enabled_ = true;
+
+  rclcpp::Node::SharedPtr  node_;
+  rclcpp::Clock::SharedPtr clock_;
 };
 
 /*//{ getName() */

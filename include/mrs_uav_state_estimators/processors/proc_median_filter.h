@@ -6,6 +6,9 @@
 
 #include <mrs_lib/median_filter.h>
 #include <mrs_lib/param_loader.h>
+#include <mrs_uav_managers/estimation_manager/support.h>
+
+#include <rclcpp/rclcpp.hpp>
 
 #include <limits>
 
@@ -21,8 +24,8 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcMedianFilter(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
-                   const std::shared_ptr<PrivateHandlers_t>& ph);
+  ProcMedianFilter(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
+                   const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
   void                   reset();
@@ -35,9 +38,9 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
+ProcMedianFilter<n_measurements>::ProcMedianFilter(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
                                                    const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
-    : Processor<n_measurements>(nh, correction_name, name, ch, ph) {
+    : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   // | --------------------- load parameters -------------------- |
   ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
@@ -46,8 +49,9 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(ros::NodeHandle& nh, const st
   ph->param_loader->loadParam("max_diff", max_diff_);
 
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(this->node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.",
+                 Processor<n_measurements>::getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
   // min and max values are not checked by median filter, so set them to limits of double
@@ -78,13 +82,15 @@ std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t& 
         std::stringstream ss_measurement_string;
         ss_measurement_string << measurement(i);
         ss_measurement_string << " ";
-        ROS_WARN_THROTTLE(1.0, "[%s]: measurement[%d]: %s declined by median filter (median: %.2f, max_diff: %.2f).",
-                          Processor<n_measurements>::getPrintName().c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
+        RCLCPP_WARN_THROTTLE(this->node_->get_logger(), *this->clock_, 1000,
+                             "[%s]: measurement[%d]: %s declined by median filter (median: %.2f, max_diff: %.2f).",
+                             Processor<n_measurements>::getPrintName().c_str(), i, ss_measurement_string.str().c_str(), vec_mf_[i].median(), max_diff_);
         ok_flag     = false;
         should_fuse = false;
       }
     } else {
-      ROS_WARN_THROTTLE(1.0, "[%s]: median filter not full yet", Processor<n_measurements>::getPrintName().c_str());
+      RCLCPP_WARN_THROTTLE(this->node_->get_logger(), *this->clock_, 1000, "[%s]: median filter not full yet",
+                           Processor<n_measurements>::getPrintName().c_str());
       ok_flag     = false;
       should_fuse = false;
     }

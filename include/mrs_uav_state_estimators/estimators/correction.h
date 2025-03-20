@@ -2,28 +2,29 @@
 #ifndef ESTIMATORS_CORRECTION_H
 #define ESTIMATORS_CORRECTION_H
 
+/* includes //{ */
+
 #include <Eigen/Dense>
 
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/param_loader.h>
-#include <mrs_lib/dynamic_reconfigure_mgr.h>
 #include <mrs_lib/gps_conversions.h>
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/geometry/cyclic.h>
 
-#include <mrs_msgs/RtkGps.h>
-#include <mrs_msgs/EstimatorCorrection.h>
-#include <mrs_msgs/Float64Stamped.h>
+#include <mrs_msgs/msg/rtk_gps.hpp>
+#include <mrs_msgs/msg/estimator_correction.hpp>
+#include <mrs_msgs/msg/float64_stamped.hpp>
 
-#include <sensor_msgs/Range.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <nav_msgs/Odometry.h>
+#include <sensor_msgs/msg/range.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/magnetic_field.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
-#include <std_srvs/SetBool.h>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <functional>
 
@@ -39,8 +40,7 @@
 #include <mrs_uav_state_estimators/processors/proc_tf_to_world.h>
 #include <mrs_uav_state_estimators/processors/proc_mag_declination.h>
 
-#include <mrs_uav_state_estimators/CorrectionConfig.h>
-
+//}
 
 namespace mrs_uav_state_estimators
 {
@@ -92,20 +92,23 @@ class Correction {
   using PrivateHandlers_t = mrs_uav_managers::estimation_manager::PrivateHandlers_t;
   using StateId_t         = mrs_uav_managers::estimation_manager::StateId_t;
 
+protected:
+  rclcpp::Node::SharedPtr  node_;
+  rclcpp::Clock::SharedPtr clock_;
+
 public:
-  typedef Eigen::Matrix<double, n_measurements, 1>         measurement_t;
-  typedef mrs_lib::DynamicReconfigureMgr<CorrectionConfig> drmgr_t;
+  typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
   struct MeasurementStamped
   {
-    ros::Time     stamp;
+    rclcpp::Time  stamp;
     measurement_t value;
   };
 
 public:
-  Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& frame_id, const EstimatorType_t& est_type,
-             const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
-             std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
+  Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name, const std::string& frame_id,
+             const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph,
+             std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
 
   std::string getName() const;
   std::string getNamespacedName() const;
@@ -116,7 +119,7 @@ public:
   StateId_t getStateId() const;
 
   bool             isHealthy();
-  ros::Time        healthy_time_;
+  rclcpp::Time     healthy_time_;
   std::atomic_bool is_healthy_    = true;
   std::atomic_bool is_delay_ok_   = true;
   std::atomic_bool is_dt_ok_      = true;
@@ -133,73 +136,73 @@ public:
 private:
   std::atomic_bool is_initialized_ = false;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_odom_;
-  void                                          callbackOdometry(const nav_msgs::Odometry::ConstPtr msg);
-  std::optional<measurement_t>                  getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg);
+  mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_odom_;
+  void                                                callbackOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
+  std::optional<measurement_t>                        getCorrectionFromOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped> sh_pose_s_;
-  void                                                  callbackPoseStamped(const geometry_msgs::PoseStamped::ConstPtr msg);
-  std::optional<measurement_t>                          getCorrectionFromPoseStamped(const geometry_msgs::PoseStampedConstPtr msg);
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseStamped> sh_pose_s_;
+  void                                                        callbackPoseStamped(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg);
+  std::optional<measurement_t>                                getCorrectionFromPoseStamped(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped> sh_pose_wcs_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseWithCovarianceStamped> sh_pose_wcs_;
 
-  mrs_lib::SubscribeHandler<mrs_msgs::RtkGps> sh_rtk_;
-  void                                        callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg);
-  std::optional<measurement_t>                getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg);
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::RtkGps> sh_rtk_;
+  void                                              callbackRtk(const mrs_msgs::msg::RtkGps::ConstSharedPtr msg);
+  std::optional<measurement_t>                      getCorrectionFromRtk(const mrs_msgs::msg::RtkGps::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_navsatfix_;
-  void                                              callbackNavSatFix(const sensor_msgs::NavSatFix::ConstPtr msg);
-  std::optional<measurement_t>                      getCorrectionFromNavSatFix(const sensor_msgs::NavSatFixConstPtr msg);
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix> sh_navsatfix_;
+  void                                                    callbackNavSatFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
+  std::optional<measurement_t>                            getCorrectionFromNavSatFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
 
   void   getAvgInitZ(const double z);
   bool   got_avg_init_z_ = false;
   double init_z_avg_     = 0.0;
   int    got_z_counter_  = 0;
 
-  mrs_lib::SubscribeHandler<geometry_msgs::PointStamped> sh_point_;
-  void                                                   callbackPoint(const geometry_msgs::PointStamped::ConstPtr msg);
-  std::optional<measurement_t>                           getCorrectionFromPoint(const geometry_msgs::PointStampedConstPtr msg);
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::PointStamped> sh_point_;
+  void                                                         callbackPoint(const geometry_msgs::msg::PointStamped::ConstSharedPtr msg);
+  std::optional<measurement_t>                                 getCorrectionFromPoint(const geometry_msgs::msg::PointStamped::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_vector_;
-  std::optional<measurement_t>                             getCorrectionFromVector(const geometry_msgs::Vector3StampedConstPtr msg);
-  void                                                     callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg);
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped> sh_vector_;
+  std::optional<measurement_t>                                   getCorrectionFromVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
+  void                                                           callbackVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;  // for obtaining heading rate
-  std::string                                                 orientation_topic_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;  // for obtaining heading rate
+  std::string                                                       orientation_topic_;
 
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_quat_;
-  measurement_t                                               prev_hdg_measurement_;
-  bool                                                        got_first_hdg_measurement_ = false;
-  bool                                                        init_hdg_in_zero_          = false;
-  double                                                      first_hdg_measurement_     = 0.0;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_quat_;
+  measurement_t                                                     prev_hdg_measurement_;
+  bool                                                              got_first_hdg_measurement_ = false;
+  bool                                                              init_hdg_in_zero_          = false;
+  double                                                            first_hdg_measurement_     = 0.0;
 
-  mrs_lib::SubscribeHandler<sensor_msgs::Imu> sh_imu_;
-  std::optional<measurement_t>                getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg);
-  void                                        callbackImu(const sensor_msgs::Imu::ConstPtr msg);
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::Imu> sh_imu_;
+  std::optional<measurement_t>                      getCorrectionFromImu(const sensor_msgs::msg::Imu::ConstSharedPtr msg);
+  void                                              callbackImu(const sensor_msgs::msg::Imu::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<mrs_msgs::Float64Stamped> sh_mag_hdg_;
-  std::optional<measurement_t>                        getCorrectionFromMagHeading(const mrs_msgs::Float64StampedConstPtr msg);
-  void                                                callbackMagHeading(const mrs_msgs::Float64Stamped::ConstPtr msg);
-  double                                              mag_hdg_previous_;
-  bool                                                got_first_mag_hdg_;
+  mrs_lib::SubscriberHandler<mrs_msgs::msg::Float64Stamped> sh_mag_hdg_;
+  std::optional<measurement_t>                              getCorrectionFromMagHeading(const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg);
+  void                                                      callbackMagHeading(const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg);
+  double                                                    mag_hdg_previous_;
+  bool                                                      got_first_mag_hdg_;
 
-  mrs_lib::SubscribeHandler<sensor_msgs::MagneticField> sh_mag_field_;
-  std::optional<measurement_t>                          getCorrectionFromMagField(const sensor_msgs::MagneticFieldConstPtr msg);
-  void                                                  callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg);
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::MagneticField> sh_mag_field_;
+  std::optional<measurement_t>                                getCorrectionFromMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg);
+  void                                                        callbackMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg);
 
-  mrs_lib::SubscribeHandler<sensor_msgs::Range> sh_range_;
-  std::optional<measurement_t>                  getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg);
-  void                                          callbackRange(const sensor_msgs::Range::ConstPtr msg);
-  ros::ServiceServer                            ser_toggle_range_;
-  bool                                          callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res);
-  bool                                          range_enabled_ = true;
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::Range> sh_range_;
+  std::optional<measurement_t>                        getCorrectionFromRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
+  void                                                callbackRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr  ser_toggle_range_;
+  bool callbackToggleRange(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, const std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+  bool range_enabled_ = true;
 
-  void applyCorrection(const measurement_t& meas, const ros::Time& stamp);
+  void applyCorrection(const measurement_t& meas, const rclcpp::Time& stamp);
 
-  mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_raw_;
-  mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection> ph_correction_proc_;
-  mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>      ph_delay_;
-  mrs_lib::PublisherHandler<geometry_msgs::PointStamped>   ph_mag_field_untilted_;
+  mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> ph_correction_raw_;
+  mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> ph_correction_proc_;
+  mrs_lib::PublisherHandler<mrs_msgs::msg::Float64Stamped>      ph_delay_;
+  mrs_lib::PublisherHandler<geometry_msgs::msg::PointStamped>   ph_mag_field_untilted_;
 
   const std::string                  est_name_;
   const std::string                  name_;
@@ -224,31 +227,31 @@ private:
   std::string transform_to_frame_;
   std::string transform_from_frame_;
 
-  std::unique_ptr<drmgr_t> drmgr_;
+  std::optional<measurement_t>               getCorrectionFromQuat(const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg);
+  std::optional<measurement_t>               getZVelUntilted(const geometry_msgs::msg::Vector3& msg, const std_msgs::msg::Header& header);
+  std::optional<measurement_t>               getVecInFrame(const geometry_msgs::msg::Vector3& vec_in, const std_msgs::msg::Header& source_header,
+                                                           const std::string target_frame);
+  std::optional<geometry_msgs::msg::Vector3> transformVecToFrame(const geometry_msgs::msg::Vector3& vec_in, const std_msgs::msg::Header& source_header,
+                                                                 const std::string target_frame);
+  std::optional<geometry_msgs::msg::Point>   getInFrame(const geometry_msgs::msg::Point& vec_in, const std_msgs::msg::Header& source_header,
+                                                        const std::string target_frame);
 
-  std::optional<measurement_t> getCorrectionFromQuat(const geometry_msgs::QuaternionStampedConstPtr msg);
-  std::optional<measurement_t> getZVelUntilted(const geometry_msgs::Vector3& msg, const std_msgs::Header& header);
-  std::optional<measurement_t> getVecInFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
-  std::optional<geometry_msgs::Vector3> transformVecToFrame(const geometry_msgs::Vector3& vec_in, const std_msgs::Header& source_header,
-                                                            const std::string target_frame);
-  std::optional<geometry_msgs::Point>   getInFrame(const geometry_msgs::Point& vec_in, const std_msgs::Header& source_header, const std::string target_frame);
+  std::optional<geometry_msgs::msg::Pose> transformRtkToFcu(const geometry_msgs::msg::PoseStamped& pose_in) const;
 
-  std::optional<geometry_msgs::Pose> transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const;
-
-  void   checkMsgDelay(const ros::Time& msg_time);
+  void   checkMsgDelay(const rclcpp::Time& msg_time);
   double msg_delay_limit_;
   double msg_delay_warn_limit_;
 
   double time_since_last_msg_limit_;
 
-  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, ros::NodeHandle& nh);
+  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& node);
   bool                                       process(measurement_t& measurement);
 
   bool             isTimestampOk();
   bool             isMsgComing();
   std::atomic_bool first_timestamp_ = true;
-  ros::Time        msg_time_;
-  ros::Time        prev_msg_time_;
+  rclcpp::Time     msg_time_;
+  rclcpp::Time     prev_msg_time_;
   std::mutex       mtx_msg_time_;
 
   std::vector<std::string>                                                    processor_names_;
@@ -257,17 +260,28 @@ private:
   std::function<double(int, int)>                            fun_get_state_;
   std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction_;
 
-  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr);
+  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
+
+  struct drs_params
+  {
+    double sensor_noise = 1.0;
+  };
+
+  drs_params drs_params_;
+  std::mutex mutex_drs_params_;
+
+  rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 };
 
 /*//{ constructor */
 template <int n_measurements>
-Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& est_name, const std::string& name, const std::string& ns_frame_id,
-                                       const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
+Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name,
+                                       const std::string& ns_frame_id, const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
                                        const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
                                        std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
-    : est_name_(est_name),
+    : node_(node),
+      est_name_(est_name),
       name_(name),
       ns_frame_id_(ns_frame_id),
       est_type_(est_type),
@@ -275,6 +289,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
       ph_(ph),
       fun_get_state_(fun_get_state),
       fun_apply_correction_(fun_apply_correction) {
+
+  clock_ = node->get_clock();
 
   // | --------------------- load parameters -------------------- |
 
@@ -284,8 +300,9 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   ph->param_loader->loadParam("message/type", msg_type_string);
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
-    ROS_ERROR("[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(), getName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(this->node_->get_logger(), "[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(),
+                 getName().c_str());
+    rclcpp::shutdown();
   }
   msg_type_ = map_msg_type.at(msg_type_string);
 
@@ -300,8 +317,8 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   if (state_id_tmp < n_StateId_t) {
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
-    ROS_ERROR("[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
+    rclcpp::shutdown();
   }
 
   ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_, false);
@@ -330,86 +347,109 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   ph->param_loader->loadParam("processors", processor_names_);
 
   for (auto proc_name : processor_names_) {
-    processors_[proc_name] = createProcessorFromName(proc_name, nh);
+    processors_[proc_name] = createProcessorFromName(proc_name, node);
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
-  drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName());
-  drmgr_->config.noise = R_;
-  drmgr_->update_config(drmgr_->config);
+
+  // old ROS1 code for dynamic reconfigure
+  /* drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName()); */
+  /* drmgr_->config.noise = R_; */
+  /* drmgr_->update_config(drmgr_->config); */
+
+  {
+    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+
+    rcl_interfaces::msg::FloatingPointRange range;
+
+    range.from_value = 0.0;
+    range.to_value   = 100000.0;
+
+    param_desc.floating_point_range = {range};
+
+    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+
+    // TODO the parameter name needs fixing to reflect the ROS1 naming
+    node_->declare_parameter(getNamespacedName() + "/noise", 1.0, param_desc);
+  }
+
+  drs_params_.sensor_noise = R_;
+  node_->set_parameter(rclcpp::Parameter(getNamespacedName() + "/noise", drs_params_.sensor_noise));
 
   // | -------------- initialize subscribe handlers ------------- |
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
+  mrs_lib::SubscriberHandlerOptions shopts;
+
+  shopts.node               = node;
   shopts.node_name          = getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
   switch (msg_type_) {
     case MessageType_t::ODOMETRY: {
-      sh_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Correction::callbackOdometry, this);
+      sh_odom_ = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, msg_topic_, &Correction::callbackOdometry, this);
       break;
     }
     case MessageType_t::POSE: {
-      sh_pose_s_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseStamped>(shopts, msg_topic_, &Correction::callbackPoseStamped, this);
+      sh_pose_s_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseStamped>(shopts, msg_topic_, &Correction::callbackPoseStamped, this);
       break;
     }
     case MessageType_t::POSECOV: {
       // TODO implement
-      /* sh_pose_wcs_ = mrs_lib::SubscribeHandler<geometry_msgs::PoseWithCovarianceStamped>(shopts, msg_topic_); */
+      /* sh_pose_wcs_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseWithCovarianceStamped>(shopts, msg_topic_); */
       break;
     }
     case MessageType_t::RANGE: {
-      sh_range_                   = mrs_lib::SubscribeHandler<sensor_msgs::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
-      const std::size_t found     = ros::this_node::getName().find_last_of("/");
-      std::string       node_name = ros::this_node::getName().substr(found + 1);
-      ser_toggle_range_ =
-          nh.advertiseService(ros::this_node::getName() + "/" + getNamespacedName() + "/toggle_range_in", &Correction::callbackToggleRange, this);
+
+      sh_range_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
+
+      ser_toggle_range_ = node_->create_service<std_srvs::srv::SetBool>(
+          std::string(node_->get_namespace()) + "/" + std::string(node_->get_name()) + "/" + getNamespacedName() + "/toggle_range",
+          std::bind(&Correction::callbackToggleRange, this, std::placeholders::_1, std::placeholders::_2));
+
       break;
     }
     case MessageType_t::IMU: {
-      sh_imu_ = mrs_lib::SubscribeHandler<sensor_msgs::Imu>(shopts, msg_topic_, &Correction::callbackImu, this);
+      sh_imu_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Imu>(shopts, msg_topic_, &Correction::callbackImu, this);
       break;
     }
     case MessageType_t::RTK_GPS: {
-      sh_rtk_ = mrs_lib::SubscribeHandler<mrs_msgs::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
+      sh_rtk_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
       break;
     }
     case MessageType_t::NAVSATFIX: {
-      sh_navsatfix_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, msg_topic_, &Correction::callbackNavSatFix, this);
+      sh_navsatfix_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, msg_topic_, &Correction::callbackNavSatFix, this);
       break;
     }
     case MessageType_t::MAG_HDG: {
-      sh_mag_hdg_ = mrs_lib::SubscribeHandler<mrs_msgs::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
+      sh_mag_hdg_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
       break;
     }
     case MessageType_t::MAG_FIELD: {
-      sh_mag_field_ = mrs_lib::SubscribeHandler<sensor_msgs::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
-      ph_mag_field_untilted_ = mrs_lib::PublisherHandler<geometry_msgs::PointStamped>(nh, est_name_ + "/correction/" + getName() + "/fcu_untilted", 10);
+      sh_mag_field_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
+      ph_mag_field_untilted_ =
+          mrs_lib::PublisherHandler<geometry_msgs::msg::PointStamped>(node_, "~/" + est_name_ + "/correction/" + getName() + "/fcu_untilted");
 
       break;
     }
     case MessageType_t::POINT: {
-      sh_point_ = mrs_lib::SubscribeHandler<geometry_msgs::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
+      sh_point_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
       break;
     }
     case MessageType_t::VECTOR: {
-      sh_vector_ = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, msg_topic_, &Correction::callbackVector, this);
+      sh_vector_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, msg_topic_, &Correction::callbackVector, this);
       break;
     }
     case MessageType_t::QUAT: {
-      sh_quat_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, msg_topic_);
+      sh_quat_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, msg_topic_);
       break;
     }
     case MessageType_t::UNKNOWN: {
-      ROS_ERROR("[%s]: UNKNOWN message type of correction", getPrintName().c_str());
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: UNKNOWN message type of correction", getPrintName().c_str());
       break;
     }
     default: {
-      ROS_ERROR("[%s]: unhandled message type", getPrintName().c_str());
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: unhandled message type", getPrintName().c_str());
     }
   }
 
@@ -417,7 +457,7 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
   /* if (est_type_ == EstimatorType_t::HEADING && state_id_ == StateId_t::VELOCITY) { */
   /*   ph->param_loader->loadParam("message/orientation_topic", orientation_topic_); */
   /*   orientation_topic_ = "/" + ch_->uav_name + "/" + orientation_topic_; */
-  /*   sh_orientation_    = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, orientation_topic_); */
+  /*   sh_orientation_    = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, orientation_topic_); */
   /* } */
 
   if (est_type_ == EstimatorType_t::HEADING) {
@@ -427,24 +467,63 @@ Correction<n_measurements>::Correction(ros::NodeHandle& nh, const std::string& e
 
   // | --------------- initialize publish handlers -------------- |
   if (ch_->debug_topics.correction) {
-    ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/raw", 10);
-    ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>(nh, est_name_ + "/correction/" + getName() + "/proc", 10);
+    ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>(node_, "~/" + est_name_ + "/correction/" + getName() + "/raw");
+    ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>(node, "~/" + est_name_ + "/correction/" + getName() + "/proc");
   }
   if (ch_->debug_topics.corr_delay) {
-    ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::Float64Stamped>(nh, est_name_ + "/correction/" + getName() + "/delay", 10);
+    ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64Stamped>(node_, "~/" + est_name_ + "/correction/" + getName() + "/delay");
   }
 
   // | --- check whether all parameters were loaded correctly --- |
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
-  healthy_time_ = ros::Time(0);
+  healthy_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   is_initialized_ = true;
 }
 /*//}*/
+
+/* callbackParameters() //{ */
+
+template <int n_measurements>
+rcl_interfaces::msg::SetParametersResult Correction<n_measurements>::callbackParameters(std::vector<rclcpp::Parameter> parameters) {
+
+  rcl_interfaces::msg::SetParametersResult result;
+
+  auto drs_params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
+
+  // Note that setting a parameter to a nonsensical value (such as setting the `param_namespace.floating_number` parameter to `hello`)
+  // doesn't have any effect - it doesn't even call this callback.
+  for (auto& param : parameters) {
+
+    RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
+
+    if (param.get_name() == getNamespacedName() + "/noise") {
+
+      drs_params_.sensor_noise = param.as_double();
+
+    } else {
+
+      RCLCPP_WARN_STREAM(node_->get_logger(), "parameter: '" << param.get_name() << "' is not dynamically reconfigurable!");
+      result.successful = false;
+      result.reason     = "Parameter '" + param.get_name() + "' is not dynamically reconfigurable!";
+      return result;
+    }
+  }
+
+  RCLCPP_INFO(node_->get_logger(), "params updated");
+  result.successful = true;
+  result.reason     = "OK";
+
+  mrs_lib::set_mutexed(mutex_drs_params_, drs_params, drs_params_);
+
+  return result;
+}
+
+//}
 
 /*//{ getName() */
 template <int n_measurements>
@@ -470,8 +549,13 @@ std::string Correction<n_measurements>::getPrintName() const {
 /*//{ getR() */
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
+
   std::scoped_lock lock(mtx_R_);
-  default_R_ = drmgr_->config.noise;
+
+  auto drs_params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
+
+  default_R_ = drs_params.sensor_noise;
+
   return R_;
 }
 /*//}*/
@@ -502,16 +586,16 @@ bool Correction<n_measurements>::isHealthy() {
   is_dt_ok_ = isMsgComing();
 
   if (!is_delay_ok_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: delay not ok", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: delay not ok", getPrintName().c_str());
   }
 
   if (!is_healthy_) {
     if (is_dt_ok_ && is_delay_ok_) {
-      if (healthy_time_ > ros::Time(10)) {
+      if (healthy_time_.seconds() > 10) {
         is_healthy_ = true;
       }
     } else {
-      healthy_time_ = ros::Time(0);
+      healthy_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
     }
   }
 
@@ -594,7 +678,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::RANGE: {
 
       if (!range_enabled_) {
-        ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "fusing range corrections is disabled");
         return {};
       }
 
@@ -622,7 +706,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::IMU: {
 
       if (!sh_imu_.hasMsg()) {
-        ROS_ERROR_THROTTLE(1.0, " no imu msgs so far");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no imu msgs so far");
         return {};
       }
 
@@ -639,7 +723,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       if (res) {
         measurement_stamped.value = res.value();
       } else {
-        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get imu correction", ros::this_node::getName().c_str());
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get imu correction");
         return {};
       }
 
@@ -649,7 +733,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::RTK_GPS: {
 
       if (!sh_rtk_.hasMsg()) {
-        ROS_ERROR_THROTTLE(1.0, " no rtk msgs so far");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no rtk msgs so far");
         return {};
       }
 
@@ -666,7 +750,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       if (res) {
         measurement_stamped.value = res.value();
       } else {
-        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get rtk correction", ros::this_node::getName().c_str());
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get rtk correction");
         return {};
       }
 
@@ -676,7 +760,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     case MessageType_t::NAVSATFIX: {
 
       if (!sh_navsatfix_.hasMsg()) {
-        ROS_ERROR_THROTTLE(1.0, " no navsatfix msgs so far");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "no navsatfix msgs so far");
         return {};
       }
 
@@ -693,7 +777,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       if (res) {
         measurement_stamped.value = res.value();
       } else {
-        ROS_ERROR_THROTTLE(1.0, "[%s]: could not get navsatfix correction", ros::this_node::getName().c_str());
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get navsatfix correction");
         return {};
       }
 
@@ -811,7 +895,8 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
     }
 
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()",
+                            getPrintName().c_str());
       is_healthy_ = false;
       return {};
     }
@@ -821,7 +906,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   is_nan_free_ = true;
   for (int i = 0; i < measurement_stamped.value.rows(); i++) {
     if (!std::isfinite(measurement_stamped.value(i))) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: NaN detected in correction. Total NaNs: %d", getPrintName().c_str(), ++counter_nan_);
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: NaN detected in correction. Total NaNs: %d", getPrintName().c_str(), ++counter_nan_);
       is_nan_free_ = false;
       return {};
     }
@@ -856,7 +941,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
 /*//{ callbackOdometry() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackOdometry(const nav_msgs::Odometry::ConstPtr msg) {
+void Correction<n_measurements>::callbackOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -871,7 +956,8 @@ void Correction<n_measurements>::callbackOdometry(const nav_msgs::Odometry::Cons
 
 /*//{ getCorrectionFromOdometry() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::OdometryConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromOdometry(
+    const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -883,16 +969,16 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::POSITION: {
           measurement_t measurement;
           if (transform_to_frame_enabled_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = transform_from_frame_;
-            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = transform_from_frame_;
+            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
             if (res) {
               measurement_t measurement;
               measurement(0) = res.value().x;
               measurement(1) = res.value().y;
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
               return {};
             }
 
@@ -906,15 +992,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::VELOCITY: {
           if (is_in_body_frame_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is published in body frame
-            auto res                = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = ch_->frames.ns_fcu;  // message in odometry is published in body frame
+            auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
             if (res) {
               measurement_t measurement;
               measurement = res.value();
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
               return {};
             }
           } else {
@@ -927,7 +1013,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -942,15 +1028,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::POSITION: {
           measurement_t measurement;
           if (transform_to_frame_enabled_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = transform_from_frame_;
-            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = transform_from_frame_;
+            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
             if (res) {
               measurement_t measurement;
               measurement(0) = res.value().z;
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
               return {};
             }
 
@@ -963,9 +1049,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::VELOCITY: {
           if (is_in_body_frame_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = ch_->frames.ns_fcu;
-            auto res                = getZVelUntilted(msg->twist.twist.linear, header);
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = ch_->frames.ns_fcu;
+            auto res                     = getZVelUntilted(msg->twist.twist.linear, header);
             if (res) {
               measurement_t measurement;
               measurement = res.value();
@@ -982,7 +1068,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1002,8 +1088,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
             auto res = ch_->transformer->getTransform(transform_from_frame_, transform_to_frame_, msg->header.stamp);
             if (!res) {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not find transform from '%s' to '%s'", ros::this_node::getName().c_str(), transform_from_frame_.c_str(),
-                                transform_to_frame_.c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not find transform from '%s' to '%s'", transform_from_frame_.c_str(),
+                                   transform_to_frame_.c_str());
               return {};
             }
 
@@ -1040,7 +1126,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             return measurement;
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: failed to obtain heading", getPrintName().c_str());
+            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
             return {};
           }
           break;
@@ -1060,7 +1146,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
           /* } */
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1075,9 +1161,9 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::POSITION: {
           measurement_t measurement;
           if (transform_to_frame_enabled_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = transform_from_frame_;
-            auto res                = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = transform_from_frame_;
+            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
             if (res) {
               measurement_t measurement;
               measurement(0) = res.value().x;
@@ -1085,7 +1171,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
               measurement(2) = res.value().z;
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
               return {};
             }
 
@@ -1100,15 +1186,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
         case StateId_t::VELOCITY: {
           if (is_in_body_frame_) {
-            std_msgs::Header header = msg->header;
-            header.frame_id         = ch_->frames.ns_fcu;  // message in odometry is published in body frame
-            auto res                = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+            std_msgs::msg::Header header = msg->header;
+            header.frame_id              = ch_->frames.ns_fcu;  // message in odometry is published in body frame
+            auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
             if (res) {
               measurement_t measurement;
               measurement = res.value();
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: could not transform vel from odom", ros::this_node::getName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
               return {};
             }
           } else {
@@ -1122,7 +1208,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1130,14 +1216,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackPoseStamped() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackPoseStamped(const geometry_msgs::PoseStamped::ConstPtr msg) {
+void Correction<n_measurements>::callbackPoseStamped(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1153,7 +1239,7 @@ void Correction<n_measurements>::callbackPoseStamped(const geometry_msgs::PoseSt
 /*//{ getCorrectionFromPoseStamped() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoseStamped(
-    const geometry_msgs::PoseStampedConstPtr msg) {
+    const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -1171,7 +1257,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1191,7 +1277,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1218,14 +1304,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             return measurement;
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: failed to obtain heading", getPrintName().c_str());
+            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
             return {};
           }
           break;
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1247,7 +1333,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1255,14 +1341,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackRange() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackRange(const sensor_msgs::Range::ConstPtr msg) {
+void Correction<n_measurements>::callbackRange(const sensor_msgs::msg::Range::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1277,26 +1363,27 @@ void Correction<n_measurements>::callbackRange(const sensor_msgs::Range::ConstPt
 
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::RangeConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRange(
+    const sensor_msgs::msg::Range::ConstSharedPtr msg) {
 
   if (!range_enabled_) {
-    ROS_INFO_THROTTLE(1.0, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(msg->range)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: received value: %f. Not using this correction.", getPrintName().c_str(), msg->range);
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: received value: %f. Not using this correction.", getPrintName().c_str(), msg->range);
     return {};
   }
 
   const double eps = 1e-3;
   if (msg->range <= msg->min_range + eps || msg->range >= msg->max_range - eps) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: range measurement %.2f outside of its valid range (%.2f, %.2f)", ros::this_node::getName().c_str(), msg->range,
-                      msg->min_range, msg->max_range);
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "range measurement %.2f outside of its valid range (%.2f, %.2f)", msg->range, msg->min_range,
+                         msg->max_range);
     return {};
   }
 
-  geometry_msgs::PoseStamped range_point;
+  geometry_msgs::msg::PoseStamped range_point;
 
   range_point.header           = msg->header;
   range_point.pose.position.x  = msg->range;
@@ -1312,8 +1399,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     measurement(0) = -res.value().pose.position.z;
     return measurement;
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform range measurement to %s. Not using this correction.", getPrintName().c_str(),
-                       ch_->frames.ns_fcu_untilted.c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not transform range measurement to %s. Not using this correction.",
+                          getPrintName().c_str(), ch_->frames.ns_fcu_untilted.c_str());
     return {};
   }
 }
@@ -1321,7 +1408,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ callbackImu() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackImu(const sensor_msgs::Imu::ConstPtr msg) {
+void Correction<n_measurements>::callbackImu(const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1331,14 +1418,15 @@ void Correction<n_measurements>::callbackImu(const sensor_msgs::Imu::ConstPtr ms
   if (res) {
     applyCorrection(res.value(), msg->header.stamp);
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Imu msg", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain correction from Imu msg", getPrintName().c_str());
   }
 }
 /*//}*/
 
 /*//{ getCorrectionFromImu() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(const sensor_msgs::ImuConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(
+    const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -1355,7 +1443,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
               measurement = res.value();
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_ + "_att_only").c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
+                                   (ns_frame_id_ + "_att_only").c_str());
               return {};
             }
           } else {
@@ -1368,7 +1457,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1389,7 +1478,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
               measurement(0) -= gravity_norm_;
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU Z acceleration", getPrintName().c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU Z acceleration", getPrintName().c_str());
               return {};
             }
           } else {
@@ -1401,7 +1490,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1414,13 +1503,13 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       switch (state_id_) {
 
         case StateId_t::VELOCITY: {
-          geometry_msgs::Quaternion orientation;
-          auto                      res = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, ros::Time::now());
+          geometry_msgs::msg::Quaternion orientation;
+          auto                           res = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, clock_->now());
           if (res) {
             orientation = res.value().transform.rotation;
           } else {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
-                               ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
+            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain transform from %s to %s. Not using this correction.",
+                                  getPrintName().c_str(), ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
             return {};
           }
 
@@ -1431,7 +1520,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1451,7 +1540,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
               measurement = res.value();
               return measurement;
             } else {
-              ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(), (ns_frame_id_ + "_att_only").c_str());
+              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
+                                   (ns_frame_id_ + "_att_only").c_str());
               return {};
             }
           } else {
@@ -1465,21 +1555,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
           return {};
         }
       }
       break;
     }
   }
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackRtk() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackRtk(const mrs_msgs::RtkGps::ConstPtr msg) {
+void Correction<n_measurements>::callbackRtk(const mrs_msgs::msg::RtkGps::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1494,27 +1584,28 @@ void Correction<n_measurements>::callbackRtk(const mrs_msgs::RtkGps::ConstPtr ms
 
 /*//{ getCorrectionFromRtk() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::RtkGpsConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(
+    const mrs_msgs::msg::RtkGps::ConstSharedPtr msg) {
 
-  geometry_msgs::PoseStamped rtk_pos;
+  geometry_msgs::msg::PoseStamped rtk_pos;
 
   if (!std::isfinite(msg->gps.latitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in RTK variable \"msg->latitude\"!!!", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(msg->gps.longitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in RTK variable \"msg->longitude\"!!!", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(msg->gps.altitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in RTK variable \"msg->altitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in RTK variable \"msg->altitude\"!!!", getPrintName().c_str());
     return {};
   }
 
-  if (msg->fix_type.fix_type != mrs_msgs::RtkFixType::RTK_FIX) {
-    ROS_INFO_THROTTLE(1.0, "[%s] %s RTK FIX", getPrintName().c_str(), Support::waiting_for_string.c_str());
+  if (msg->fix_type.fix_type != mrs_msgs::msg::RtkFixType::RTK_FIX) {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] %s RTK FIX", getPrintName().c_str(), Support::waiting_for_string.c_str());
     return {};
   }
 
@@ -1533,7 +1624,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
   if (res) {
     rtk_pos.pose = res.value();
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: transform to fcu failed", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: transform to fcu failed", getPrintName().c_str());
     return {};
   }
 
@@ -1552,7 +1643,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1576,7 +1667,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1584,7 +1675,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
 
     case EstimatorType_t::HEADING: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1603,7 +1695,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1611,14 +1703,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackNavSatFix() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackNavSatFix(const sensor_msgs::NavSatFix::ConstPtr msg) {
+void Correction<n_measurements>::callbackNavSatFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1634,27 +1726,27 @@ void Correction<n_measurements>::callbackNavSatFix(const sensor_msgs::NavSatFix:
 /*//{ getCorrectionFromNavSatFix() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromNavSatFix(
-    const sensor_msgs::NavSatFixConstPtr msg) {
+    const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
 
-  geometry_msgs::PointStamped navsatfix_pos;
+  geometry_msgs::msg::PointStamped navsatfix_pos;
 
   if (!std::isfinite(msg->latitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->latitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in NavSatFix variable \"msg->latitude\"!!!", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(msg->longitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->longitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in NavSatFix variable \"msg->longitude\"!!!", getPrintName().c_str());
     return {};
   }
 
   if (!std::isfinite(msg->altitude)) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in NavSatFix variable \"msg->altitude\"!!!", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NaN detected in NavSatFix variable \"msg->altitude\"!!!", getPrintName().c_str());
     return {};
   }
 
-  if (msg->status.status == sensor_msgs::NavSatStatus::STATUS_NO_FIX) {
-    ROS_ERROR_THROTTLE(1.0, "[%s] NavSatFix has no GNSS fix!!!", getPrintName().c_str());
+  if (msg->status.status == sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX) {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s] NavSatFix has no GNSS fix!!!", getPrintName().c_str());
     return {};
   }
 
@@ -1683,7 +1775,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1707,7 +1799,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1715,7 +1807,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
 
     case EstimatorType_t::HEADING: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: should not be possible to get into this branch of getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromNavSatFix() switch",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1734,7 +1827,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1742,14 +1835,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackMagHeading() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::Float64Stamped::ConstPtr msg) {
+void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1759,7 +1852,7 @@ void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::Float64Stamp
   if (res) {
     applyCorrection(res.value(), msg->header.stamp);
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Float64Stamped msg", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain correction from Float64Stamped msg", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -1767,14 +1860,15 @@ void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::Float64Stamp
 /*//{ getCorrectionFromMagHeading() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagHeading(
-    const mrs_msgs::Float64StampedConstPtr msg) {
+    const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
     // handle lateral estimators
     case EstimatorType_t::LATERAL: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagHeading() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1782,7 +1876,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle altitude estimators
     case EstimatorType_t::ALTITUDE: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagHeading() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1807,20 +1902,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle latalt estimators
     case EstimatorType_t::LATALT: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagHeading() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagHeading() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackMagField() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackMagField(const sensor_msgs::MagneticField::ConstPtr msg) {
+void Correction<n_measurements>::callbackMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1830,7 +1926,8 @@ void Correction<n_measurements>::callbackMagField(const sensor_msgs::MagneticFie
   if (res) {
     applyCorrection(res.value(), msg->header.stamp);
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from sensor_msgs::MagneticField msg", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain correction from sensor_msgs::msg::MagneticField msg",
+                         getPrintName().c_str());
   }
 }
 /*//}*/
@@ -1838,14 +1935,15 @@ void Correction<n_measurements>::callbackMagField(const sensor_msgs::MagneticFie
 /*//{ getCorrectionFromMagField() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagField(
-    const sensor_msgs::MagneticFieldConstPtr msg) {
+    const sensor_msgs::msg::MagneticField::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
     // handle lateral estimators
     case EstimatorType_t::LATERAL: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagField() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1853,7 +1951,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle altitude estimators
     case EstimatorType_t::ALTITUDE: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagField() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -1872,35 +1971,35 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       /*   return {}; */
       /* } */
 
-      geometry_msgs::Vector3 mag_vec;
+      geometry_msgs::msg::Vector3 mag_vec;
       mag_vec.x = msg->magnetic_field.x;
       mag_vec.y = msg->magnetic_field.y;
       mag_vec.z = msg->magnetic_field.z;
 
       if (transform_to_frame_enabled_) {
-        std_msgs::Header header = msg->header;
-        header.frame_id         = transform_from_frame_;
-        auto res                = transformVecToFrame(mag_vec, header, transform_to_frame_);
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = transform_from_frame_;
+        auto res                     = transformVecToFrame(mag_vec, header, transform_to_frame_);
         if (res) {
           mag_vec.x = res.value().x;
           mag_vec.y = res.value().y;
           mag_vec.z = res.value().z;
         } else {
-          ROS_WARN_THROTTLE(1.0, "[%s]: could not transform mag field vector", getPrintName().c_str());
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform mag field vector", getPrintName().c_str());
         }
       }
-      
-      geometry_msgs::PointStamped mag_vec_msg;
-      mag_vec_msg.header.stamp = msg->header.stamp;
+
+      geometry_msgs::msg::PointStamped mag_vec_msg;
+      mag_vec_msg.header.stamp    = msg->header.stamp;
       mag_vec_msg.header.frame_id = transform_to_frame_;
-      mag_vec_msg.point.x = mag_vec.x;
-      mag_vec_msg.point.y = mag_vec.y;
-      mag_vec_msg.point.z = mag_vec.z;
+      mag_vec_msg.point.x         = mag_vec.x;
+      mag_vec_msg.point.y         = mag_vec.y;
+      mag_vec_msg.point.z         = mag_vec.z;
       ph_mag_field_untilted_.publish(mag_vec_msg);
       const double mag_hdg = atan2(mag_vec.y, mag_vec.x);
       /* const Eigen::Vector3d mag_vec(mag_vec_pt.x, mag_vec_pt.y, mag_vec_pt.z); */
       /* const Eigen::Vector3d proj_mag_field = rot * mag_vec; */
-      /* mrs_msgs::Float64Stamped hdg_stamped; */
+      /* mrs_msgs::msg::Float64Stamped hdg_stamped; */
       /* hdg_stamped.header = msg->header; */
       /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
       /* const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x()); */
@@ -1914,7 +2013,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         got_first_mag_hdg_ = true;
       }
 
-      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_);  // may be weirdness of px4 heading (NED vs ENU or something)
+      measurement(0)    = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_);  // may be weirdness of px4 heading (NED vs ENU or something)
       mag_hdg_previous_ = mag_hdg;
       return measurement;
     }
@@ -1922,20 +2021,21 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle latalt estimators
     case EstimatorType_t::LATALT: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagField() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagField() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackPoint() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackPoint(const geometry_msgs::PointStamped::ConstPtr msg) {
+void Correction<n_measurements>::callbackPoint(const geometry_msgs::msg::PointStamped::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -1951,7 +2051,7 @@ void Correction<n_measurements>::callbackPoint(const geometry_msgs::PointStamped
 /*//{ getCorrectionFromPoint() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoint(
-    const geometry_msgs::PointStampedConstPtr msg) {
+    const geometry_msgs::msg::PointStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -1969,7 +2069,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1989,7 +2089,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -1999,7 +2099,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     // handle heading estimators
     case EstimatorType_t::HEADING: {
 
-      ROS_ERROR_THROTTLE(1.0, "[%s]: EstimatorType_t::Heading in getCorrectionFromPoint() not implemented", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::Heading in getCorrectionFromPoint() not implemented",
+                            getPrintName().c_str());
       return {};
       break;
     }
@@ -2019,7 +2120,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -2027,20 +2128,20 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
 
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
       return {};
     }
   }
 
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ callbackVector() */
 template <int n_measurements>
-void Correction<n_measurements>::callbackVector(const geometry_msgs::Vector3Stamped::ConstPtr msg) {
+void Correction<n_measurements>::callbackVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg) {
 
   if (!is_initialized_) {
     return;
@@ -2050,7 +2151,7 @@ void Correction<n_measurements>::callbackVector(const geometry_msgs::Vector3Stam
   if (res) {
     applyCorrection(res.value(), msg->header.stamp);
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain correction from Vector3Stamped msg", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain correction from Vector3Stamped msg", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -2058,7 +2159,7 @@ void Correction<n_measurements>::callbackVector(const geometry_msgs::Vector3Stam
 /*//{ getCorrectionFromVector() */
 template <int n_measurements>
 std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromVector(
-    const geometry_msgs::Vector3StampedConstPtr msg) {
+    const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -2080,7 +2181,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -2099,14 +2200,14 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             measurement = res.value();
             return measurement;
           } else {
-            ROS_WARN_THROTTLE(1.0, "[%s]: Could not obtain untilted Z velocity", getPrintName().c_str());
+            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain untilted Z velocity", getPrintName().c_str());
             return {};
           }
           break;
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -2121,8 +2222,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         case StateId_t::VELOCITY: {
           try {
             if (!sh_orientation_.hasMsg()) {
-              ROS_INFO_THROTTLE(1.0, "[%s]: %s orientation on topic: %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                                orientation_topic_.c_str());
+              RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s orientation on topic: %s", getPrintName().c_str(),
+                                   Support::waiting_for_string.c_str(), orientation_topic_.c_str());
               return {};
             }
             measurement_t measurement;
@@ -2130,14 +2231,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
             return measurement;
           }
           catch (...) {
-            ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromVector())", getPrintName().c_str());
+            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Exception caught during getting heading rate (getCorrectionFromVector())",
+                                  getPrintName().c_str());
             return {};
           }
           break;
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -2162,7 +2264,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
         }
 
         default: {
-          ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
           return {};
         }
       }
@@ -2170,15 +2272,15 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ getCorrectionFromQuat() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromQuat([
-    [maybe_unused]] const geometry_msgs::QuaternionStampedConstPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromQuat(
+    [[maybe_unused]] const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
@@ -2211,26 +2313,26 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       /*     } */
       /*   } */
     default: {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
       return {};
     }
   }
 
-  ROS_ERROR("[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
 }
 /*//}*/
 
 /*//{ applyCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::applyCorrection(const measurement_t& meas, const ros::Time& stamp) {
+void Correction<n_measurements>::applyCorrection(const measurement_t& meas, const rclcpp::Time& stamp) {
 
   {
     std::scoped_lock lock(mtx_msg_time_);
     if (first_timestamp_) {
-      prev_msg_time_   = stamp - ros::Duration(0.01);
+      prev_msg_time_   = stamp - rclcpp::Duration(std::chrono::duration<double>(0.01));
       msg_time_        = stamp;
-      healthy_time_    = ros::Time(0);
+      healthy_time_    = rclcpp::Time(0, 0, clock_->get_clock_type());
       first_timestamp_ = false;
     }
 
@@ -2252,30 +2354,31 @@ void Correction<n_measurements>::applyCorrection(const measurement_t& meas, cons
 
 /* //{ callbackToggleRange() */
 template <int n_measurements>
-bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response& res) {
+bool Correction<n_measurements>::callbackToggleRange(const std::shared_ptr<std_srvs::srv::SetBool::Request>  request,
+                                                     const std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
 
   if (!is_initialized_) {
     return false;
   }
 
-  if (!range_enabled_ && req.data) {
+  if (!range_enabled_ && request->data) {
     processors_["saturate"]->toggle(true);
   }
 
-  range_enabled_ = req.data;
+  range_enabled_ = request->data;
 
   // after enabling range we want to start correcting the altitude slowly
 
-  res.success = true;
-  res.message = (range_enabled_ ? "Range enabled" : "Range disabled");
+  response->success = true;
+  response->message = (range_enabled_ ? "Range enabled" : "Range disabled");
 
   if (range_enabled_) {
 
-    ROS_INFO("[%s]: Range enabled.", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Range enabled.", getPrintName().c_str());
 
   } else {
 
-    ROS_INFO("[%s]: Range disabled", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Range disabled", getPrintName().c_str());
   }
 
   return true;
@@ -2285,11 +2388,11 @@ bool Correction<n_measurements>::callbackToggleRange(std_srvs::SetBool::Request&
 
 /*//{ getZVelUntilted() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::Vector3& msg,
-                                                                                                              const std_msgs::Header&       header) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::msg::Vector3& msg,
+                                                                                                              const std_msgs::msg::Header&       header) {
 
   // untilt the desired vector
-  geometry_msgs::PointStamped vel;
+  geometry_msgs::msg::PointStamped vel;
   vel.point.x = msg.x;
   vel.point.y = msg.y;
   vel.point.z = msg.z;
@@ -2303,7 +2406,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
     measurement(0) = res.value().point.z;
     return measurement;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform from %s to %s failed", getPrintName().c_str(), vel.header.frame_id.c_str(), ch_->frames.ns_fcu_untilted.c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Transform from %s to %s failed", getPrintName().c_str(), vel.header.frame_id.c_str(),
+                         ch_->frames.ns_fcu_untilted.c_str());
     return {};
   }
 }
@@ -2311,10 +2415,11 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ transformVecToFrame() */
 template <int n_measurements>
-std::optional<geometry_msgs::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::Vector3& vec_in,
-                                                                                      const std_msgs::Header& source_header, const std::string target_frame) {
+std::optional<geometry_msgs::msg::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::msg::Vector3& vec_in,
+                                                                                           const std_msgs::msg::Header&       source_header,
+                                                                                           const std::string                  target_frame) {
 
-  geometry_msgs::Vector3Stamped vec;
+  geometry_msgs::msg::Vector3Stamped vec;
   vec.header = source_header;
   vec.vector = vec_in;
 
@@ -2322,15 +2427,16 @@ std::optional<geometry_msgs::Vector3> Correction<n_measurements>::transformVecTo
   if (res) {
     return res.value().vector;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of vector from %s to %s failed.", getPrintName().c_str(), vec.header.frame_id.c_str(), target_frame.c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Transform of vector from %s to %s failed.", getPrintName().c_str(),
+                         vec.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
 
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::Vector3& vec_in,
-                                                                                                            const std_msgs::Header&       source_header,
-                                                                                                            const std::string             target_frame) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::msg::Vector3& vec_in,
+                                                                                                            const std_msgs::msg::Header&       source_header,
+                                                                                                            const std::string                  target_frame) {
 
   measurement_t measurement;
 
@@ -2350,22 +2456,23 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getInFrame() */
 template <int n_measurements>
-std::optional<geometry_msgs::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::Point& pt_in, const std_msgs::Header& source_header,
-                                                                           const std::string target_frame) {
+std::optional<geometry_msgs::msg::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::msg::Point& pt_in,
+                                                                                const std_msgs::msg::Header& source_header, const std::string target_frame) {
 
-  geometry_msgs::PointStamped pt;
+  geometry_msgs::msg::PointStamped pt;
   pt.header = source_header;
   pt.point  = pt_in;
 
-  geometry_msgs::PointStamped transformed_pt;
-  auto                        res = ch_->transformer->transformSingle(pt, target_frame);
+  geometry_msgs::msg::PointStamped transformed_pt;
+  auto                             res = ch_->transformer->transformSingle(pt, target_frame);
   if (res) {
     transformed_pt = res.value();
-    geometry_msgs::Point pt_out;
+    geometry_msgs::msg::Point pt_out;
     pt_out = transformed_pt.point;
     return pt_out;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Transform of point from %s to %s failed.", getPrintName().c_str(), pt.header.frame_id.c_str(), target_frame.c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Transform of point from %s to %s failed.", getPrintName().c_str(),
+                         pt.header.frame_id.c_str(), target_frame.c_str());
     return {};
   }
 }
@@ -2373,29 +2480,29 @@ std::optional<geometry_msgs::Point> Correction<n_measurements>::getInFrame(const
 
 /*//{ transformRtkToFcu() */
 template <int n_measurements>
-std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::PoseStamped& pose_in) const {
+std::optional<geometry_msgs::msg::Pose> Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::msg::PoseStamped& pose_in) const {
 
-  geometry_msgs::PoseStamped pose_tmp = pose_in;
+  geometry_msgs::msg::PoseStamped pose_tmp = pose_in;
 
   // inject current orientation into rtk pose
-  auto res1 = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, ros::Time::now());
+  auto res1 = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, clock_->now());
   if (res1) {
     pose_tmp.pose.orientation = res1.value().transform.rotation;
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(),
-                       ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain transform from %s to %s. Not using this correction.",
+                          getPrintName().c_str(), ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
     return {};
   }
 
   // invert tf
-  tf2::Transform             tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
-  geometry_msgs::PoseStamped utm_in_antenna;
+  tf2::Transform                  tf_utm_to_antenna = Support::tf2FromPose(pose_tmp.pose);
+  geometry_msgs::msg::PoseStamped utm_in_antenna;
   utm_in_antenna.pose            = Support::poseFromTf2(tf_utm_to_antenna.inverse());
   utm_in_antenna.header.stamp    = pose_in.header.stamp;
   utm_in_antenna.header.frame_id = ch_->frames.ns_rtk_antenna;
 
   // transform to fcu
-  geometry_msgs::PoseStamped utm_in_fcu;
+  geometry_msgs::msg::PoseStamped utm_in_fcu;
   utm_in_fcu.header.frame_id = ch_->frames.ns_fcu;
   utm_in_fcu.header.stamp    = pose_in.header.stamp;
   auto res2                  = ch_->transformer->transformSingle(utm_in_antenna, ch_->frames.ns_fcu);
@@ -2403,13 +2510,14 @@ std::optional<geometry_msgs::Pose> Correction<n_measurements>::transformRtkToFcu
   if (res2) {
     utm_in_fcu = res2.value();
   } else {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: Could not transform pose to %s. Not using this correction.", getPrintName().c_str(), ch_->frames.ns_fcu.c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not transform pose to %s. Not using this correction.", getPrintName().c_str(),
+                          ch_->frames.ns_fcu.c_str());
     return {};
   }
 
   // invert tf
-  tf2::Transform      tf_fcu_to_utm = Support::tf2FromPose(utm_in_fcu.pose);
-  geometry_msgs::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
+  tf2::Transform           tf_fcu_to_utm = Support::tf2FromPose(utm_in_fcu.pose);
+  geometry_msgs::msg::Pose fcu_in_utm    = Support::poseFromTf2(tf_fcu_to_utm.inverse());
 
   return fcu_in_utm;
 }
@@ -2428,14 +2536,14 @@ void Correction<n_measurements>::getAvgInitZ(const double z) {
       init_z_avg_ += z;
       got_z_counter_++;
       z_avg = init_z_avg_ / got_z_counter_;
-      ROS_INFO("[%s]: AMSL altitude sample #%d: %.2f; avg: %.2f", getPrintName().c_str(), got_z_counter_, z, z_avg);
+      RCLCPP_INFO(node_->get_logger(), "[%s]: AMSL altitude sample #%d: %.2f; avg: %.2f", getPrintName().c_str(), got_z_counter_, z, z_avg);
       return;
 
     } else {
 
       init_z_avg_     = z_avg;
       got_avg_init_z_ = true;
-      ROS_INFO("[%s]: AMSL altitude avg: %f", getPrintName().c_str(), z_avg);
+      RCLCPP_INFO(node_->get_logger(), "[%s]: AMSL altitude avg: %f", getPrintName().c_str(), z_avg);
     }
   }
 }
@@ -2443,15 +2551,15 @@ void Correction<n_measurements>::getAvgInitZ(const double z) {
 
 /*//{ checkMsgDelay() */
 template <int n_measurements>
-void Correction<n_measurements>::checkMsgDelay(const ros::Time& msg_time) {
+void Correction<n_measurements>::checkMsgDelay(const rclcpp::Time& msg_time) {
 
-  const double delay = (ros::Time::now() - msg_time).toSec();
+  const double delay = (clock_->now() - msg_time).seconds();
   if (delay > msg_delay_warn_limit_) {
     if (delay > msg_delay_limit_) {
-      ROS_ERROR_THROTTLE(1.0, "[%s]: message too delayed (%.4f s)", getPrintName().c_str(), delay);
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: message too delayed (%.4f s)", getPrintName().c_str(), delay);
       is_delay_ok_ = false;
     } else {
-      ROS_WARN_THROTTLE(5.0, "[%s]: message delayed (%.4f s)", getPrintName().c_str(), delay);
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 5000, "[%s]: message delayed (%.4f s)", getPrintName().c_str(), delay);
       is_delay_ok_ = true;
     }
   } else {
@@ -2469,31 +2577,32 @@ bool Correction<n_measurements>::isTimestampOk() {
     return true;
   }
 
-  ros::Time msg_time, prev_msg_time;
+  rclcpp::Time msg_time, prev_msg_time;
   {
     std::scoped_lock lock(mtx_msg_time_);
     msg_time      = msg_time_;
     prev_msg_time = prev_msg_time_;
   }
-  const double delta = msg_time.toSec() - prev_msg_time.toSec();
+  const double delta = msg_time.seconds() - prev_msg_time.seconds();
 
-  if (msg_time.toSec() <= 0.0) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+  if (msg_time.seconds() <= 0.0) {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.seconds());
     return false;
   }
 
   if (delta <= 0.0) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: time delta non-positive: %f", getPrintName().c_str(), delta);
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: time delta non-positive: %f", getPrintName().c_str(), delta);
     return true;
   }
 
   if (delta < 0.001) {
-    ROS_WARN_THROTTLE(1.0, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: time delta too small: %f", getPrintName().c_str(), delta);
     return true;
   }
 
   if (delta > time_since_last_msg_limit_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta, time_since_last_msg_limit_);
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta,
+                          time_since_last_msg_limit_);
     return false;
   }
 
@@ -2509,16 +2618,17 @@ bool Correction<n_measurements>::isMsgComing() {
     return true;
   }
 
-  const ros::Time msg_time = mrs_lib::get_mutexed(mtx_msg_time_, msg_time_);
-  const double    delta    = ros::Time::now().toSec() - msg_time.toSec();
+  const rclcpp::Time msg_time = mrs_lib::get_mutexed(mtx_msg_time_, msg_time_);
+  const double       delta    = clock_->now().seconds() - msg_time.seconds();
 
-  if (msg_time.toSec() <= 0.0) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.toSec());
+  if (msg_time.seconds() <= 0.0) {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: current timestamp non-positive: %f", getPrintName().c_str(), msg_time.seconds());
     return false;
   }
 
   if (delta > time_since_last_msg_limit_) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta, time_since_last_msg_limit_);
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: time since last msg too long %f > %f", getPrintName().c_str(), delta,
+                          time_since_last_msg_limit_);
     return false;
   }
 
@@ -2528,21 +2638,21 @@ bool Correction<n_measurements>::isMsgComing() {
 
 /*//{ createProcessorFromName() */
 template <int n_measurements>
-std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, ros::NodeHandle& nh) {
+std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& node) {
 
   if (name == "median_filter") {
-    return std::make_shared<ProcMedianFilter<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcMedianFilter<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
   } else if (name == "saturate") {
-    return std::make_shared<ProcSaturate<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_, state_id_, fun_get_state_);
+    return std::make_shared<ProcSaturate<n_measurements>>(node, getNamespacedName(), name, ch_, ph_, state_id_, fun_get_state_);
   } else if (name == "excessive_tilt") {
-    return std::make_shared<ProcExcessiveTilt<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcExcessiveTilt<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
   } else if (name == "tf_to_world") {
-    return std::make_shared<ProcTfToWorld<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcTfToWorld<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
   } else if (name == "mag_declination") {
-    return std::make_shared<ProcMagDeclination<n_measurements>>(nh, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcMagDeclination<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
   } else {
-    ROS_ERROR("[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
+    rclcpp::shutdown();
   }
   return std::shared_ptr<Processor<n_measurements>>(nullptr);
 }
@@ -2565,7 +2675,7 @@ bool Correction<n_measurements>::process(Correction<n_measurements>::measurement
   if (fuse_flag) {
     if (!ok_flag) {
       setR(default_R_ * R_coeff_);
-      ROS_INFO_THROTTLE(1.0, "[%s]: set R to %.4f", getPrintName().c_str(), default_R_ * R_coeff_);
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: set R to %.4f", getPrintName().c_str(), default_R_ * R_coeff_);
       return true;
     } else {
       setR(default_R_);
@@ -2590,14 +2700,14 @@ void Correction<n_measurements>::resetProcessors() {
 
 /*//{ publishCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::publishCorrection(const MeasurementStamped&                                 measurement_stamped,
-                                                   mrs_lib::PublisherHandler<mrs_msgs::EstimatorCorrection>& ph_corr) {
+void Correction<n_measurements>::publishCorrection(const MeasurementStamped&                                      measurement_stamped,
+                                                   mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr) {
 
   if (!ch_->debug_topics.correction) {
     return;
   }
 
-  mrs_msgs::EstimatorCorrection msg;
+  mrs_msgs::msg::EstimatorCorrection msg;
   msg.header.stamp    = measurement_stamped.stamp;
   msg.header.frame_id = ns_frame_id_;
   msg.name            = name_;
@@ -2621,8 +2731,8 @@ void Correction<n_measurements>::publishDelay(const double delay) {
     return;
   }
 
-  mrs_msgs::Float64Stamped msg;
-  msg.header.stamp    = ros::Time::now();
+  mrs_msgs::msg::Float64Stamped msg;
+  msg.header.stamp    = clock_->now();
   msg.header.frame_id = ns_frame_id_;
   msg.value           = delay;
 

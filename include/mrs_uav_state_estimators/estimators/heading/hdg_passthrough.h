@@ -3,17 +3,20 @@
 
 /* includes //{ */
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <nav_msgs/Odometry.h>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/geometry/cyclic.h>
 
 #include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
+
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 
 //}
 
@@ -49,31 +52,33 @@ private:
 
   const bool is_core_plugin_;
 
-  std::string                                                 orient_topic_;
-  mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped> sh_orientation_;
-  void                                                        callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg);
-  std::atomic<bool>                                           is_orient_ready_ = false;
+  std::string                                                       orient_topic_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;
+  void                                                              callbackOrientation(const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg);
+  std::atomic<bool>                                                 is_orient_ready_ = false;
 
-  std::string                                              ang_vel_topic_;
-  mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped> sh_ang_vel_;
-  void                                                     callbackAngularVelocity(const geometry_msgs::Vector3Stamped::ConstPtr msg);
-  std::atomic<bool>                                        is_ang_vel_ready_ = false;
+  std::string                                                    ang_vel_topic_;
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped> sh_ang_vel_;
+  void                                                           callbackAngularVelocity(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
+  std::atomic<bool>                                              is_ang_vel_ready_ = false;
 
-  ros::Timer timer_update_;
-  void       timerUpdate(const ros::TimerEvent &event);
+  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
+  void                               timerUpdate();
+  rclcpp::Time                       timer_update_last_time_;
 
-  ros::Timer timer_check_health_;
-  void       timerCheckHealth(const ros::TimerEvent &event);
+  std::shared_ptr<mrs_lib::ROSTimer> timer_check_health_;
+  void                               timerCheckHealth();
 
 public:
-  HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
-      : HeadingEstimator<hdg_passthrough::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
+  HdgPassthrough(const rclcpp::Node::SharedPtr &node, const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name,
+                 const bool is_core_plugin)
+      : HeadingEstimator<hdg_passthrough::n_states>(node, name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin) {
   }
 
   ~HdgPassthrough(void) {
   }
 
-  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
+  void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;

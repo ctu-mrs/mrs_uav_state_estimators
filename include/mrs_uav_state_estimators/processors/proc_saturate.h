@@ -3,10 +3,10 @@
 #define PROCESSORS_PROC_SATURATE_H
 
 #include <mrs_uav_state_estimators/processors/processor.h>
+#include <mrs_uav_managers/estimation_manager/estimator.h>
 
 #include <mrs_lib/param_loader.h>
 
-#include <limits>
 #include <functional>
 
 namespace mrs_uav_state_estimators
@@ -21,7 +21,7 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcSaturate(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
+  ProcSaturate(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
                const std::shared_ptr<PrivateHandlers_t>& ph, StateId_t state_id, std::function<double(int, int)> fun_get_state);
 
   std::tuple<bool, bool> process(measurement_t& measurement) override;
@@ -39,10 +39,10 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::string& correction_name, const std::string& name,
+ProcSaturate<n_measurements>::ProcSaturate(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
                                            const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph, const StateId_t state_id,
                                            std::function<double(int, int)> fun_get_state)
-    : Processor<n_measurements>(nh, correction_name, name, ch, ph), state_id_(state_id), fun_get_state_(fun_get_state) {
+    : Processor<n_measurements>(node, correction_name, name, ch, ph), state_id_(state_id), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
   ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
@@ -55,8 +55,9 @@ ProcSaturate<n_measurements>::ProcSaturate(ros::NodeHandle& nh, const std::strin
   ph->param_loader->loadParam("limit", innovation_limit_);
 
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", Processor<n_measurements>::getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(this->node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.",
+                 Processor<n_measurements>::getPrintName().c_str());
+    rclcpp::shutdown();
   }
 }
 /*//}*/
@@ -73,8 +74,9 @@ std::tuple<bool, bool> ProcSaturate<n_measurements>::process(measurement_t& meas
   bool ok_flag     = true;
   bool should_fuse = true;
   for (int i = 0; i < measurement.rows(); i++) {
+
     const double state = fun_get_state_(state_id_, i);
-    ROS_INFO_ONCE("[%s]: first state[%d][%d]: %.2f", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state);
+    RCLCPP_INFO_ONCE(this->node_->get_logger(), "[%s]: first state[%d][%d]: %.2f", Processor<n_measurements>::getNamespacedName().c_str(), state_id_, i, state);
 
     if (measurement(i) > state + innovation_limit_ || measurement(i) < state - innovation_limit_) {
       return {true, true};  // do not even try to saturate, trigger innovation-based switch to other estimator
@@ -82,15 +84,15 @@ std::tuple<bool, bool> ProcSaturate<n_measurements>::process(measurement_t& meas
 
     if (measurement(i) > state + saturate_max_) {
       const double saturated = state + saturate_max_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(),
-                        state_id_, i, state, i, measurement(i), saturated);
+      RCLCPP_WARN_THROTTLE(this->node_->get_logger(), *(this->clock_), 1000, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.",
+                           Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
       should_fuse    = true;
     } else if (measurement(i) < state + saturate_min_) {
       const double saturated = state + saturate_min_;
-      ROS_WARN_THROTTLE(1.0, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.", Processor<n_measurements>::getPrintName().c_str(),
-                        state_id_, i, state, i, measurement(i), saturated);
+      RCLCPP_WARN_THROTTLE(this->node_->get_logger(), *(this->clock_), 1000, "[%s]: state[%d][%d]: %.2f, measurement[%d]: %.2f saturated to: %.2f.",
+                           Processor<n_measurements>::getPrintName().c_str(), state_id_, i, state, i, measurement(i), saturated);
       measurement(i) = saturated;
       ok_flag        = false;
       should_fuse    = true;

@@ -5,6 +5,8 @@
 
 #include <mrs_uav_state_estimators/estimators/partial_estimator.h>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 //}
 
 namespace mrs_uav_state_estimators
@@ -20,7 +22,8 @@ template <int n_states>
 class LateralEstimator : public PartialEstimator<n_states, lateral::n_axes> {
 
 protected:
-  LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, lateral::n_axes>(lateral::type, name, frame_id) {
+  LateralEstimator(const rclcpp::Node::SharedPtr& node, const std::string& name, const std::string& frame_id)
+      : PartialEstimator<n_states, lateral::n_axes>(node, lateral::type, name, frame_id) {
   }
 
   ~LateralEstimator(void) {
@@ -33,6 +36,6 @@ private:
   static const int _n_measurements_;
 };
 
-}  // namespace mrs_uav_state_estimation
+}  // namespace mrs_uav_state_estimators
 
 #endif  // ESTIMATORS_LATERAL_LATERAL_ESTIMATOR_H

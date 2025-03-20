@@ -11,7 +11,11 @@ namespace mrs_uav_state_estimators
 {
 
 /* initialize() //{*/
-void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch,
+                                const std::shared_ptr<PrivateHandlers_t> &ph) {
+
+  node_  = node;
+  clock_ = node->get_clock();
 
   ch_ = ch;
   ph_ = ph;
@@ -21,16 +25,16 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   hdg_state_      = states_t::Zero();
   hdg_covariance_ = covariance_t::Zero();
 
-  innovation_ << 
-    0, 0;
-
+  innovation_ << 0, 0;
 
   // | --------------- param loader initialization --------------- |
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
   }
 
   ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
@@ -42,44 +46,67 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
   ph->param_loader->loadParam("topics/angular_velocity", ang_vel_topic_);
 
   if (!ph->param_loader->loadedSuccessfully()) {
-    ROS_ERROR("[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    ros::shutdown();
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
+    rclcpp::shutdown();
   }
 
   // | ------------------ timers initialization ----------------- |
-  timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerUpdate, this, false, false);  // not running after init
-  timer_check_health_ = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &HdgPassthrough::timerCheckHealth, this);
+
+  {
+
+    mrs_lib::TimerHandlerOptions opts;
+
+    opts.node      = node_;
+    opts.autostart = false;
+
+    std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerUpdate, this);
+
+    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+
+    timer_update_last_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
+  }
+
+  {
+    mrs_lib::TimerHandlerOptions opts;
+
+    opts.node      = node_;
+    opts.autostart = true;
+
+    std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerCheckHealth, this);
+
+    timer_check_health_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+  }
 
   // | --------------- subscribers initialization --------------- |
   // subscriber to odometry
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
+  mrs_lib::SubscriberHandlerOptions shopts;
+
+  shopts.node               = node_;
   shopts.node_name          = getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_orientation_ = mrs_lib::SubscribeHandler<geometry_msgs::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_,
-                                                                                &HdgPassthrough::callbackOrientation, this);
-  sh_ang_vel_     = mrs_lib::SubscribeHandler<geometry_msgs::Vector3Stamped>(shopts, "/" + ch_->uav_name + "/" + ang_vel_topic_,
-                                                                         &HdgPassthrough::callbackAngularVelocity, this);
+  sh_orientation_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_,
+                                                                                      &HdgPassthrough::callbackOrientation, this);
+
+  sh_ang_vel_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, "/" + ch_->uav_name + "/" + ang_vel_topic_,
+                                                                               &HdgPassthrough::callbackAngularVelocity, this);
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.output) {
-    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>(nh, getNamespacedName() + "/output", 10);
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node_, "~/" + getNamespacedName() + "/output");
   }
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, getNamespacedName() + "/diagnostics", 10);
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, "~/" + getNamespacedName() + "/diagnostics");
   }
 
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized, version %s", getPrintName().c_str(), VERSION);
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator initialized, version %s", getPrintName().c_str(), VERSION);
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -88,12 +115,12 @@ void HdgPassthrough::initialize(ros::NodeHandle &nh, const std::shared_ptr<Commo
 bool HdgPassthrough::start(void) {
 
   if (isInState(READY_STATE)) {
-    timer_update_.start();
+    timer_update_->start();
     changeState(STARTED_STATE);
     return true;
 
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     return false;
   }
 }
@@ -116,22 +143,22 @@ bool HdgPassthrough::pause(void) {
 bool HdgPassthrough::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
   changeState(STOPPED_STATE);
-  // nothing to do during reset of passthrough estimator 
+  // nothing to do during reset of passthrough estimator
   changeState(INITIALIZED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
+  RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
 /*//}*/
 
 /*//{ callbackOrientation() */
-void HdgPassthrough::callbackOrientation(const geometry_msgs::QuaternionStamped::ConstPtr msg) {
+void HdgPassthrough::callbackOrientation(const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg) {
 
   if (!isInitialized()) {
     return;
@@ -142,7 +169,7 @@ void HdgPassthrough::callbackOrientation(const geometry_msgs::QuaternionStamped:
     hdg = mrs_lib::AttitudeConverter(msg->quaternion).getHeading();
   }
   catch (...) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed getting heading", getPrintName().c_str());
   }
 
   setState(hdg, POSITION);
@@ -154,7 +181,7 @@ void HdgPassthrough::callbackOrientation(const geometry_msgs::QuaternionStamped:
 /*//}*/
 
 /*//{ callbackAngularVelocity() */
-void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::Vector3Stamped::ConstPtr msg) {
+void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg) {
 
   if (!isInitialized() || !sh_orientation_.hasMsg()) {
     return;
@@ -165,7 +192,7 @@ void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::Vector3Stamped
     hdg_rate = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
   }
   catch (...) {
-    ROS_ERROR_THROTTLE(1.0, "[%s]: failed getting heading", getPrintName().c_str());
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed getting heading", getPrintName().c_str());
   }
 
   setState(hdg_rate, VELOCITY);
@@ -173,7 +200,7 @@ void HdgPassthrough::callbackAngularVelocity(const geometry_msgs::Vector3Stamped
 /*//}*/
 
 /* timerUpdate() //{*/
-void HdgPassthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
+void HdgPassthrough::timerUpdate() {
 
 
   if (!isInitialized()) {
@@ -186,7 +213,7 @@ void HdgPassthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) 
 /*//}*/
 
 /*//{ timerCheckHealth() */
-void HdgPassthrough::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
+void HdgPassthrough::timerCheckHealth() {
 
   if (!isInitialized()) {
     return;
@@ -195,25 +222,25 @@ void HdgPassthrough::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &ev
   if (isInState(INITIALIZED_STATE) && is_orient_ready_ && is_ang_vel_ready_) {
 
     changeState(READY_STATE);
-    ROS_INFO_THROTTLE(1.0, "[%s]: Ready to start", getPrintName().c_str());
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
   }
 
   if (isInState(STARTED_STATE)) {
 
-    ROS_INFO_THROTTLE(1.0, "[%s]: Estimator Running", getPrintName().c_str());
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator Running", getPrintName().c_str());
     changeState(RUNNING_STATE);
   }
 
   if (sh_orientation_.hasMsg()) {
     is_orient_ready_ = true;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: has not received orientation yet", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: has not received orientation yet", getPrintName().c_str());
   }
 
   if (sh_ang_vel_.hasMsg()) {
     is_ang_vel_ready_ = true;
   } else {
-    ROS_WARN_THROTTLE(1.0, "[%s]: has not received angular velocity yet", getPrintName().c_str());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: has not received angular velocity yet", getPrintName().c_str());
   }
 }
 /*//}*/

@@ -3,14 +3,14 @@
 
 /* includes //{ */
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <Eigen/Dense>
 
-#include <mrs_msgs/Float64Stamped.h>
-#include <mrs_msgs/Float64ArrayStamped.h>
+#include <mrs_msgs/msg/float64_stamped.hpp>
+#include <mrs_msgs/msg/float64_array_stamped.hpp>
 
-#include <mrs_msgs/EstimatorOutput.h>
+#include <mrs_msgs/msg/estimator_output.hpp>
 
 #include <mrs_uav_managers/estimation_manager/estimator.h>
 
@@ -28,10 +28,8 @@ typedef enum
 } ExcInnoAction_t;
 const int n_ExcInnoAction = 4;
 
-const std::map<std::string, ExcInnoAction_t> map_exc_inno_action{{"eland", ExcInnoAction_t::ELAND},
-                                                        {"switch", ExcInnoAction_t::SWITCH},
-                                                        {"mitigate", ExcInnoAction_t::MITIGATE},
-{"none", ExcInnoAction_t::NONE}};
+const std::map<std::string, ExcInnoAction_t> map_exc_inno_action{
+    {"eland", ExcInnoAction_t::ELAND}, {"switch", ExcInnoAction_t::SWITCH}, {"mitigate", ExcInnoAction_t::MITIGATE}, {"none", ExcInnoAction_t::NONE}};
 
 template <int n_states, int n_axes>
 class PartialEstimator : public mrs_uav_managers::Estimator {
@@ -41,15 +39,15 @@ public:
   typedef Eigen::Matrix<double, n_states, n_states> covariance_t;
 
 protected:
-  mutable mrs_lib::PublisherHandler<mrs_msgs::EstimatorOutput>     ph_output_;
-  mutable mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped> ph_input_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>     ph_output_;
+  mutable mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped> ph_input_;
 
   bool first_iter_ = true;
 
-  double pos_innovation_limit_;
+  double          pos_innovation_limit_;
   ExcInnoAction_t exc_innovation_action_;
-  std::string exc_innovation_action_name_;
-  bool innovation_ok_ = true;
+  std::string     exc_innovation_action_name_;
+  bool            innovation_ok_ = true;
 
 private:
   static const int _n_axes_   = n_axes;
@@ -58,7 +56,8 @@ private:
   static const int _n_measurements_;
 
 public:
-  PartialEstimator(const std::string &type, const std::string &name, const std::string &frame_id) : Estimator(type, name, frame_id) {
+  PartialEstimator(const rclcpp::Node::SharedPtr &node, const std::string &type, const std::string &name, const std::string &frame_id)
+      : Estimator(node, type, name, frame_id) {
   }
 
   ~PartialEstimator(void) {
@@ -91,7 +90,7 @@ public:
   int stateIdToIndex(const int &state_id_in, const int &axis_in) const;
 
   template <typename u_t>
-  void publishInput(const u_t &u, const ros::Time& stamp) const;
+  void publishInput(const u_t &u, const rclcpp::Time &stamp) const;
   void publishOutput() const;
 };
 
@@ -144,8 +143,8 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
     return;
   }
 
-  mrs_msgs::EstimatorOutput msg;
-  msg.header.stamp    = ros::Time::now();
+  mrs_msgs::msg::EstimatorOutput msg;
+  msg.header.stamp    = clock_->now();
   msg.header.frame_id = getFrameId();
   msg.state           = getStatesAsVector();
   msg.covariance      = getCovarianceAsVector();
@@ -157,13 +156,13 @@ void PartialEstimator<n_states, n_axes>::publishOutput() const {
 /*//{ publishInput() */
 template <int n_states, int n_axes>
 template <typename u_t>
-void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u, const ros::Time& stamp) const {
+void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u, const rclcpp::Time &stamp) const {
 
   if (!ch_->debug_topics.input) {
     return;
   }
 
-  mrs_msgs::Float64ArrayStamped msg;
+  mrs_msgs::msg::Float64ArrayStamped msg;
   msg.header.stamp = stamp;
   for (int i = 0; i < u.rows(); i++) {
     msg.values.push_back(u(i));
