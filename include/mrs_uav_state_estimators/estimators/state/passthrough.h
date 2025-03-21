@@ -3,19 +3,27 @@
 
 /* includes //{ */
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <nav_msgs/Odometry.h>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
 
 #include <mrs_uav_managers/state_estimator.h>
+
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
+//}
+
+/* using //{ */
+
+using namespace std::chrono_literals;
 
 //}
 
@@ -47,22 +55,22 @@ private:
 
   const bool is_core_plugin_;
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_passthrough_odom_;
-  void                                          callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg);
-  double                                        _critical_timeout_passthrough_odom_;
-  std::string                                   msg_topic_;
+  mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_passthrough_odom_;
+  void                                                callbackPassthroughOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
+  double                                              _critical_timeout_passthrough_odom_;
+  std::string                                         msg_topic_;
 
-  ros::Timer       timer_check_passthrough_odom_hz_;
-  void             timerCheckPassthroughOdomHz(const ros::TimerEvent &event);
-  std::atomic<int> counter_odom_msgs_ = 0;
-  ros::Time        t_check_hz_last_;
-  double           prev_avg_hz_ = 0;
-  bool             kickoff_     = false;
+  std::shared_ptr<mrs_lib::ROSTimer> timer_check_passthrough_odom_hz_;
+  void                               timerCheckPassthroughOdomHz();
+  std::atomic<int>                   counter_odom_msgs_ = 0;
+  rclcpp::Time                       t_check_hz_last_;
+  double                             prev_avg_hz_ = 0;
+  bool                               kickoff_     = false;
 
-  ros::Timer                 timer_update_;
-  void                       timerUpdate(const ros::TimerEvent &event);
-  nav_msgs::OdometryConstPtr prev_msg_;
-  bool                       first_iter_ = true;
+  std::shared_ptr<mrs_lib::ROSTimer>      timer_update_;
+  void                                    timerUpdate();
+  nav_msgs::msg::Odometry::ConstSharedPtr prev_msg_;
+  bool                                    first_iter_ = true;
 
   bool isConverged();
 
@@ -75,17 +83,17 @@ public:
   ~Passthrough(void) {
   }
 
-  void initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
+  void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
 
-  /* mrs_msgs::UavState  getUavState() override; */
-  /* nav_msgs::Odometry  getInnovation() const override; */
+  /* mrs_msgs::msg::UavState  getUavState() override; */
+  /* nav_msgs::msg::Odometry  getInnovation() const override; */
   /* std::vector<double> getPoseCovariance() const override; */
   /* std::vector<double> getTwistCovariance() const override; */
 
-  bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::msg::UavState &uav_state) override;
 };
 
 }  // namespace passthrough

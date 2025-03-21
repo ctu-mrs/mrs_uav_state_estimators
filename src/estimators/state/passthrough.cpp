@@ -11,12 +11,13 @@ namespace passthrough
 {
 
 /* initialize() //{*/
-void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+
+  node_  = node;
+  clock_ = node->get_clock();
 
   ch_ = ch;
   ph_ = ph;
-
-  ros::NodeHandle nh(parent_nh);
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
@@ -24,49 +25,64 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
 
   if (is_core_plugin_) {
 
-    ph_->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-    ph_->param_loader->addYamlFile(ros::package::getPath(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    ph_->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
+    ph_->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
   ph_->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
 
   // | --------------------- load parameters -------------------- |
+
   ph_->param_loader->loadParam("max_flight_z", max_flight_z_);
   ph_->param_loader->loadParam("message/topic", msg_topic_);
   ph_->param_loader->loadParam("kickoff", kickoff_, false);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 
   // | --------------- subscribers initialization --------------- |
-  mrs_lib::SubscribeHandlerOptions shopts;
-  shopts.nh                 = nh;
+
+  mrs_lib::SubscriberHandlerOptions shopts;
+
+  shopts.node               = node_;
   shopts.node_name          = getPrintName();
   shopts.no_message_timeout = mrs_lib::no_timeout;
   shopts.threadsafe         = true;
   shopts.autostart          = true;
-  shopts.queue_size         = 10;
-  shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_passthrough_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Passthrough::callbackPassthroughOdom, this);
+  sh_passthrough_odom_ = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, msg_topic_, &Passthrough::callbackPassthroughOdom, this);
 
-  // | ------------------ timers initialization ----------------- |
-  t_check_hz_last_                 = ros::Time::now();
-  prev_avg_hz_                     = 0;
-  timer_check_passthrough_odom_hz_ = nh.createTimer(ros::Rate(1.0), &Passthrough::timerCheckPassthroughOdomHz, this);
+  // | ------------------------- timers ------------------------- |
+
+  mrs_lib::TimerHandlerOptions opts;
+
+  opts.node      = node_;
+  opts.autostart = true;
+
+  t_check_hz_last_ = clock_->now();
+
+  {
+    std::function<void()> callback_fcn = std::bind(&Passthrough::timerCheckPassthroughOdomHz, this);
+
+    timer_check_passthrough_odom_hz_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(1.0, clock_), callback_fcn);
+  }
 
   // | ---------------- publishers initialization --------------- |
-  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10);  // needed for tf
+  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom");  // needed for tf
+                                                                                                                           //
   if (ch_->debug_topics.state) {
-    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::UavState>(nh, Support::toSnakeCase(getName()) + "/uav_state", 10);
+    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, "~/" + Support::toSnakeCase(getName()) + "/uav_state");
   }
+
   if (ch_->debug_topics.covariance) {
-    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/pose_covariance", 10);
-    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::Float64ArrayStamped>(nh, Support::toSnakeCase(getName()) + "/twist_covariance", 10);
+    ph_pose_covariance_  = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, "~/" + Support::toSnakeCase(getName()) + "/pose_covariance");
+    ph_twist_covariance_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, "~/" + Support::toSnakeCase(getName()) + "/twist_covariance");
   }
+
   if (ch_->debug_topics.innovation) {
-    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/innovation", 10);
+    ph_innovation_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, Support::toSnakeCase("~/" + getName()) + "/innovation");
   }
+
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::EstimatorDiagnostics>(nh, Support::toSnakeCase(getName()) + "/diagnostics", 10);
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, Support::toSnakeCase("~/" + getName()) + "/diagnostics");
   }
 
   // | ------------------ initialize published messages ------------------ |
@@ -84,9 +100,9 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   // | ------------------ finish initialization ----------------- |
 
   if (changeState(INITIALIZED_STATE)) {
-    ROS_INFO("[%s]: Estimator initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator initialized", getPrintName().c_str());
   } else {
-    ROS_INFO("[%s]: Estimator could not be initialized", getPrintName().c_str());
+    RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
 /*//}*/
@@ -102,12 +118,12 @@ bool Passthrough::start(void) {
     return true;
 
   } else {
-    ROS_WARN("[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
-    ros::Duration(1.0).sleep();
+    RCLCPP_WARN(node_->get_logger(), "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    clock_->sleep_for(1s);
   }
   return false;
 
-  ROS_ERROR("[%s]: Failed to start", getPrintName().c_str());
+  RCLCPP_ERROR(node_->get_logger(), "[%s]: Failed to start", getPrintName().c_str());
   return false;
 }
 /*//}*/
@@ -127,20 +143,20 @@ bool Passthrough::pause(void) {
 bool Passthrough::reset(void) {
 
   if (!isInitialized()) {
-    ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
     return false;
   }
 
   changeState(STOPPED_STATE);
 
-  ROS_INFO("[%s]: Estimator reset", getPrintName().c_str());
+  RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator reset", getPrintName().c_str());
 
   return true;
 }
 /*//}*/
 
 /* timerCheckPassthroughOdomHz() //{*/
-void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerEvent &event) {
+void Passthrough::timerCheckPassthroughOdomHz() {
 
   if (!isInitialized()) {
     return;
@@ -150,31 +166,35 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
 
     // first wait for a message
     if (!sh_passthrough_odom_.hasMsg()) {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_passthrough_odom_.topicName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                           sh_passthrough_odom_.topicName().c_str());
       return;
     }
 
     // calculate average rate of messages
     if (counter_odom_msgs_ > 0) {
-      ros::Time t_now  = ros::Time::now();
-      double        dt     = (t_now - t_check_hz_last_).toSec();
-      double        avg_hz = counter_odom_msgs_ / dt;
-      t_check_hz_last_     = t_now;
-      counter_odom_msgs_   = 0;
-      ROS_INFO("[%s]: rate of passthrough odom: %.2f Hz", getPrintName().c_str(), avg_hz);
+
+      rclcpp::Time t_now  = clock_->now();
+      double       dt     = (t_now - t_check_hz_last_).seconds();
+      double       avg_hz = counter_odom_msgs_ / dt;
+      t_check_hz_last_    = t_now;
+      counter_odom_msgs_  = 0;
+      RCLCPP_INFO(node_->get_logger(), "[%s]: rate of passthrough odom: %.2f Hz", getPrintName().c_str(), avg_hz);
 
       // check message rate stability
       if (abs(avg_hz - prev_avg_hz_) >= 5) {
-        ROS_INFO("[%s]: %s stable passthrough odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(), Support::waiting_for_string.c_str(), avg_hz,
-                 prev_avg_hz_);
+        RCLCPP_INFO(node_->get_logger(), "[%s]: %s stable passthrough odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(),
+                    Support::waiting_for_string.c_str(), avg_hz, prev_avg_hz_);
         prev_avg_hz_ = avg_hz;
         return;
       }
 
       // the message rate must be higher than required by the control manager
       if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
-        ROS_ERROR(
-            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
+        RCLCPP_ERROR(
+            node_->get_logger(),
+            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry "
+            "rate "
             "or use a higher-level controller.",
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
@@ -185,14 +205,14 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
     }
 
     changeState(READY_STATE);
-    ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
-    timer_check_passthrough_odom_hz_.stop();
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is ready to start", getPrintName().c_str());
+    timer_check_passthrough_odom_hz_->stop();
   }
 }
 /*//}*/
 
 /* timerUpdate() //{*/
-void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
+void Passthrough::timerUpdate() {
 
 
   if (isInState(STARTED_STATE)) {
@@ -200,16 +220,16 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     changeState(RUNNING_STATE);
   }
 
-  const ros::Time time_now = ros::Time::now();
+  const rclcpp::Time time_now = clock_->now();
 
-  nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();
+  nav_msgs::msg::Odometry::ConstSharedPtr msg = sh_passthrough_odom_.getMsg();
 
   if (first_iter_) {
     prev_msg_   = msg;
     first_iter_ = false;
   }
 
-  mrs_msgs::UavState uav_state = uav_state_init_;
+  mrs_msgs::msg::UavState uav_state = uav_state_init_;
 
   uav_state.header.stamp = time_now;
 
@@ -219,16 +239,16 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
   uav_state.velocity.linear  = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
   uav_state.velocity.angular = msg->twist.twist.angular;
 
-  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
+  const nav_msgs::msg::Odometry odom = Support::uavStateToOdom(uav_state);
 
-  nav_msgs::Odometry innovation = innovation_init_;
-  innovation.header.stamp       = time_now;
+  nav_msgs::msg::Odometry innovation = innovation_init_;
+  innovation.header.stamp            = time_now;
 
   innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
   innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
   innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
 
-  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  mrs_msgs::msg::Float64ArrayStamped pose_covariance, twist_covariance;
   pose_covariance.header.stamp  = time_now;
   twist_covariance.header.stamp = time_now;
 
@@ -260,7 +280,7 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 /*//}*/
 
 /*//{ callbackPassthroughOdom() */
-void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg) {
+void Passthrough::callbackPassthroughOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
 
   counter_odom_msgs_++;
 
@@ -278,17 +298,17 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
     first_iter_ = false;
   }
 
-  nav_msgs::Odometry odom = *msg;
+  nav_msgs::msg::Odometry odom = *msg;
 
   // change the frame_ids
   odom.header.frame_id = ns_frame_id_;
   odom.child_frame_id  = ch_->frames.ns_fcu;
 
-  mrs_msgs::UavState uav_state = uav_state_init_;
+  mrs_msgs::msg::UavState uav_state = uav_state_init_;
 
   // here we are assuming the passthrough odometry has correct timestamp
   uav_state.header.stamp = odom.header.stamp;
-  /* const ros::Time time_now = ros::Time::now(); */
+  /* const rclcpp::Time time_now = clock_->now(); */
   /* uav_state.header.stamp = time_now; */
 
   uav_state.pose.position    = odom.pose.pose.position;
@@ -299,14 +319,14 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
   uav_state.velocity.linear = Support::rotateVector(odom.twist.twist.linear, odom.pose.pose.orientation);
 
 
-  nav_msgs::Odometry innovation = innovation_init_;
-  innovation.header.stamp       = odom.header.stamp;
+  nav_msgs::msg::Odometry innovation = innovation_init_;
+  innovation.header.stamp            = odom.header.stamp;
 
   innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
   innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
   innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
 
-  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  mrs_msgs::msg::Float64ArrayStamped pose_covariance, twist_covariance;
   pose_covariance.header.stamp  = odom.header.stamp;
   twist_covariance.header.stamp = odom.header.stamp;
 
@@ -348,14 +368,14 @@ bool Passthrough::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
-bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
+bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
-    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
+    RCLCPP_WARN(node_->get_logger(), "[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
     return false;
   }
 
-  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
+  RCLCPP_WARN(node_->get_logger(), "[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
   return false;
 }
 /*//}*/
@@ -364,5 +384,5 @@ bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_sta
 
 }  // namespace mrs_uav_state_estimators
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::passthrough::Passthrough, mrs_uav_managers::StateEstimator)

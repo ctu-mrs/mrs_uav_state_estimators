@@ -46,9 +46,9 @@ set(LIBRARIES
   MrsUavStateEstimators_GpsBaro
   MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_GarminAgl
+  MrsUavStateEstimators_Passthrough
   # MrsUavStateEstimators_Rtk
   # MrsUavStateEstimators_RtkGarmin
-  # MrsUavStateEstimators_Passthrough
   # MrsUavStateEstimators_GroundTruth
   # MrsUavStateEstimators_Dummy
   )
@@ -123,6 +123,22 @@ target_link_libraries(MrsUavStateEstimators_GarminAgl
 
 ## Add configure headers for dynamic reconfigure
 ament_target_dependencies(MrsUavStateEstimators_GarminAgl
+  ${DEPENDENCIES}
+  )
+
+# Passthrough
+
+add_library(MrsUavStateEstimators_Passthrough SHARED
+  src/estimators/state/passthrough.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(MrsUavStateEstimators_Passthrough
+  MrsUavStateEstimators_Common
+  )
+
+## Add configure headers for dynamic reconfigure
+ament_target_dependencies(MrsUavStateEstimators_Passthrough
   ${DEPENDENCIES}
   )
 
