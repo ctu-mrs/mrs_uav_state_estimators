@@ -41,16 +41,6 @@ set(DEPENDENCIES
   Eigen3
 )
 
-foreach(DEP IN LISTS DEPENDENCIES)
-  find_package(${DEP} REQUIRED)
-endforeach()
-
-include_directories(
-  include
-  ${rclcpp_INCLUDE_DIRS}
-  ${mrs_uav_managers_INCLUDE_DIRS}
-)
-
 set(LIBRARIES
   MrsUavStateEstimators_Common
   MrsUavStateEstimators_GpsBaro
@@ -62,6 +52,17 @@ set(LIBRARIES
   # MrsUavStateEstimators_GroundTruth
   # MrsUavStateEstimators_Dummy
   )
+
+foreach(DEP IN LISTS DEPENDENCIES)
+  find_package(${DEP} REQUIRED)
+endforeach()
+
+include_directories(
+  include
+  ${rclcpp_INCLUDE_DIRS}
+  ${mrs_lib_INCLUDE_DIRS}
+  ${mrs_uav_managers_INCLUDE_DIRS}
+)
 
 # Common estimators
 
