@@ -27,6 +27,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -63,11 +73,11 @@ private:
   std::string                                                    topic_angular_velocity_;
   mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped> sh_hw_api_ang_vel_;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
-  void                               timerUpdate();
+  std::shared_ptr<TimerType> timer_update_;
+  void                       timerUpdate();
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_pub_attitude_;
-  void                               timerPubAttitude();
+  std::shared_ptr<TimerType> timer_pub_attitude_;
+  void                       timerPubAttitude();
 
   bool isConverged();
 

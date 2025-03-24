@@ -6,6 +6,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 
 {
@@ -16,7 +26,8 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   node_ = node->create_sub_node(getNamespacedName());
 
-  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
+  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(),
+              node_->get_sub_namespace().c_str());
 
   clock_ = node->get_clock();
 
@@ -178,7 +189,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   {
     std::function<void()> callback_fcn = std::bind(&AltGeneric::timerUpdate, this);
 
-    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+    timer_update_ = std::make_shared<TimerType>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
 
     timer_update_last_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   }

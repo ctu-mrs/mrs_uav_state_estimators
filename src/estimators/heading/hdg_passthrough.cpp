@@ -6,6 +6,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 
 {
@@ -61,7 +71,7 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
 
     std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerUpdate, this);
 
-    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+    timer_update_ = std::make_shared<TimerType>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
 
     timer_update_last_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
   }
@@ -74,7 +84,7 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
 
     std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerCheckHealth, this);
 
-    timer_check_health_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+    timer_check_health_ = std::make_shared<TimerType>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
   }
 
   // | --------------- subscribers initialization --------------- |

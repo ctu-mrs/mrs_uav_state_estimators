@@ -4,6 +4,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -62,7 +72,7 @@ void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
   {
     std::function<void()> callback_fcn = std::bind(&Passthrough::timerCheckPassthroughOdomHz, this);
 
-    timer_check_passthrough_odom_hz_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(1.0, clock_), callback_fcn);
+    timer_check_passthrough_odom_hz_ = std::make_shared<TimerType>(opts, rclcpp::Rate(1.0, clock_), callback_fcn);
   }
 
   // | ---------------- publishers initialization --------------- |

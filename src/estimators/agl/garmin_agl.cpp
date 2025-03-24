@@ -10,6 +10,16 @@ using namespace std::chrono_literals;
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -53,7 +63,7 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
     std::function<void()> callback_fcn = std::bind(&GarminAgl::timerUpdate, this);
 
     // TODO: parametrize the rate
-    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(100, clock_), callback_fcn);
+    timer_update_ = std::make_shared<TimerType>(opts, rclcpp::Rate(100, clock_), callback_fcn);
   }
 
   {
@@ -65,7 +75,7 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
     std::function<void()> callback_fcn = std::bind(&GarminAgl::timerCheckHealth, this);
 
     // TODO: parametrize the rate
-    timer_check_health_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(1, clock_), callback_fcn);
+    timer_check_health_ = std::make_shared<TimerType>(opts, rclcpp::Rate(1, clock_), callback_fcn);
   }
 
   // | ---------------- publishers initialization --------------- |

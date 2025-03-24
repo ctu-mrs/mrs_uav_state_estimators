@@ -27,6 +27,16 @@ using namespace std::chrono_literals;
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -60,14 +70,14 @@ private:
   double                                              _critical_timeout_passthrough_odom_;
   std::string                                         msg_topic_;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_check_passthrough_odom_hz_;
-  void                               timerCheckPassthroughOdomHz();
-  std::atomic<int>                   counter_odom_msgs_ = 0;
-  rclcpp::Time                       t_check_hz_last_;
-  double                             prev_avg_hz_ = 0;
-  bool                               kickoff_     = false;
+  std::shared_ptr<TimerType> timer_check_passthrough_odom_hz_;
+  void                       timerCheckPassthroughOdomHz();
+  std::atomic<int>           counter_odom_msgs_ = 0;
+  rclcpp::Time               t_check_hz_last_;
+  double                     prev_avg_hz_ = 0;
+  bool                       kickoff_     = false;
 
-  std::shared_ptr<mrs_lib::ROSTimer>      timer_update_;
+  std::shared_ptr<TimerType>              timer_update_;
   void                                    timerUpdate();
   nav_msgs::msg::Odometry::ConstSharedPtr prev_msg_;
   bool                                    first_iter_ = true;

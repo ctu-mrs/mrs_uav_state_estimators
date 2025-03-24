@@ -20,6 +20,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -62,12 +72,12 @@ private:
   void                                                           callbackAngularVelocity(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
   std::atomic<bool>                                              is_ang_vel_ready_ = false;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
-  void                               timerUpdate();
-  rclcpp::Time                       timer_update_last_time_;
+  std::shared_ptr<TimerType> timer_update_;
+  void                       timerUpdate();
+  rclcpp::Time               timer_update_last_time_;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_check_health_;
-  void                               timerCheckHealth();
+  std::shared_ptr<TimerType> timer_check_health_;
+  void                       timerCheckHealth();
 
 public:
   HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)

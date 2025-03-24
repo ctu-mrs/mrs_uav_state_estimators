@@ -23,6 +23,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -42,13 +52,13 @@ private:
 
   const bool is_core_plugin_;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
-  int                                _update_timer_rate_;
-  void                               timerUpdate();
+  std::shared_ptr<TimerType> timer_update_;
+  int                        _update_timer_rate_;
+  void                       timerUpdate();
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_check_health_;
-  int                                _check_health_timer_rate_;
-  void                               timerCheckHealth();
+  std::shared_ptr<TimerType> timer_check_health_;
+  int                        _check_health_timer_rate_;
+  void                       timerCheckHealth();
 
   bool isConverged();
 

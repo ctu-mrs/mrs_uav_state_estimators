@@ -21,6 +21,16 @@
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -86,9 +96,9 @@ private:
   void                                                      timeoutCallback(const std::string &topic, const rclcpp::Time &last_msg);
   std::atomic<bool>                                         is_input_ready_ = false;
 
-  std::shared_ptr<mrs_lib::ROSTimer> timer_update_;
-  void                               timerUpdate();
-  rclcpp::Time                       timer_update_last_time_;
+  std::shared_ptr<TimerType> timer_update_;
+  void                       timerUpdate();
+  rclcpp::Time               timer_update_last_time_;
 
   void doCorrection(const Correction<hdg_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t &state_id);
   void doCorrection(const z_t &z, const double R, const StateId_t &H_idx, const rclcpp::Time &meas_stamp);

@@ -10,6 +10,16 @@ using namespace std::chrono_literals;
 
 //}
 
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -64,13 +74,13 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   {
     std::function<void()> callback_fcn = std::bind(&StateGeneric::timerUpdate, this);
 
-    timer_update_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+    timer_update_ = std::make_shared<TimerType>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
   }
 
   {
     std::function<void()> callback_fcn = std::bind(&StateGeneric::timerPubAttitude, this);
 
-    timer_pub_attitude_ = std::make_shared<mrs_lib::ROSTimer>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
+    timer_pub_attitude_ = std::make_shared<TimerType>(opts, rclcpp::Rate(ch_->desired_uav_state_rate, clock_), callback_fcn);
   }
 
   // | --------------- subscribers initialization --------------- |
