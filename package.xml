@@ -5,7 +5,7 @@
   <name>mrs_uav_state_estimators</name>
 
   <version>2.0.0</version>
-  <description>The MRS Multirotor simulator</description>
+  <description>MRS UAV State Estimators</description>
 
   <author email="tomas.baca@fel.cvut.cz">klaxalk</author>
   <maintainer email="tomas.baca@fel.cvut.cz">klaxalk</maintainer>
