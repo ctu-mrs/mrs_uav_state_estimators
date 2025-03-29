@@ -162,7 +162,7 @@ target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIM
 ## --------------------------------------------------------------
 
 # <package of the base class>, <relative path to the xml>
-pluginlib_export_plugin_description_file(mrs_uav_managers estimator_plugins.xml)
+pluginlib_export_plugin_description_file(mrs_uav_managers plugins.xml)
 
 ## --------------------------------------------------------------
 ## |                           install                          |
