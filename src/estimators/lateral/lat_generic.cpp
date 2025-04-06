@@ -24,8 +24,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   node_ = node->create_sub_node(getNamespacedName());
 
-  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(),
-              node_->get_sub_namespace().c_str());
+  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
 
   clock_ = node->get_clock();
 
@@ -55,10 +54,8 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
   }
 
   ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
@@ -78,11 +75,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   ph->param_loader->loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(
-        node_, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_, ph_, [this](int a, int b) { return this->getState(a, b); },
-        [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
-          return this->doCorrection(meas, R, state);
-        }));
+    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(node_, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_, ph_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) { return this->doCorrection(meas, R, state); }));
   }
 
   // | ------- check if all parameters loaded successfully ------ |
@@ -130,6 +123,8 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/pos", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/pos", Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X))));
   }
 
   {
@@ -145,6 +140,8 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/vel", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/vel", Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X))));
   }
 
   {
@@ -160,6 +157,8 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/acc", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/acc", Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X))));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -327,11 +326,9 @@ void LatGeneric::timerUpdate() {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(),
-                               measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
         } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                               correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -353,8 +350,7 @@ void LatGeneric::timerUpdate() {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -382,8 +378,7 @@ void LatGeneric::timerUpdate() {
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -411,8 +406,7 @@ void LatGeneric::timerUpdate() {
 
   // check age of input
   if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
-                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 
@@ -462,8 +456,7 @@ void LatGeneric::timerUpdate() {
     u(1) = des_acc_global.getY();
 
   } else {  // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
-    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable",
-                          getPrintName().c_str());
+    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = clock_->now();
     if (input_coeff_ != 0) {
       setInputCoeff(0);
@@ -538,8 +531,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
       innovation_(1)      = z(1) - getState(POSITION, AXIS_Y);
 
       if (fabs(innovation_(0)) > pos_innovation_limit_ || fabs(innovation_(1)) > pos_innovation_limit_) {
-        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f %.2f] lim: %.2f", getPrintName().c_str(), innovation_(0),
-                             innovation_(1), pos_innovation_limit_);
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f %.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), innovation_(1), pos_innovation_limit_);
         innovation_ok_ = false;
         switch (exc_innovation_action_) {
           case ExcInnoAction_t::ELAND: {
@@ -781,7 +773,7 @@ rcl_interfaces::msg::SetParametersResult LatGeneric::callbackParameters(std::vec
 
     RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
 
-    if (param.get_name() == "pos") {
+    if (param.get_name() == node_->get_sub_namespace() + "/pos") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
@@ -790,7 +782,7 @@ rcl_interfaces::msg::SetParametersResult LatGeneric::callbackParameters(std::vec
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 
-    } else if (param.get_name() == "vel") {
+    } else if (param.get_name() == node_->get_sub_namespace() + "/vel") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
@@ -799,7 +791,7 @@ rcl_interfaces::msg::SetParametersResult LatGeneric::callbackParameters(std::vec
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 
-    } else if (param.get_name() == "acc") {
+    } else if (param.get_name() == node_->get_sub_namespace() + "/acc") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
@@ -807,13 +799,6 @@ rcl_interfaces::msg::SetParametersResult LatGeneric::callbackParameters(std::vec
       Q(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = param.as_double();
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else {
-
-      RCLCPP_WARN_STREAM(node_->get_logger(), "parameter: '" << param.get_name() << "' is not dynamically reconfigurable!");
-      result.successful = false;
-      result.reason     = "Parameter '" + param.get_name() + "' is not dynamically reconfigurable!";
-      return result;
     }
   }
 

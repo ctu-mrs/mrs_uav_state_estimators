@@ -128,6 +128,8 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/pos", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/pos", Q_(POSITION, POSITION)));
   }
 
   {
@@ -143,6 +145,8 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/vel", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/vel", Q_(VELOCITY, VELOCITY)));
   }
 
   {
@@ -158,6 +162,8 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     node_->declare_parameter(node_->get_sub_namespace() + "/acc", 0.0, param_desc);
+
+    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/acc", Q_(ACCELERATION, ACCELERATION)));
   }
 
   // | --------------- Kalman filter intialization -------------- |
@@ -837,7 +843,7 @@ rcl_interfaces::msg::SetParametersResult AltGeneric::callbackParameters(std::vec
 
     RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
 
-    if (param.get_name() == "pos") {
+    if (param.get_name() == node_->get_sub_namespace() + "/pos") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
@@ -845,7 +851,7 @@ rcl_interfaces::msg::SetParametersResult AltGeneric::callbackParameters(std::vec
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 
-    } else if (param.get_name() == "vel") {
+    } else if (param.get_name() == node_->get_sub_namespace() + "/vel") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
@@ -853,20 +859,13 @@ rcl_interfaces::msg::SetParametersResult AltGeneric::callbackParameters(std::vec
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
 
-    } else if (param.get_name() == "acc") {
+    } else if (param.get_name() == node_->get_sub_namespace() + "/acc") {
 
       auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
 
       Q(ACCELERATION, ACCELERATION) = param.as_double();
 
       mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else {
-
-      RCLCPP_WARN_STREAM(node_->get_logger(), "parameter: '" << param.get_name() << "' is not dynamically reconfigurable!");
-      result.successful = false;
-      result.reason     = "Parameter '" + param.get_name() + "' is not dynamically reconfigurable!";
-      return result;
     }
   }
 
