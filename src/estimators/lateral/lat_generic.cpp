@@ -22,7 +22,7 @@ namespace mrs_uav_state_estimators
 /* initialize() //{*/
 void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
-  node_ = node->create_sub_node(getNamespacedName());
+  node_ = node;
 
   RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
 
@@ -58,7 +58,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
   }
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   // | --------------------- load parameters -------------------- |
   ph->param_loader->loadParam("hdg_source_topic", hdg_source_topic_);
@@ -75,7 +75,32 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   ph->param_loader->loadParam("corrections", correction_names_);
 
   for (auto corr_name : correction_names_) {
-    corrections_.push_back(std::make_shared<Correction<lat_generic::n_measurements>>(node_, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_, ph_, [this](int a, int b) { return this->getState(a, b); }, [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) { return this->doCorrection(meas, R, state); }));
+    rclcpp::Node::SharedPtr subnode = node_->create_sub_node(corr_name);
+    auto corr_ph = std::make_shared<PrivateHandlers_t>();
+    corr_ph->loadConfigFile = ph_->loadConfigFile;
+    corr_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    corr_ph->param_loader->copyYamls(*ph->param_loader);
+
+    auto fun_get_state = [this](int a, int b) { return this->getState(a, b); };
+    auto fun_get_correction = [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state)
+        {
+          return this->doCorrection(meas, R, state);
+        };
+
+    auto corr = std::make_shared<Correction<lat_generic::n_measurements>>
+        (
+          subnode,
+          getNamespacedName(),
+          corr_name,
+          ns_frame_id_,
+          EstimatorType_t::LATERAL,
+          ch_,
+          corr_ph,
+          fun_get_state,
+          fun_get_correction
+        );
+
+    corrections_.push_back(corr);
   }
 
   // | ------- check if all parameters loaded successfully ------ |
@@ -84,7 +109,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     rclcpp::shutdown();
   }
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   // | ----------- initialize process noise covariance ---------- |
   Q_ = Q_t::Zero();

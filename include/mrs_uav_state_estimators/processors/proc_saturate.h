@@ -45,7 +45,7 @@ ProcSaturate<n_measurements>::ProcSaturate(const rclcpp::Node::SharedPtr& node, 
     : Processor<n_measurements>(node, correction_name, name, ch, ph), state_id_(state_id), fun_get_state_(fun_get_state) {
 
   // | --------------------- load parameters -------------------- |
-  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("start_enabled", this->start_enabled_);
   this->enabled_ = this->start_enabled_;

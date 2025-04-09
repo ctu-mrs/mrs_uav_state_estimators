@@ -244,7 +244,7 @@ private:
 
   double time_since_last_msg_limit_;
 
-  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& node);
+  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& subnode);
   bool                                       process(measurement_t& measurement);
 
   bool             isTimestampOk();
@@ -296,7 +296,7 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
 
   std::string msg_type_string;
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("message/type", msg_type_string);
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
@@ -347,7 +347,7 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
   ph->param_loader->loadParam("processors", processor_names_);
 
   for (auto proc_name : processor_names_) {
-    processors_[proc_name] = createProcessorFromName(proc_name, node);
+    processors_[proc_name] = createProcessorFromName(proc_name, node->create_sub_node(proc_name));
   }
 
   // | ------------- initialize dynamic reconfigure ------------- |
@@ -2642,18 +2642,23 @@ bool Correction<n_measurements>::isMsgComing() {
 
 /*//{ createProcessorFromName() */
 template <int n_measurements>
-std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& node) {
+std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& subnode) {
+
+  auto proc_ph = std::make_shared<PrivateHandlers_t>();
+  proc_ph->loadConfigFile = ph_->loadConfigFile;
+  proc_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+  proc_ph->param_loader->copyYamls(*ph_->param_loader);
 
   if (name == "median_filter") {
-    return std::make_shared<ProcMedianFilter<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcMedianFilter<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph);
   } else if (name == "saturate") {
-    return std::make_shared<ProcSaturate<n_measurements>>(node, getNamespacedName(), name, ch_, ph_, state_id_, fun_get_state_);
+    return std::make_shared<ProcSaturate<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph, state_id_, fun_get_state_);
   } else if (name == "excessive_tilt") {
-    return std::make_shared<ProcExcessiveTilt<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcExcessiveTilt<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph);
   } else if (name == "tf_to_world") {
-    return std::make_shared<ProcTfToWorld<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcTfToWorld<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph);
   } else if (name == "mag_declination") {
-    return std::make_shared<ProcMagDeclination<n_measurements>>(node, getNamespacedName(), name, ch_, ph_);
+    return std::make_shared<ProcMagDeclination<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph);
   } else {
     RCLCPP_ERROR(node_->get_logger(), "[%s]: requested invalid processor %s", getPrintName().c_str(), name.c_str());
     rclcpp::shutdown();

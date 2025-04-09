@@ -44,7 +44,7 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedP
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   // | --------------------- load parameters -------------------- |
-  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("orientation_topic", orientation_topic_);
   double max_tilt;

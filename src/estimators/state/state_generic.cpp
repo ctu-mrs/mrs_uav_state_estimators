@@ -38,7 +38,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
 
   ph->param_loader->loadParam("estimators/lateral/name", est_lat_name_);
   ph->param_loader->loadParam("estimators/altitude/name", est_alt_name_);
@@ -116,22 +116,45 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   // | ---------------- estimators initialization --------------- |
   std::vector<double> max_altitudes;
 
-  if (is_hdg_passthrough_) {
-    est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
-  } else {
-    est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
+  {
+    rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_hdg_name_);
+    auto est_ph = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile = ph_->loadConfigFile;
+    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    est_ph->param_loader->copyYamls(*ph_->param_loader);
+
+    if (is_hdg_passthrough_) {
+      est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
+    } else {
+      est_hdg_ = std::make_unique<HdgGeneric>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
+    }
+    est_hdg_->initialize(subnode, ch_, est_ph);
+    max_altitudes.push_back(est_hdg_->getMaxFlightZ());
   }
 
-  est_hdg_->initialize(node_, ch_, ph_);
-  max_altitudes.push_back(est_hdg_->getMaxFlightZ());
+  {
+    rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_lat_name_);
+    auto est_ph = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile = ph_->loadConfigFile;
+    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    est_ph->param_loader->copyYamls(*ph_->param_loader);
 
-  est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), is_core_plugin_, [this](void) { return this->getHeading(); });
-  est_lat_->initialize(node_, ch_, ph_);
-  max_altitudes.push_back(est_lat_->getMaxFlightZ());
+    est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), is_core_plugin_, [this](void) { return this->getHeading(); });
+    est_lat_->initialize(subnode, ch_, est_ph);
+    max_altitudes.push_back(est_lat_->getMaxFlightZ());
+  }
 
-  est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName(), is_core_plugin_);
-  est_alt_->initialize(node_, ch_, ph_);
-  max_altitudes.push_back(est_alt_->getMaxFlightZ());
+  {
+    rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_alt_name_);
+    auto est_ph = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile = ph_->loadConfigFile;
+    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    est_ph->param_loader->copyYamls(*ph_->param_loader);
+
+    est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName(), is_core_plugin_);
+    est_alt_->initialize(subnode, ch_, est_ph);
+    max_altitudes.push_back(est_alt_->getMaxFlightZ());
+  }
 
   max_flight_z_ = *std::min_element(max_altitudes.begin(), max_altitudes.end());
 

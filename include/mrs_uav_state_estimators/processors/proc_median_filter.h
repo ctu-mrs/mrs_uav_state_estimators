@@ -43,7 +43,7 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(const rclcpp::Node::SharedPtr
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   // | --------------------- load parameters -------------------- |
-  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("buffer_size", buffer_size_);
   ph->param_loader->loadParam("max_diff", max_diff_);

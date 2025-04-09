@@ -52,7 +52,7 @@ ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::Share
                                                        const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
-  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("use_gnss_msg", use_gnss_msg_);
   if (use_gnss_msg_) {

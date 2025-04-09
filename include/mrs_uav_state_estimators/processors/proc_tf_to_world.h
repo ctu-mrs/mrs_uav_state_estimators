@@ -51,7 +51,7 @@ ProcTfToWorld<n_measurements>::ProcTfToWorld(const rclcpp::Node::SharedPtr& node
                                              const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
-  ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
 
   ph->param_loader->loadParam("gnss_topic", gnss_topic_);
 

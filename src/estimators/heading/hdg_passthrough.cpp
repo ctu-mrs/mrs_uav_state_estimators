@@ -47,7 +47,7 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
                                   ".yaml");
   }
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   // | --------------------- load parameters -------------------- |
   ph->param_loader->loadParam("max_flight_z", max_flight_z_);

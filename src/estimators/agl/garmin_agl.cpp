@@ -39,7 +39,7 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
 
   // | --------------------- load parameters -------------------- |
 
-  ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/");
+  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
 
   if (is_core_plugin_) {
 
