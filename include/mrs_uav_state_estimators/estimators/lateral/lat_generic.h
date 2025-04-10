@@ -114,6 +114,8 @@ private:
   Q_t                getQ();
   mutable std::mutex mtx_Q_;
 
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+
   rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 
 public:

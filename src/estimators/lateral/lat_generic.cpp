@@ -161,6 +161,8 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/acc", Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X))));
   }
 
+  param_callback_handle_ = node_->add_on_set_parameters_callback(std::bind(&LatGeneric::callbackParameters, this, std::placeholders::_1));
+
   // | --------------- Kalman filter intialization -------------- |
 
   const x_t        x0 = x_t::Zero();
@@ -205,7 +207,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   shopts.threadsafe         = true;
   shopts.autostart          = true;
 
-  sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "control_input_in");
+  sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 
   // for transformation of desired accelerations from body to global frame
   sh_hdg_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorOutput>(shopts, hdg_source_topic_);
@@ -822,4 +824,5 @@ std::string LatGeneric::getPrintName() const {
   return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
+
 };  // namespace mrs_uav_state_estimators

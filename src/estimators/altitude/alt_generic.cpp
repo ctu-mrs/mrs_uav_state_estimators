@@ -212,7 +212,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   shopts.threadsafe         = true;
   shopts.autostart          = true;
 
-  sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "control_input_in");
+  sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
