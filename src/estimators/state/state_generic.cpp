@@ -122,6 +122,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     est_ph->loadConfigFile = ph_->loadConfigFile;
     est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
+    est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
     if (is_hdg_passthrough_) {
       est_hdg_ = std::make_unique<HdgPassthrough>(est_hdg_name_, frame_id_, getName(), is_core_plugin_);
@@ -138,6 +139,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     est_ph->loadConfigFile = ph_->loadConfigFile;
     est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
+    est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
     est_lat_ = std::make_unique<LatGeneric>(est_lat_name_, frame_id_, getName(), is_core_plugin_, [this](void) { return this->getHeading(); });
     est_lat_->initialize(subnode, ch_, est_ph);
@@ -150,6 +152,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     est_ph->loadConfigFile = ph_->loadConfigFile;
     est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
+    est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
     est_alt_ = std::make_unique<AltGeneric>(est_alt_name_, frame_id_, getName(), is_core_plugin_);
     est_alt_->initialize(subnode, ch_, est_ph);

@@ -2648,6 +2648,7 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
   proc_ph->loadConfigFile = ph_->loadConfigFile;
   proc_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
   proc_ph->param_loader->copyYamls(*ph_->param_loader);
+  proc_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
   if (name == "median_filter") {
     return std::make_shared<ProcMedianFilter<n_measurements>>(subnode, getNamespacedName(), name, ch_, proc_ph);

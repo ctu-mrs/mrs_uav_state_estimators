@@ -77,6 +77,7 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     corr_ph->loadConfigFile = ph_->loadConfigFile;
     corr_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
     corr_ph->param_loader->copyYamls(*ph->param_loader);
+    corr_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
     auto fun_get_state = [this](int a, int b) { return this->getState(a, b); };
     auto fun_get_correction = [this](const Correction<hdg_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state)
