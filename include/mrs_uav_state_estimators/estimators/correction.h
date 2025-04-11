@@ -370,7 +370,7 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
     param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
 
     // TODO the parameter name needs fixing to reflect the ROS1 naming
-    node_->declare_parameter(getNamespacedName() + "/noise", 1.0, param_desc);
+    node_->declare_parameter(getNamespacedName() + "/noise", 0.0, param_desc);
   }
 
   drs_params_.sensor_noise = R_;
