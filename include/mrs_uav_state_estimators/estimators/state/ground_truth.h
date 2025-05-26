@@ -63,9 +63,6 @@ public:
   GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id, ground_truth::package_name) {
   }
 
-  ~GroundTruth(void) {
-  }
-
   void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;

@@ -59,8 +59,7 @@ public:
   PartialEstimator(const std::string &type, const std::string &name, const std::string &frame_id) : Estimator(type, name, frame_id) {
   }
 
-  ~PartialEstimator(void) {
-  }
+  virtual ~PartialEstimator() = default;
 
   //  methods
   virtual double getState(const int &state_idx_in) const                    = 0;

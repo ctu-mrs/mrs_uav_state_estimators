@@ -13,9 +13,6 @@ class GpsBaro : public StateGeneric {
 public:
   GpsBaro() : StateGeneric(estimator_name, is_core_plugin) {
   }
-
-  ~GpsBaro(void) {
-  }
 };
 
 }  // namespace gps_baro

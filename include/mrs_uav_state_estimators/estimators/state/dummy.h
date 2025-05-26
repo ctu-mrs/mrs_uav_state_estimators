@@ -60,9 +60,6 @@ public:
   Dummy() : StateEstimator(dummy::name, dummy::frame_id, dummy::package_name) {
   }
 
-  ~Dummy(void) {
-  }
-
   void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;

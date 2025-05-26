@@ -13,9 +13,6 @@ class GpsGarmin : public StateGeneric {
 public:
   GpsGarmin() : StateGeneric(estimator_name, is_core_plugin) {
   }
-
-  ~GpsGarmin(void) {
-  }
 };
 
 }  // namespace gps_garmin

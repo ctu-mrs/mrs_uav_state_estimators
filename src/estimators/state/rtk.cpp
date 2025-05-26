@@ -13,9 +13,6 @@ class Rtk : public StateGeneric {
 public:
   Rtk() : StateGeneric(estimator_name, is_core_plugin) {
   }
-
-  ~Rtk(void) {
-  }
 };
 
 }  // namespace rtk

@@ -30,10 +30,6 @@ protected:
   AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id) {
   }
 
-  virtual ~AltitudeEstimator(void) {
-  }
-
-
 private:
   static const int _n_axes_   = 1;
   static const int _n_states_ = n_states;

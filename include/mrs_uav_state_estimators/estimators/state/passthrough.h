@@ -90,9 +90,6 @@ public:
   Passthrough() : StateEstimator(passthrough::name, passthrough::frame_id, passthrough::package_name), is_core_plugin_(is_core_plugin) {
   }
 
-  ~Passthrough(void) {
-  }
-
   void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;

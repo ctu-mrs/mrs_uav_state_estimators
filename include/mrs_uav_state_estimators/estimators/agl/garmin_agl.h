@@ -68,9 +68,6 @@ public:
   GarminAgl() : AglEstimator(garmin_agl::name, garmin_agl::frame_id, garmin_agl::package_name), is_core_plugin_(is_core_plugin) {
   }
 
-  ~GarminAgl(void) {
-  }
-
   void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;

@@ -25,9 +25,6 @@ protected:
   LateralEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, lateral::n_axes>(lateral::type, name, frame_id) {
   }
 
-  ~LateralEstimator(void) {
-  }
-
 private:
   static const int _n_axes_   = lateral::n_axes;
   static const int _n_states_ = n_states;

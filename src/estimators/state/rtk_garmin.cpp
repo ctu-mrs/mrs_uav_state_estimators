@@ -13,9 +13,6 @@ class RtkGarmin : public StateGeneric {
 public:
   RtkGarmin() : StateGeneric(estimator_name, is_core_plugin) {
   }
-
-  ~RtkGarmin(void) {
-  }
 };
 
 }  // namespace rtk_garmin
