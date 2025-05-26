@@ -123,7 +123,8 @@ bool Passthrough::start(void) {
 
   if (isInState(READY_STATE)) {
 
-    /* timer_update_.start(); */
+    timer_check_passthrough_odom_hz_->start();
+
     changeState(STARTED_STATE);
     return true;
 
@@ -142,7 +143,11 @@ bool Passthrough::start(void) {
 bool Passthrough::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_check_passthrough_odom_hz_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
   }
   return false;

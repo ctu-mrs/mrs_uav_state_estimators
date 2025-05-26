@@ -260,7 +260,9 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 bool AltGeneric::start(void) {
 
   if (isInState(READY_STATE)) {
-    /* timer_update_.start(); */
+
+    timer_update_->start();
+
     changeState(STARTED_STATE);
     return true;
 
@@ -275,7 +277,11 @@ bool AltGeneric::start(void) {
 bool AltGeneric::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_update_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {

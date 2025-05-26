@@ -106,6 +106,8 @@ bool Dummy::start(void) {
   if (isInState(READY_STATE)) {
 
     timer_update_.start();
+    timer_check_health_.start();
+
     changeState(STARTED_STATE);
     return true;
 
@@ -124,7 +126,12 @@ bool Dummy::start(void) {
 bool Dummy::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_update_->stop();
+    timer_check_health_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {

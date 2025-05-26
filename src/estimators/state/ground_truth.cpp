@@ -91,6 +91,8 @@ bool GroundTruth::start(void) {
   if (isInState(READY_STATE)) {
 
     timer_update_.start();
+    timer_check_health_.start();
+
     changeState(STARTED_STATE);
     return true;
 
@@ -109,7 +111,12 @@ bool GroundTruth::start(void) {
 bool GroundTruth::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_update_.stop();
+    timer_check_health_.stop();
+
     changeState(STOPPED_STATE);
+
     return true;
   }
   return false;

@@ -230,7 +230,11 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 bool HdgGeneric::start(void) {
 
   if (isInState(READY_STATE)) {
+
+    timer_update_->start();
+
     changeState(STARTED_STATE);
+
     return true;
 
   } else {
@@ -244,7 +248,11 @@ bool HdgGeneric::start(void) {
 bool HdgGeneric::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_update_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {

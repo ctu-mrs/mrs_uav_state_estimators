@@ -263,7 +263,9 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 bool LatGeneric::start(void) {
 
   if (isInState(READY_STATE)) {
-    /* timer_update_.start(); */
+
+    timer_update_->start();
+
     changeState(STARTED_STATE);
     return true;
 
@@ -278,7 +280,11 @@ bool LatGeneric::start(void) {
 bool LatGeneric::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
+    timer_update_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {

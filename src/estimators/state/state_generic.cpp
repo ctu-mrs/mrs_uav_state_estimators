@@ -216,7 +216,10 @@ bool StateGeneric::start(void) {
     }
 
     if (est_lat_start_successful && est_alt_start_successful && est_hdg_start_successful) {
-      /* timer_update_.start(); */
+
+      timer_update_->start();
+      timer_pub_attitude_->start();
+
       changeState(STARTED_STATE);
       return true;
     }
@@ -236,10 +239,16 @@ bool StateGeneric::start(void) {
 bool StateGeneric::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
     est_lat_->pause();
     est_alt_->pause();
     est_hdg_->pause();
+
+    timer_update_->stop();
+    timer_pub_attitude_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {

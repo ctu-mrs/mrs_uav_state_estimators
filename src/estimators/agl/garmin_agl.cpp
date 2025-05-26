@@ -127,7 +127,10 @@ bool GarminAgl::start(void) {
     }
 
     if (est_agl_garmin_start_successful) {
+
       timer_update_->start();
+      timer_check_health_->start();
+
       changeState(STARTED_STATE);
       return true;
     }
@@ -147,8 +150,14 @@ bool GarminAgl::start(void) {
 bool GarminAgl::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
+
     est_agl_garmin_->pause();
+
+    timer_update_->stop();
+    timer_check_health_->stop();
+
     changeState(STOPPED_STATE);
+
     return true;
 
   } else {
