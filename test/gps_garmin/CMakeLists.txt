@@ -1,1 +1,1 @@
-add_subdirectory(gps_garmin_basic)
+add_subdirectory(./gps_garmin_basic)

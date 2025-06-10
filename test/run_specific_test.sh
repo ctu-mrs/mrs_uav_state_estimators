@@ -1,7 +1,5 @@
 #!/bin/bash
 
-MY_PATH=`pwd`
-
 while [ ! -e "build/COLCON_IGNORE" ]; do
   cd ..
   if [[ `pwd` == "/" ]]; then
@@ -13,6 +11,6 @@ done
 
 colcon test-result --delete-yes
 
-colcon test --paths $MY_PATH/.. -p 1 --event-handlers console_direct+
+colcon test --packages-select mrs_uav_state_estimators --ctest-args -R 'gps_garmin_basic' --event-handlers console_direct+ console_stderr- console_start_end-
 
 colcon test-result --all --verbose

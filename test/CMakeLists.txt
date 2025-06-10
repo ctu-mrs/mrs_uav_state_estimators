@@ -1,9 +1,12 @@
-find_package(rostest REQUIRED)
+find_package(ament_cmake_gtest REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
+find_package(launch_testing_ament_cmake REQUIRED)
 
-add_subdirectory(gps_baro)
+function(add_ros_isolated_launch_test path)
+  set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+  add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
+endfunction()
 
-add_subdirectory(gps_garmin)
+add_subdirectory(./gps_baro)
 
-add_subdirectory(rtk)
-
-add_subdirectory(rtk_garmin)
+add_subdirectory(./gps_garmin)
