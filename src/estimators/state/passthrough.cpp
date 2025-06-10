@@ -200,54 +200,7 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     changeState(RUNNING_STATE);
   }
 
-  const ros::Time time_now = ros::Time::now();
-
-  nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();
-
-  if (first_iter_) {
-    prev_msg_   = msg;
-    first_iter_ = false;
-  }
-
-  mrs_msgs::UavState uav_state = uav_state_init_;
-
-  uav_state.header.stamp = time_now;
-
-  uav_state.pose.position    = msg->pose.pose.position;
-  uav_state.pose.orientation = msg->pose.pose.orientation;
-
-  uav_state.velocity.linear  = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
-  uav_state.velocity.angular = msg->twist.twist.angular;
-
-  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
-
-  nav_msgs::Odometry innovation = innovation_init_;
-  innovation.header.stamp       = time_now;
-
-  innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
-  innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
-  innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
-
-  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
-  pose_covariance.header.stamp  = time_now;
-  twist_covariance.header.stamp = time_now;
-
-  const int n_states = 6;  // TODO this should be defined somewhere else
-  pose_covariance.values.resize(n_states * n_states);
-  pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
-  pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
-  pose_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
-
-  twist_covariance.values.resize(n_states * n_states);
-  twist_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
-  twist_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
-  twist_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
-
-  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
-  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
-  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
-  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
-  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+  updateUavState();
 
   publishUavState();
   publishOdom();
@@ -255,7 +208,6 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
   publishInnovation();
   publishDiagnostics();
 
-  prev_msg_ = msg;
 }
 /*//}*/
 
@@ -357,6 +309,61 @@ bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_sta
 
   ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
   return false;
+}
+/*//}*/
+
+/*//{ updateUavState() */
+void Passthrough::updateUavState() {
+  const ros::Time time_now = ros::Time::now();
+
+  nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();
+
+  if (first_iter_) {
+    prev_msg_   = msg;
+    first_iter_ = false;
+  }
+
+  mrs_msgs::UavState uav_state = uav_state_init_;
+
+  uav_state.header.stamp = time_now;
+
+  uav_state.pose.position    = msg->pose.pose.position;
+  uav_state.pose.orientation = msg->pose.pose.orientation;
+
+  uav_state.velocity.linear  = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
+  uav_state.velocity.angular = msg->twist.twist.angular;
+
+  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
+
+  nav_msgs::Odometry innovation = innovation_init_;
+  innovation.header.stamp       = time_now;
+
+  innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
+  innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
+  innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
+
+  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  pose_covariance.header.stamp  = time_now;
+  twist_covariance.header.stamp = time_now;
+
+  const int n_states = 6;  // TODO this should be defined somewhere else
+  pose_covariance.values.resize(n_states * n_states);
+  pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
+  pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
+  pose_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
+
+  twist_covariance.values.resize(n_states * n_states);
+  twist_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
+  twist_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
+  twist_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
+
+  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
+  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
+  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
+  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
+  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+
+  prev_msg_ = msg;
 }
 /*//}*/
 

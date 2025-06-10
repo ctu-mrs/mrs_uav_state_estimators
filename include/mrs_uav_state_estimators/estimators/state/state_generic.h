@@ -92,6 +92,7 @@ public:
   std::optional<double> getHeading() const;
 
   void updateUavState();
+
 };
 
 }  // namespace mrs_uav_state_estimators

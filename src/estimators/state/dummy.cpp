@@ -147,34 +147,7 @@ void Dummy::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     return;
   }
 
-  const ros::Time time_now = ros::Time::now();
-
-  mrs_msgs::UavState uav_state = uav_state_init_;
-  uav_state_.header.stamp      = time_now;
-
-  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
-
-  nav_msgs::Odometry innovation = innovation_init_;
-
-  innovation.header.stamp = time_now;
-
-  innovation.pose.pose.position.x = 0.0;
-  innovation.pose.pose.position.y = 0.0;
-  innovation.pose.pose.position.z = 0.0;
-
-  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
-  pose_covariance_.header.stamp  = time_now;
-  twist_covariance_.header.stamp = time_now;
-
-  const int n_states = 6;  // TODO this should be defined somewhere else
-  pose_covariance.values.resize(n_states * n_states);
-  twist_covariance.values.resize(n_states * n_states);
-
-  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
-  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
-  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
-  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
-  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+  updateUavState();
 
   publishUavState();
   publishOdom();
@@ -228,6 +201,38 @@ bool Dummy::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 }
 /*//}*/
 
+/*//{ updateUavState() */
+void Dummy::updateUavState() {
+  const ros::Time time_now = ros::Time::now();
+
+  mrs_msgs::UavState uav_state = uav_state_init_;
+  uav_state_.header.stamp      = time_now;
+
+  const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
+
+  nav_msgs::Odometry innovation = innovation_init_;
+
+  innovation.header.stamp = time_now;
+
+  innovation.pose.pose.position.x = 0.0;
+  innovation.pose.pose.position.y = 0.0;
+  innovation.pose.pose.position.z = 0.0;
+
+  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
+  pose_covariance_.header.stamp  = time_now;
+  twist_covariance_.header.stamp = time_now;
+
+  const int n_states = 6;  // TODO this should be defined somewhere else
+  pose_covariance.values.resize(n_states * n_states);
+  twist_covariance.values.resize(n_states * n_states);
+
+  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
+  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
+  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
+  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
+  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+}
+/*//}*/
 }  // namespace dummy
 
 }  // namespace mrs_uav_state_estimators
