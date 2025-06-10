@@ -18,5 +18,5 @@ public:
 }  // namespace rtk_garmin
 }  // namespace mrs_uav_state_estimators
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::rtk_garmin::RtkGarmin, mrs_uav_managers::StateEstimator)
