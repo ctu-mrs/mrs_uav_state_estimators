@@ -55,7 +55,7 @@ set(LIBRARIES
   MrsUavStateEstimators_Passthrough
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
-  # MrsUavStateEstimators_GroundTruth
+  MrsUavStateEstimators_GroundTruth
   # MrsUavStateEstimators_Dummy
   )
 
@@ -181,6 +181,22 @@ ament_target_dependencies(MrsUavStateEstimators_RtkGarmin
   )
 
 target_compile_definitions(MrsUavStateEstimators_RtkGarmin PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+# Ground truth
+
+add_library(MrsUavStateEstimators_GroundTruth SHARED
+  src/estimators/state/ground_truth.cpp
+  )
+
+target_link_libraries(MrsUavStateEstimators_GroundTruth
+  MrsUavStateEstimators_Common
+  )
+
+ament_target_dependencies(MrsUavStateEstimators_GroundTruth
+  ${DEPENDENCIES}
+  )
+
+target_compile_definitions(MrsUavStateEstimators_GroundTruth PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
 ## --------------------------------------------------------------
 ## |                       export plugins                       |

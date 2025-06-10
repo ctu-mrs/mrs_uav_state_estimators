@@ -10,37 +10,37 @@
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_Rtk">
+<library path="MrsUavStateEstimators_Rtk">
   <class type="mrs_uav_state_estimators::rtk::Rtk" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Rtk state estimator</description>
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_RtkGarmin">
+<library path="MrsUavStateEstimators_RtkGarmin">
   <class type="mrs_uav_state_estimators::rtk_garmin::RtkGarmin" base_class_type="mrs_uav_managers::StateEstimator">
     <description>RtkGarmin state estimator</description>
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_Passthrough">
+<library path="MrsUavStateEstimators_Passthrough">
   <class type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Passthrough state estimator</description>
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_GroundTruth">
+<library path="MrsUavStateEstimators_GroundTruth">
   <class type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GroundTruth state estimator</description>
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_Dummy">
+<library path="MrsUavStateEstimators_Dummy">
   <class type="mrs_uav_state_estimators::dummy::Dummy" base_class_type="mrs_uav_managers::StateEstimator">
     <description>Dummy state estimator</description>
   </class>
 </library>
 
-<library path="libMrsUavStateEstimators_GarminAgl">
+<library path="MrsUavStateEstimators_GarminAgl">
   <class type="mrs_uav_state_estimators::garmin_agl::GarminAgl" base_class_type="mrs_uav_managers::AglEstimator">
     <description>Garmin AGL height estimator</description>
   </class>

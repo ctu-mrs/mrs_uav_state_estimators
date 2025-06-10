@@ -1,0 +1,1 @@
+add_subdirectory(./ground_truth_basic)

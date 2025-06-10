@@ -3,14 +3,14 @@
 
 /* includes //{ */
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <nav_msgs/Odometry.h>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
-#include <mrs_lib/subscribe_handler.h>
+#include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
@@ -23,6 +23,22 @@
 
 //}
 
+/* using //{ */
+
+using namespace std::chrono_literals;
+
+//}
+
+/* typedefs //{ */
+
+#if USE_ROS_TIMER == 1
+typedef mrs_lib::ROSTimer TimerType;
+#else
+typedef mrs_lib::ThreadTimer TimerType;
+#endif
+
+//}
+
 namespace mrs_uav_state_estimators
 {
 
@@ -31,6 +47,8 @@ namespace ground_truth
 const char name[]         = "ground_truth";
 const char frame_id[]     = "ground_truth_origin";
 const char package_name[] = "mrs_uav_state_estimators";
+
+const bool is_core_plugin = true;
 
 class GroundTruth : public mrs_uav_managers::StateEstimator {
 
@@ -43,32 +61,34 @@ private:
 
   const std::string est_hdg_name_ = "hdg_gt";
 
-  mrs_lib::SubscribeHandler<nav_msgs::Odometry> sh_gt_odom_;
-  double                                        _critical_timeout_gt_odom_;
-  std::string                                   msg_topic_;
+  const bool is_core_plugin_;
 
-  ros::Timer                 timer_update_;
-  void                       timerUpdate(const ros::TimerEvent &event);
-  nav_msgs::OdometryConstPtr prev_msg_;
-  bool                       first_iter_ = true;
+  mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_gt_odom_;
+  double                                              _critical_timeout_gt_odom_;
+  std::string                                         msg_topic_;
 
-  ros::Timer timer_check_health_;
-  void       timerCheckHealth(const ros::TimerEvent &event);
+  std::shared_ptr<TimerType>              timer_update_;
+  void                                    timerUpdate();
+  nav_msgs::msg::Odometry::ConstSharedPtr prev_msg_;
+  bool                                    first_iter_ = true;
+
+  std::shared_ptr<TimerType> timer_check_health_;
+  void                       timerCheckHealth();
 
   bool isConverged();
 
   void waitForEstimationInitialization();
 
 public:
-  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id, ground_truth::package_name) {
+  GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id, ground_truth::package_name), is_core_plugin_(is_core_plugin) {
   }
 
-  void initialize(ros::NodeHandle &nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
+  void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;
   bool pause(void) override;
   bool reset(void) override;
 
-  bool setUavState(const mrs_msgs::UavState &uav_state) override;
+  bool setUavState(const mrs_msgs::msg::UavState &uav_state) override;
 };
 
 }  // namespace ground_truth

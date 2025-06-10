@@ -76,6 +76,7 @@ void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
   }
 
   // | ---------------- publishers initialization --------------- |
+
   ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom");  // needed for tf
                                                                                                                            //
   if (ch_->debug_topics.state) {
@@ -96,6 +97,7 @@ void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
   }
 
   // | ------------------ initialize published messages ------------------ |
+
   uav_state_init_.header.frame_id = ns_frame_id_;
   uav_state_init_.child_frame_id  = ch_->frames.ns_fcu;
 
@@ -119,7 +121,6 @@ void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
 
 /*//{ start() */
 bool Passthrough::start(void) {
-
 
   if (isInState(READY_STATE)) {
 
@@ -228,7 +229,6 @@ void Passthrough::timerCheckPassthroughOdomHz() {
 
 /* timerUpdate() //{*/
 void Passthrough::timerUpdate() {
-
 
   if (isInState(STARTED_STATE)) {
 

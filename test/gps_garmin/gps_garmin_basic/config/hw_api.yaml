@@ -11,5 +11,5 @@ outputs:
   orientation:          true
   velocity:             true
   angular_velocity:     true
-  odometry:             true
+  odometry:             false
   ground_truth:         false
