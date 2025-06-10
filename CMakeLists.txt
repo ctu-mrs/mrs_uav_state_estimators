@@ -53,7 +53,7 @@ set(LIBRARIES
   MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_GarminAgl
   MrsUavStateEstimators_Passthrough
-  # MrsUavStateEstimators_Rtk
+  MrsUavStateEstimators_Rtk
   # MrsUavStateEstimators_RtkGarmin
   # MrsUavStateEstimators_GroundTruth
   # MrsUavStateEstimators_Dummy
@@ -92,12 +92,10 @@ add_library(MrsUavStateEstimators_GpsBaro SHARED
   src/estimators/state/gps_baro.cpp
   )
 
-## Specify libraries to link a library or executable target against
 target_link_libraries(MrsUavStateEstimators_GpsBaro
   MrsUavStateEstimators_Common
   )
 
-## Add configure headers for dynamic reconfigure
 ament_target_dependencies(MrsUavStateEstimators_GpsBaro
   ${DEPENDENCIES}
   )
@@ -110,12 +108,10 @@ add_library(MrsUavStateEstimators_GpsGarmin SHARED
   src/estimators/state/gps_garmin.cpp
   )
 
-## Specify libraries to link a library or executable target against
 target_link_libraries(MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_Common
   )
 
-## Add configure headers for dynamic reconfigure
 ament_target_dependencies(MrsUavStateEstimators_GpsGarmin
   ${DEPENDENCIES}
   )
@@ -128,12 +124,10 @@ add_library(MrsUavStateEstimators_GarminAgl SHARED
   src/estimators/agl/garmin_agl.cpp
   )
 
-## Specify libraries to link a library or executable target against
 target_link_libraries(MrsUavStateEstimators_GarminAgl
   MrsUavStateEstimators_Common
   )
 
-## Add configure headers for dynamic reconfigure
 ament_target_dependencies(MrsUavStateEstimators_GarminAgl
   ${DEPENDENCIES}
   )
@@ -146,17 +140,31 @@ add_library(MrsUavStateEstimators_Passthrough SHARED
   src/estimators/state/passthrough.cpp
   )
 
-## Specify libraries to link a library or executable target against
 target_link_libraries(MrsUavStateEstimators_Passthrough
   MrsUavStateEstimators_Common
   )
 
-## Add configure headers for dynamic reconfigure
 ament_target_dependencies(MrsUavStateEstimators_Passthrough
   ${DEPENDENCIES}
   )
 
 target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+# Rtk
+
+add_library(MrsUavStateEstimators_Rtk SHARED
+  src/estimators/state/rtk.cpp
+  )
+
+target_link_libraries(MrsUavStateEstimators_Rtk
+  MrsUavStateEstimators_Common
+  )
+
+ament_target_dependencies(MrsUavStateEstimators_Rtk
+  ${DEPENDENCIES}
+  )
+
+target_compile_definitions(MrsUavStateEstimators_Rtk PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
 ## --------------------------------------------------------------
 ## |                       export plugins                       |
