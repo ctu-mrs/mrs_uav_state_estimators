@@ -11,6 +11,6 @@ done
 
 colcon test-result --delete-yes
 
-colcon test --packages-select mrs_uav_state_estimators --ctest-args -R 'ground_truth' --event-handlers console_direct+ console_stderr- console_start_end-
+colcon test --packages-select mrs_uav_state_estimators --ctest-args -R 'passthrough' --event-handlers console_direct+ console_stderr- console_start_end-
 
 colcon test-result --all --verbose

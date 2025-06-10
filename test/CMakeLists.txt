@@ -16,3 +16,5 @@ add_subdirectory(./rtk)
 add_subdirectory(./rtk_garmin)
 
 add_subdirectory(./ground_truth)
+
+add_subdirectory(./passthrough)
