@@ -56,7 +56,7 @@ set(LIBRARIES
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
   MrsUavStateEstimators_GroundTruth
-  # MrsUavStateEstimators_Dummy
+  MrsUavStateEstimators_Dummy
   )
 
 foreach(DEP IN LISTS DEPENDENCIES)
@@ -197,6 +197,22 @@ ament_target_dependencies(MrsUavStateEstimators_GroundTruth
   )
 
 target_compile_definitions(MrsUavStateEstimators_GroundTruth PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+# Dummy
+
+add_library(MrsUavStateEstimators_Dummy SHARED
+  src/estimators/state/dummy.cpp
+  )
+
+target_link_libraries(MrsUavStateEstimators_Dummy
+  MrsUavStateEstimators_Common
+  )
+
+ament_target_dependencies(MrsUavStateEstimators_Dummy
+  ${DEPENDENCIES}
+  )
+
+target_compile_definitions(MrsUavStateEstimators_Dummy PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
 ## --------------------------------------------------------------
 ## |                       export plugins                       |

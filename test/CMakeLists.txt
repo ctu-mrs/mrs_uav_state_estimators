@@ -20,3 +20,5 @@ add_subdirectory(./ground_truth)
 add_subdirectory(./passthrough)
 
 add_subdirectory(./garmin_agl)
+
+add_subdirectory(./dummy)
