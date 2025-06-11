@@ -32,10 +32,10 @@ bool Tester::test(void) {
   }
 
   {
-    auto [success, message] = uh->activateMidAir();
+    auto [success, message] = uh->takeoff();
 
     if (!success) {
-      RCLCPP_ERROR(node_->get_logger(), "midair activation failed with message: '%s'", message.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "takeoff failed with message: '%s'", message.c_str());
       return false;
     }
   }

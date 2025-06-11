@@ -51,7 +51,7 @@ def generate_test_description():
                         ])
                     ]),
                     launch_arguments={
-                        'run_automatic_start': "false",
+                        'run_automatic_start': "true",
                         'uav_name': uav_name,
                         'platform_config': platform_config,
                         'world_config': launch_dir+"/config/world_config.yaml",
@@ -73,9 +73,9 @@ def generate_test_description():
                             'mrs_multirotor_simulator.py'
                         ])
                     ]),
-                    # launch_arguments={
-                    #     'custom_config': launch_dir+"/config/mrs_simulator.yaml",
-                    # }.items()
+                    launch_arguments={
+                        'custom_config': launch_dir+"/config/mrs_simulator.yaml",
+                    }.items()
                 )
             ]
         )
