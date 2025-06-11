@@ -142,7 +142,6 @@ bool Dummy::reset(void) {
 /* timerUpdate() //{*/
 void Dummy::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
-
   if (!isInitialized()) {
     return;
   }
@@ -203,6 +202,11 @@ bool Dummy::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
 /*//{ updateUavState() */
 void Dummy::updateUavState() {
+
+  if (!isInitialized()) {
+    return;
+  }
+
   const ros::Time time_now = ros::Time::now();
 
   mrs_msgs::UavState uav_state = uav_state_init_;

@@ -194,6 +194,9 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
 /* timerUpdate() //{*/
 void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
+  if (!isInitialized()) {
+    return;
+  }
 
   if (isInState(STARTED_STATE)) {
 
@@ -314,6 +317,11 @@ bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_sta
 
 /*//{ updateUavState() */
 void Passthrough::updateUavState() {
+
+  if (!isInitialized()) {
+    return;
+  }
+
   const ros::Time time_now = ros::Time::now();
 
   nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();

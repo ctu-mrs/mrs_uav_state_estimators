@@ -135,7 +135,6 @@ bool GroundTruth::reset(void) {
 /* timerUpdate() //{*/
 void GroundTruth::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
-
   if (!isInitialized()) {
     return;
   }
@@ -202,6 +201,10 @@ bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_sta
 
 /*//{ updateUavState() */
 void GroundTruth::updateUavState() {
+
+  if (!isInitialized()) {
+    return;
+  }
 
   const ros::Time time_now = ros::Time::now();
 
