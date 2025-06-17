@@ -135,6 +135,72 @@ bool GroundTruth::reset(void) {
 /* timerUpdate() //{*/
 void GroundTruth::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
 
+  if (!isInitialized()) {
+    return;
+  }
+
+  updateUavState();
+
+  publishUavState();
+  publishOdom();
+  publishCovariance();
+  publishInnovation();
+  publishDiagnostics();
+
+}  // namespace ground_truth
+/*//}*/
+
+/*//{ timerCheckHealth() */
+void GroundTruth::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  if (isInState(INITIALIZED_STATE)) {
+
+    if (sh_gt_odom_.hasMsg()) {
+      changeState(READY_STATE);
+      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
+    } else {
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_gt_odom_.topicName().c_str());
+      return;
+    }
+  }
+
+
+  if (isInState(STARTED_STATE)) {
+
+    changeState(RUNNING_STATE);
+  }
+}
+/*//}*/
+
+/*//{ isConverged() */
+bool GroundTruth::isConverged() {
+
+  // TODO: check convergence by rate of change of determinant
+  // most likely not used in top-level estimator
+
+  return true;
+}
+/*//}*/
+
+/*//{ setUavState() */
+bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
+
+  if (!isInState(STOPPED_STATE)) {
+    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
+    return false;
+  }
+
+  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
+  return false;
+}
+/*//}*/
+
+/*//{ updateUavState() */
+void GroundTruth::updateUavState() {
 
   if (!isInitialized()) {
     return;
@@ -189,62 +255,7 @@ void GroundTruth::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-
   prev_msg_ = msg;
-}  // namespace ground_truth
-/*//}*/
-
-/*//{ timerCheckHealth() */
-void GroundTruth::timerCheckHealth([[maybe_unused]] const ros::TimerEvent &event) {
-
-  if (!isInitialized()) {
-    return;
-  }
-
-  if (isInState(INITIALIZED_STATE)) {
-
-    if (sh_gt_odom_.hasMsg()) {
-      changeState(READY_STATE);
-      ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
-    } else {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_gt_odom_.topicName().c_str());
-      return;
-    }
-  }
-
-
-  if (isInState(STARTED_STATE)) {
-
-    changeState(RUNNING_STATE);
-  }
-}
-/*//}*/
-
-/*//{ isConverged() */
-bool GroundTruth::isConverged() {
-
-  // TODO: check convergence by rate of change of determinant
-  // most likely not used in top-level estimator
-
-  return true;
-}
-/*//}*/
-
-/*//{ setUavState() */
-bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
-
-  if (!isInState(STOPPED_STATE)) {
-    ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
-    return false;
-  }
-
-  ROS_WARN("[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
-  return false;
 }
 /*//}*/
 
