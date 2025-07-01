@@ -40,6 +40,8 @@ bool Tester::test(void) {
     }
   }
 
+  sleep(3.0);
+
   if (uh->getActiveEstimator() != "rtk_garmin") {
     RCLCPP_ERROR(node_->get_logger(), "rtk_garmin estimator not active");
     return false;

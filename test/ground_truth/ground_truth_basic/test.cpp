@@ -40,6 +40,8 @@ bool Tester::test(void) {
     }
   }
 
+  sleep(3.0);
+
   if (uh->getActiveEstimator() != "ground_truth") {
     RCLCPP_ERROR(node_->get_logger(), "ground_truth estimator not active");
     return false;

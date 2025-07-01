@@ -40,6 +40,8 @@ bool Tester::test(void) {
     }
   }
 
+  sleep(3.0);
+
   if (uh->getActiveEstimator() != "gps_garmin") {
     RCLCPP_ERROR(node_->get_logger(), "gps_garmin estimator not active");
     return false;

@@ -40,6 +40,8 @@ bool Tester::test(void) {
     }
   }
 
+  sleep(3.0);
+
   if (uh->getActiveEstimator() != "passthrough") {
     RCLCPP_ERROR(node_->get_logger(), "passthrough estimator not active");
     return false;
