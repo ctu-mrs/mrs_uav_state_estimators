@@ -321,7 +321,8 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
     rclcpp::shutdown();
   }
 
-  ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_, false);
+  ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_);
+
   if (transform_to_frame_enabled_) {
     ph->param_loader->loadParam("transform/from_frame", transform_from_frame_);
     transform_from_frame_ = ch_->uav_name + "/" + transform_from_frame_;
@@ -329,14 +330,13 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
     transform_to_frame_ = ch_->uav_name + "/" + transform_to_frame_;
   }
 
-
   if (state_id_ == StateId_t::VELOCITY) {
-    ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
+    ph->param_loader->loadParam("body_frame", is_in_body_frame_);
   }
 
   if (state_id_ == StateId_t::ACCELERATION) {
-    ph->param_loader->loadParam("body_frame", is_in_body_frame_, true);
-    ph->param_loader->loadParam("gravity_norm", gravity_norm_, 9.8066);
+    ph->param_loader->loadParam("body_frame", is_in_body_frame_);
+    ph->param_loader->loadParam("gravity_norm", gravity_norm_);
   }
 
   ph->param_loader->loadParam("noise", R_);

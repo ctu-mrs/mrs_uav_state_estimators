@@ -1,6 +1,9 @@
 mrs_uav_managers:
+
   estimation_manager:
+
     gps_baro: # namespace of the state estimator
+
       alt_baro: # namespace of the altitude estimator
 
         max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
@@ -29,8 +32,13 @@ mrs_uav_managers:
           message:
             type: "geometry_msgs/Vector3Stamped"
             topic: "hw_api/velocity" # without uav namespace
-            limit: 
+            limit:
               delay: 1.0 # [s] messages with higher delay will flag correction as unhealthy
               time_since_last: 0.5 # [s] larger time step between messages will flag correction as unhealthy
 
           processors: [] # types of processors attached to this measurement
+
+          transform:
+            enabled: false
+
+          body_frame: true
