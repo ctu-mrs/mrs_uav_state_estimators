@@ -13,6 +13,7 @@
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscriber_handler.h>
 #include <mrs_lib/geometry/cyclic.h>
+#include <mrs_lib/dynparam_mgr.h>
 
 #include <mrs_uav_state_estimators/estimators/heading/heading_estimator.h>
 #include <mrs_uav_state_estimators/estimators/correction.h>
@@ -64,6 +65,8 @@ class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
 
   using StateId_t = mrs_uav_managers::estimation_manager::StateId_t;
 
+  std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
+
 private:
   std::string parent_state_est_name_;
 
@@ -110,8 +113,6 @@ private:
 
   mutable std::mutex mutex_last_valid_hdg_;
   double             last_valid_hdg_;
-
-  rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 
 public:
   HdgGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)

@@ -13,6 +13,7 @@
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscriber_handler.h>
+#include <mrs_lib/dynparam_mgr.h>
 
 #include <mrs_uav_state_estimators/estimators/altitude/altitude_estimator.h>
 #include <mrs_uav_state_estimators/estimators/correction.h>
@@ -64,7 +65,7 @@ class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
 
   using StateId_t = mrs_uav_managers::estimation_manager::StateId_t;
 
-  rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
+  std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
 
 private:
   std::string parent_state_est_name_;

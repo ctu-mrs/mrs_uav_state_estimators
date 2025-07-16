@@ -13,6 +13,7 @@
 #include <mrs_lib/gps_conversions.h>
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/geometry/cyclic.h>
+#include <mrs_lib/dynparam_mgr.h>
 
 #include <mrs_msgs/msg/rtk_gps.hpp>
 #include <mrs_msgs/msg/estimator_correction.hpp>
@@ -263,6 +264,8 @@ private:
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
 
+  std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
+
   struct drs_params
   {
     double sensor_noise = 1.0;
@@ -270,8 +273,6 @@ private:
 
   drs_params drs_params_;
   std::mutex mutex_drs_params_;
-
-  rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
 };
 
 /*//{ constructor */
@@ -352,29 +353,11 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
 
   // | ------------- initialize dynamic reconfigure ------------- |
 
-  // old ROS1 code for dynamic reconfigure
-  /* drmgr_               = std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), getPrintName()); */
-  /* drmgr_->config.noise = R_; */
-  /* drmgr_->update_config(drmgr_->config); */
+  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mutex_drs_params_);
 
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    // TODO the parameter name needs fixing to reflect the ROS1 naming
-    node_->declare_parameter(getNamespacedName() + "/noise", 0.0, param_desc);
-  }
-
+  // TODO the parameter name needs fixing to reflect the ROS1 naming
   drs_params_.sensor_noise = R_;
-  node_->set_parameter(rclcpp::Parameter(getNamespacedName() + "/noise", drs_params_.sensor_noise));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/noise", &drs_params_.sensor_noise, drs_params_.sensor_noise, mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscriberHandlerOptions shopts;
@@ -485,45 +468,6 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
   is_initialized_ = true;
 }
 /*//}*/
-
-/* callbackParameters() //{ */
-
-template <int n_measurements>
-rcl_interfaces::msg::SetParametersResult Correction<n_measurements>::callbackParameters(std::vector<rclcpp::Parameter> parameters) {
-
-  rcl_interfaces::msg::SetParametersResult result;
-
-  auto drs_params = mrs_lib::get_mutexed(mutex_drs_params_, drs_params_);
-
-  // Note that setting a parameter to a nonsensical value (such as setting the `param_namespace.floating_number` parameter to `hello`)
-  // doesn't have any effect - it doesn't even call this callback.
-  for (auto& param : parameters) {
-
-    RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
-
-    if (param.get_name() == getNamespacedName() + "/noise") {
-
-      drs_params_.sensor_noise = param.as_double();
-
-    } else {
-
-      RCLCPP_WARN_STREAM(node_->get_logger(), "parameter: '" << param.get_name() << "' is not dynamically reconfigurable!");
-      result.successful = false;
-      result.reason     = "Parameter '" + param.get_name() + "' is not dynamically reconfigurable!";
-      return result;
-    }
-  }
-
-  RCLCPP_INFO(node_->get_logger(), "params updated");
-  result.successful = true;
-  result.reason     = "OK";
-
-  mrs_lib::set_mutexed(mutex_drs_params_, drs_params, drs_params_);
-
-  return result;
-}
-
-//}
 
 /*//{ getName() */
 template <int n_measurements>

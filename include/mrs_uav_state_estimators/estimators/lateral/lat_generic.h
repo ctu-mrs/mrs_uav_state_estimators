@@ -14,6 +14,7 @@
 #include <mrs_lib/profiler.h>
 #include <mrs_lib/param_loader.h>
 #include <mrs_lib/subscriber_handler.h>
+#include <mrs_lib/dynparam_mgr.h>
 
 #include <mrs_uav_state_estimators/estimators/lateral/lateral_estimator.h>
 #include <mrs_uav_state_estimators/estimators/correction.h>
@@ -114,9 +115,7 @@ private:
   Q_t                getQ();
   mutable std::mutex mtx_Q_;
 
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
-
-  rcl_interfaces::msg::SetParametersResult callbackParameters(std::vector<rclcpp::Parameter> parameters);
+  std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
 
 public:
   LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin,

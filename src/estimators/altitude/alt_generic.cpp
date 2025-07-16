@@ -25,8 +25,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   node_ = node;
 
-  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(),
-              node_->get_sub_namespace().c_str());
+  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
 
   clock_ = node->get_clock();
 
@@ -77,30 +76,16 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   for (auto corr_name : correction_names_) {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(corr_name);
-    auto corr_ph = std::make_shared<PrivateHandlers_t>();
-    corr_ph->loadConfigFile = ph_->loadConfigFile;
-    corr_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    corr_ph = std::make_shared<PrivateHandlers_t>();
+    corr_ph->loadConfigFile         = ph_->loadConfigFile;
+    corr_ph->param_loader           = std::make_unique<mrs_lib::ParamLoader>(subnode);
     corr_ph->param_loader->copyYamls(*ph->param_loader);
     corr_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
-    auto fun_get_state = [this](int a, int b) { return this->getState(a, b); };
-    auto fun_get_correction = [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state)
-        {
-          return this->doCorrection(meas, R, state);
-        };
+    auto fun_get_state      = [this](int a, int b) { return this->getState(a, b); };
+    auto fun_get_correction = [this](const Correction<alt_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) { return this->doCorrection(meas, R, state); };
 
-    auto corr = std::make_shared<Correction<alt_generic::n_measurements>>
-        (
-          subnode,
-          getNamespacedName(),
-          corr_name,
-          ns_frame_id_,
-          EstimatorType_t::ALTITUDE,
-          ch_,
-          corr_ph,
-          fun_get_state,
-          fun_get_correction
-        );
+    auto corr = std::make_shared<Correction<alt_generic::n_measurements>>(subnode, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::ALTITUDE, ch_, corr_ph, fun_get_state, fun_get_correction);
 
     corrections_.push_back(corr);
   }
@@ -123,67 +108,13 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     rclcpp::shutdown();
   }
 
-  // | ------------- initialize dynamic reconfigure ------------- |
+  // | ------------------- dynamic reconfigure ------------------ |
 
-  // original ROS1 dynamic reconfigure
-  /* drmgr_ = */
-  /*     std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&AltGeneric::callbackReconfigure, this, _1,
-   * _2)); */
-  /* drmgr_->config.pos = Q_(POSITION, POSITION); */
-  /* drmgr_->config.vel = Q_(VELOCITY, VELOCITY); */
-  /* drmgr_->config.acc = Q_(ACCELERATION, ACCELERATION); */
-  /* drmgr_->update_config(drmgr_->config); */
+  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mtx_Q_);
 
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/pos", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/pos", Q_(POSITION, POSITION)));
-  }
-
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/vel", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/vel", Q_(VELOCITY, VELOCITY)));
-  }
-
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/acc", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/acc", Q_(ACCELERATION, ACCELERATION)));
-  }
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/acc", &Q_(ACCELERATION, ACCELERATION), Q_(ACCELERATION, ACCELERATION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | --------------- Kalman filter intialization -------------- |
 
@@ -356,8 +287,7 @@ void AltGeneric::timerUpdate(void) {
           setState(measurement_stamped.value(0), correction->getStateId());
           RCLCPP_INFO(node_->get_logger(), "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                               correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -379,8 +309,7 @@ void AltGeneric::timerUpdate(void) {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -407,8 +336,7 @@ void AltGeneric::timerUpdate(void) {
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -436,8 +364,7 @@ void AltGeneric::timerUpdate(void) {
 
   // check age of input
   if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 
@@ -474,8 +401,7 @@ void AltGeneric::timerUpdate(void) {
     }
     u(0) = des_acc_global.getZ();
   } else {
-    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable",
-                          getPrintName().c_str());
+    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
     input_stamp = clock_->now();
     if (input_coeff_ != 0) {
       setInputCoeff(0);
@@ -546,11 +472,9 @@ void AltGeneric::timerCheckHealth() {
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(),
-                               measurement_stamped.value(0));
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                               correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -572,8 +496,7 @@ void AltGeneric::timerCheckHealth() {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -590,8 +513,7 @@ void AltGeneric::timerCheckHealth() {
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -609,8 +531,7 @@ void AltGeneric::timerCheckHealth() {
 
   // check age of input
   if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(),
-                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f), using zero input instead", getPrintName().c_str(), (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 }
@@ -642,8 +563,7 @@ void AltGeneric::doCorrection(const z_t &z, const double R, const StateId_t &H_i
     innovation_(0)      = z(0) - getState(POSITION);
 
     if (fabs(innovation_(0)) > pos_innovation_limit_) {
-      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0),
-                           pos_innovation_limit_);
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), pos_innovation_limit_);
       innovation_ok_ = false;
       switch (exc_innovation_action_) {
         case ExcInnoAction_t::ELAND: {
@@ -855,53 +775,6 @@ void AltGeneric::generateB() {
   // clang-format on
 }
 /*//}*/
-
-/* callbackParameters() //{ */
-
-rcl_interfaces::msg::SetParametersResult AltGeneric::callbackParameters(std::vector<rclcpp::Parameter> parameters) {
-
-  rcl_interfaces::msg::SetParametersResult result;
-
-  // Note that setting a parameter to a nonsensical value (such as setting the `param_namespace.floating_number` parameter to `hello`)
-  // doesn't have any effect - it doesn't even call this callback.
-  for (auto &param : parameters) {
-
-    RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
-
-    if (param.get_name() == node_->get_sub_namespace() + "/pos") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(POSITION, POSITION) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else if (param.get_name() == node_->get_sub_namespace() + "/vel") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(VELOCITY, VELOCITY) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else if (param.get_name() == node_->get_sub_namespace() + "/acc") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(ACCELERATION, ACCELERATION) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-    }
-  }
-
-  RCLCPP_INFO(node_->get_logger(), "params updated");
-  result.successful = true;
-  result.reason     = "OK";
-
-  return result;
-}
-
-//}
 
 /*//{ getNamespacedName() */
 std::string AltGeneric::getNamespacedName() const {

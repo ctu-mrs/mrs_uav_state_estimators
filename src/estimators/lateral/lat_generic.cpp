@@ -125,69 +125,13 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = tmp_noise;
   Q_(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = tmp_noise;
 
-  // | ------------- initialize dynamic reconfigure ------------- |
+  // | ------------------- dynamic reconfigure ------------------ |
 
-  // original DRS from ROS1
-  /* drmgr_ = */
-  /*     std::make_unique<drmgr_t>(ros::NodeHandle("~/" + getNamespacedName()), true, getPrintName(), boost::bind(&LatGeneric::callbackReconfigure, this, _1,
-   * _2)); */
-  /* drmgr_->config.pos = Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X)); */
-  /* drmgr_->config.vel = Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X)); */
-  /* drmgr_->config.acc = Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)); */
-  /* drmgr_->update_config(drmgr_->config); */
+  dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mtx_Q_);
 
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/pos", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/pos", Q_(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X))));
-  }
-
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/vel", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/vel", Q_(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X))));
-  }
-
-  {
-    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
-
-    rcl_interfaces::msg::FloatingPointRange range;
-
-    range.from_value = 0.0;
-    range.to_value   = 100000.0;
-
-    param_desc.floating_point_range = {range};
-
-    param_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-
-    node_->declare_parameter(node_->get_sub_namespace() + "/acc", 0.0, param_desc);
-
-    node_->set_parameter(rclcpp::Parameter(node_->get_sub_namespace() + "/acc", Q_(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X))));
-  }
-
-  param_callback_handle_ = node_->add_on_set_parameters_callback(std::bind(&LatGeneric::callbackParameters, this, std::placeholders::_1));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/acc", &Q_(ACCELERATION, ACCELERATION), Q_(ACCELERATION, ACCELERATION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | --------------- Kalman filter intialization -------------- |
 
@@ -794,56 +738,6 @@ void LatGeneric::generateB() {
   // clang-format on
 }
 /*//}*/
-
-/* callbackParameters() //{ */
-
-rcl_interfaces::msg::SetParametersResult LatGeneric::callbackParameters(std::vector<rclcpp::Parameter> parameters) {
-
-  rcl_interfaces::msg::SetParametersResult result;
-
-  // Note that setting a parameter to a nonsensical value (such as setting the `param_namespace.floating_number` parameter to `hello`)
-  // doesn't have any effect - it doesn't even call this callback.
-  for (auto &param : parameters) {
-
-    RCLCPP_INFO_STREAM(node_->get_logger(), "got parameter: '" << param.get_name() << "' with value '" << param.value_to_string() << "'");
-
-    if (param.get_name() == node_->get_sub_namespace() + "/pos") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(stateIdToIndex(POSITION, AXIS_X), stateIdToIndex(POSITION, AXIS_X)) = param.as_double();
-      Q(stateIdToIndex(POSITION, AXIS_Y), stateIdToIndex(POSITION, AXIS_Y)) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else if (param.get_name() == node_->get_sub_namespace() + "/vel") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(stateIdToIndex(VELOCITY, AXIS_X), stateIdToIndex(VELOCITY, AXIS_X)) = param.as_double();
-      Q(stateIdToIndex(VELOCITY, AXIS_Y), stateIdToIndex(VELOCITY, AXIS_Y)) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-
-    } else if (param.get_name() == node_->get_sub_namespace() + "/acc") {
-
-      auto Q = mrs_lib::get_mutexed(mtx_Q_, Q_);
-
-      Q(stateIdToIndex(ACCELERATION, AXIS_X), stateIdToIndex(ACCELERATION, AXIS_X)) = param.as_double();
-      Q(stateIdToIndex(ACCELERATION, AXIS_Y), stateIdToIndex(ACCELERATION, AXIS_Y)) = param.as_double();
-
-      mrs_lib::set_mutexed(mtx_Q_, Q, Q_);
-    }
-  }
-
-  RCLCPP_INFO(node_->get_logger(), "params updated");
-  result.successful = true;
-  result.reason     = "OK";
-
-  return result;
-}
-
-//}
 
 /*//{ getNamespacedName() */
 std::string LatGeneric::getNamespacedName() const {
