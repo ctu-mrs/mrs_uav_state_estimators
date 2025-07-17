@@ -184,7 +184,27 @@ bool Dummy::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
+
 void Dummy::timerUpdate() {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  updateUavState();
+
+  publishUavState();
+  publishOdom();
+  publishCovariance();
+  publishInnovation();
+  publishDiagnostics();
+}
+
+/*//}*/
+
+/* updateUavState() //{ */
+
+void Dummy::updateUavState() {
 
   if (!isInitialized()) {
     return;
@@ -194,7 +214,7 @@ void Dummy::timerUpdate() {
 
   mrs_msgs::msg::UavState uav_state = uav_state_init_;
 
-  uav_state.header.stamp            = time_now;
+  uav_state.header.stamp = time_now;
 
   const nav_msgs::msg::Odometry odom = Support::uavStateToOdom(uav_state);
 
@@ -219,14 +239,9 @@ void Dummy::timerUpdate() {
   mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+}
 
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-}  // namespace dummy
-/*//}*/
+//}
 
 /*//{ timerCheckHealth() */
 void Dummy::timerCheckHealth() {

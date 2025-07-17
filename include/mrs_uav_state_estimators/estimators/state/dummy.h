@@ -76,6 +76,8 @@ private:
 
   void waitForEstimationInitialization();
 
+  void updateUavState();
+
 public:
   Dummy() : StateEstimator(dummy::name, dummy::frame_id, dummy::package_name), is_core_plugin_(is_core_plugin) {
   }

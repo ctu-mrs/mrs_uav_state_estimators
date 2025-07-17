@@ -173,7 +173,27 @@ bool GroundTruth::reset(void) {
 /*//}*/
 
 /* timerUpdate() //{*/
+
 void GroundTruth::timerUpdate() {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  updateUavState();
+
+  publishUavState();
+  publishOdom();
+  publishCovariance();
+  publishInnovation();
+  publishDiagnostics();
+}
+
+/*//}*/
+
+/* updateUavState() //{ */
+
+void GroundTruth::updateUavState() {
 
   if (!isInitialized()) {
     return;
@@ -228,15 +248,10 @@ void GroundTruth::timerUpdate() {
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-
   prev_msg_ = msg;
-}  // namespace ground_truth
-/*//}*/
+}
+
+//}
 
 /*//{ timerCheckHealth() */
 void GroundTruth::timerCheckHealth() {

@@ -182,8 +182,7 @@ void Passthrough::timerCheckPassthroughOdomHz() {
 
     // first wait for a message
     if (!sh_passthrough_odom_.hasMsg()) {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                           sh_passthrough_odom_.topicName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_passthrough_odom_.topicName().c_str());
       return;
     }
 
@@ -199,20 +198,18 @@ void Passthrough::timerCheckPassthroughOdomHz() {
 
       // check message rate stability
       if (abs(avg_hz - prev_avg_hz_) >= 5) {
-        RCLCPP_INFO(node_->get_logger(), "[%s]: %s stable passthrough odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(),
-                    Support::waiting_for_string.c_str(), avg_hz, prev_avg_hz_);
+        RCLCPP_INFO(node_->get_logger(), "[%s]: %s stable passthrough odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(), Support::waiting_for_string.c_str(), avg_hz, prev_avg_hz_);
         prev_avg_hz_ = avg_hz;
         return;
       }
 
       // the message rate must be higher than required by the control manager
       if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
-        RCLCPP_ERROR(
-            node_->get_logger(),
-            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry "
-            "rate "
-            "or use a higher-level controller.",
-            getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
+        RCLCPP_ERROR(node_->get_logger(),
+                     "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry "
+                     "rate "
+                     "or use a higher-level controller.",
+                     getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
         // the states would then be interpolated by ZOH (bleeh)
         /* timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Passthrough::timerUpdate, this); */
@@ -228,11 +225,35 @@ void Passthrough::timerCheckPassthroughOdomHz() {
 /*//}*/
 
 /* timerUpdate() //{*/
+
 void Passthrough::timerUpdate() {
+
+  if (!isInitialized()) {
+    return;
+  }
 
   if (isInState(STARTED_STATE)) {
 
     changeState(RUNNING_STATE);
+  }
+
+  updateUavState();
+
+  publishUavState();
+  publishOdom();
+  publishCovariance();
+  publishInnovation();
+  publishDiagnostics();
+}
+
+/*//}*/
+
+/* updateUavState() //{ */
+
+void Passthrough::updateUavState() {
+
+  if (!isInitialized()) {
+    return;
   }
 
   const rclcpp::Time time_now = clock_->now();
@@ -284,15 +305,10 @@ void Passthrough::timerUpdate() {
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-
   prev_msg_ = msg;
 }
-/*//}*/
+
+//}
 
 /*//{ callbackPassthroughOdom() */
 void Passthrough::callbackPassthroughOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {

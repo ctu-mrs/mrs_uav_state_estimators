@@ -79,6 +79,8 @@ private:
 
   void waitForEstimationInitialization();
 
+  void updateUavState();
+
 public:
   GroundTruth() : StateEstimator(ground_truth::name, ground_truth::frame_id, ground_truth::package_name), is_core_plugin_(is_core_plugin) {
   }
