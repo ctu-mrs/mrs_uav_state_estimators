@@ -195,6 +195,8 @@ void GroundTruth::timerUpdate() {
 
 void GroundTruth::updateUavState() {
 
+  std::scoped_lock lock(mutex_update_uav_state_);
+
   if (!isInitialized()) {
     return;
   }
