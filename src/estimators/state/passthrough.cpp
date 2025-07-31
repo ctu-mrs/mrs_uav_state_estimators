@@ -39,8 +39,6 @@ void Passthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
     ph_->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  /* ph_->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
-
   // | --------------------- load parameters -------------------- |
 
   ph_->param_loader->loadParam("max_flight_z", max_flight_z_);
@@ -251,6 +249,8 @@ void Passthrough::timerUpdate() {
 /* updateUavState() //{ */
 
 void Passthrough::updateUavState() {
+
+  std::scoped_lock lock(mutex_update_uav_state_);
 
   if (!isInitialized()) {
     return;

@@ -79,7 +79,8 @@ private:
 
   void waitForEstimationInitialization();
 
-  void updateUavState();
+  void updateUavState() override;
+
   std::mutex mutex_update_uav_state_;
 
 public:

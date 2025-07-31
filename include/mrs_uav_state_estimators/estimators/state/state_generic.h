@@ -14,6 +14,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
+#include <mrs_lib/utils.h>
 
 #include <mrs_uav_managers/state_estimator.h>
 
@@ -97,7 +98,9 @@ public:
 
   std::optional<double> getHeading() const;
 
-  void updateUavState();
+  void updateUavState() override;
+
+  std::mutex mutex_update_uav_state_;
 };
 
 }  // namespace mrs_uav_state_estimators

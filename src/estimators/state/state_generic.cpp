@@ -436,6 +436,8 @@ bool StateGeneric::isConverged() {
 /*//{ updateUavState() */
 void StateGeneric::updateUavState() {
 
+  std::scoped_lock lock(mutex_update_uav_state_);
+
   if (!sh_hw_api_orient_.hasMsg()) {
     RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(),
                          sh_hw_api_orient_.topicName().c_str());
@@ -529,6 +531,7 @@ void StateGeneric::updateUavState() {
   mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
   mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
 }
+
 /*//}*/
 
 /*//{ getHeading() */

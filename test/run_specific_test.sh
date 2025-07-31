@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
 while [ ! -e "build/COLCON_IGNORE" ]; do
   cd ..
   if [[ `pwd` == "/" ]]; then

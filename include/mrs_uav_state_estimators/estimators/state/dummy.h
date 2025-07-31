@@ -76,7 +76,9 @@ private:
 
   void waitForEstimationInitialization();
 
-  void updateUavState();
+  void updateUavState() override;
+
+  std::mutex mutex_update_uav_state_;
 
 public:
   Dummy() : StateEstimator(dummy::name, dummy::frame_id, dummy::package_name), is_core_plugin_(is_core_plugin) {

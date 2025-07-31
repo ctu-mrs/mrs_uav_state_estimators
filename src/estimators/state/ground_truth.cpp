@@ -29,8 +29,6 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
     ph_->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
-
   // | --------------------- load parameters -------------------- |
 
   ph->param_loader->loadParam("max_flight_z", max_flight_z_);
@@ -115,11 +113,17 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
     RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
   }
 }
+
 /*//}*/
 
 /*//{ start() */
+
 bool GroundTruth::start(void) {
 
+  if (!isInitialized()) {
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot start uninitialized estimator", getPrintName().c_str());
+    return false;
+  }
 
   if (isInState(READY_STATE)) {
 
@@ -133,15 +137,22 @@ bool GroundTruth::start(void) {
     RCLCPP_WARN(node_->get_logger(), "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
     clock_->sleep_for(1s);
   }
-  return false;
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: Failed to start", getPrintName().c_str());
+
   return false;
 }
+
 /*//}*/
 
 /*//{ pause() */
+
 bool GroundTruth::pause(void) {
+
+  if (!isInitialized()) {
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: Cannot pause uninitialized estimator", getPrintName().c_str());
+    return false;
+  }
 
   if (isInState(RUNNING_STATE)) {
 
@@ -152,11 +163,14 @@ bool GroundTruth::pause(void) {
 
     return true;
   }
+
   return false;
 }
+
 /*//}*/
 
 /*//{ reset() */
+
 bool GroundTruth::reset(void) {
 
   if (!isInitialized()) {
@@ -170,6 +184,7 @@ bool GroundTruth::reset(void) {
 
   return true;
 }
+
 /*//}*/
 
 /* timerUpdate() //{*/
@@ -256,6 +271,7 @@ void GroundTruth::updateUavState() {
 //}
 
 /*//{ timerCheckHealth() */
+
 void GroundTruth::timerCheckHealth() {
 
   if (!isInitialized()) {
@@ -278,6 +294,7 @@ void GroundTruth::timerCheckHealth() {
     changeState(RUNNING_STATE);
   }
 }
+
 /*//}*/
 
 /*//{ isConverged() */
@@ -291,6 +308,7 @@ bool GroundTruth::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
+
 bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
@@ -299,8 +317,10 @@ bool GroundTruth::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &ua
   }
 
   RCLCPP_WARN(node_->get_logger(), "[%s]: Setting the state of this estimator is not implemented.", getPrintName().c_str());
+
   return false;
 }
+
 /*//}*/
 
 }  // namespace ground_truth

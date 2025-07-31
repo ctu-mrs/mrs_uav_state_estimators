@@ -86,7 +86,9 @@ private:
 
   void waitForEstimationInitialization();
 
-  void updateUavState();
+  void updateUavState() override;
+
+  std::mutex mutex_update_uav_state_;
 
 public:
   Passthrough() : StateEstimator(passthrough::name, passthrough::frame_id, passthrough::package_name), is_core_plugin_(is_core_plugin) {
