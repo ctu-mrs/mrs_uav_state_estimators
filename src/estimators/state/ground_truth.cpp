@@ -216,6 +216,8 @@ void GroundTruth::updateUavState() {
     return;
   }
 
+  RCLCPP_INFO(node_->get_logger(), "[%s]: updateUavState run: %d", getName().c_str(), n_update_uav_state_run_++);
+
   const rclcpp::Time time_now = clock_->now();
 
   nav_msgs::msg::Odometry::ConstSharedPtr msg = sh_gt_odom_.getMsg();
