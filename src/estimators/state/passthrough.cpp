@@ -33,8 +33,14 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   // | --------------------- load parameters -------------------- |
   ph_->param_loader->loadParam("max_flight_z", max_flight_z_);
   ph_->param_loader->loadParam("message/topic", msg_topic_);
+  ph_->param_loader->loadParam("message_global/topic", msg_topic_global_);
+  ph_->param_loader->loadParam("use_global_pose", _use_global_pose_);
+  ph_->param_loader->loadParam("global_origin/latitude", _global_origin_.latitude);
+  ph_->param_loader->loadParam("global_origin/longitude", _global_origin_.longitude);
+  ph_->param_loader->loadParam("global_origin/altitude", _global_origin_.altitude);
   ph_->param_loader->loadParam("kickoff", kickoff_, false);
-  msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
+  msg_topic_        = "/" + ch_->uav_name + "/" + msg_topic_;
+  msg_topic_global_ = "/" + ch_->uav_name + "/" + msg_topic_global_;
 
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
@@ -80,6 +86,18 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   innovation_init_.header.frame_id         = ns_frame_id_;
   innovation_init_.child_frame_id          = ch_->frames.ns_fcu;
   innovation_init_.pose.pose.orientation.w = 1.0;
+
+
+  // | ----------- global origin shift initialization ----------- |
+  if (_use_global_pose_) {
+
+    sh_global_odom_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, msg_topic_global_, &Passthrough::callbackGlobalOdom, this);
+
+    while (!global_origin_shift_set_) {
+      ros::Rate(1.0).sleep();
+      ROS_INFO("[%s]: Waiting for initialization of global origin shift.", getPrintName().c_str());
+    }
+  }
 
   // | ------------------ finish initialization ----------------- |
 
@@ -156,11 +174,11 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
 
     // calculate average rate of messages
     if (counter_odom_msgs_ > 0) {
-      ros::Time t_now  = ros::Time::now();
-      double        dt     = (t_now - t_check_hz_last_).toSec();
-      double        avg_hz = counter_odom_msgs_ / dt;
-      t_check_hz_last_     = t_now;
-      counter_odom_msgs_   = 0;
+      ros::Time t_now    = ros::Time::now();
+      double    dt       = (t_now - t_check_hz_last_).toSec();
+      double    avg_hz   = counter_odom_msgs_ / dt;
+      t_check_hz_last_   = t_now;
+      counter_odom_msgs_ = 0;
       ROS_INFO("[%s]: rate of passthrough odom: %.2f Hz", getPrintName().c_str(), avg_hz);
 
       // check message rate stability
@@ -174,7 +192,8 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       // the message rate must be higher than required by the control manager
       if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
         ROS_ERROR(
-            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
+            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry "
+            "rate "
             "or use a higher-level controller.",
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
@@ -210,7 +229,6 @@ void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
   publishCovariance();
   publishInnovation();
   publishDiagnostics();
-
 }
 /*//}*/
 
@@ -246,7 +264,9 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
   /* const ros::Time time_now = ros::Time::now(); */
   /* uav_state.header.stamp = time_now; */
 
-  uav_state.pose.position    = odom.pose.pose.position;
+  uav_state.pose.position.x  = odom.pose.pose.position.x + global_origin_shift_.x;
+  uav_state.pose.position.y  = odom.pose.pose.position.y + global_origin_shift_.y;
+  uav_state.pose.position.z  = odom.pose.pose.position.z + global_origin_shift_.z;
   uav_state.pose.orientation = odom.pose.pose.orientation;
   uav_state.velocity.angular = odom.twist.twist.angular;
 
@@ -292,6 +312,29 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
 }
 /*//}*/
 
+/*//{ callbackGlobalOdom() */
+void Passthrough::callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg) {
+
+  if (global_origin_shift_set_) {
+    return;
+  }
+
+  // convert to utm
+  double      utm_current_pos_x, utm_current_pos_y;
+  std::string utm_zone;
+  mrs_lib::LLtoUTM(msg->latitude, msg->longitude, utm_current_pos_y, utm_current_pos_x, utm_zone);
+
+  double utm_global_pos_x, utm_global_pos_y;
+  mrs_lib::LLtoUTM(_global_origin_.latitude, _global_origin_.longitude, utm_global_pos_y, utm_global_pos_x, utm_zone);
+
+  global_origin_shift_.x = utm_current_pos_x - utm_global_pos_x;
+  global_origin_shift_.y = utm_current_pos_y - utm_global_pos_y;
+  global_origin_shift_.z = msg->altitude - _global_origin_.altitude;
+
+  global_origin_shift_set_ = true;
+  ROS_INFO("[%s]: Global origin shift set.", getPrintName().c_str());
+}
+/*//}*/
 /*//{ isConverged() */
 bool Passthrough::isConverged() {
 

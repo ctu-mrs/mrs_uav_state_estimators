@@ -6,6 +6,8 @@
 #include <ros/ros.h>
 
 #include <nav_msgs/Odometry.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <geographic_msgs/GeoPoint.h>
 
 #include <mrs_lib/lkf.h>
 #include <mrs_lib/profiler.h>
@@ -14,6 +16,7 @@
 #include <mrs_lib/publisher_handler.h>
 #include <mrs_lib/attitude_converter.h>
 #include <mrs_lib/transformer.h>
+#include <mrs_lib/gps_conversions.h>
 
 #include <mrs_uav_managers/state_estimator.h>
 
@@ -63,6 +66,15 @@ private:
   void                       timerUpdate(const ros::TimerEvent &event);
   nav_msgs::OdometryConstPtr prev_msg_;
   bool                       first_iter_ = true;
+
+  mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix> sh_global_odom_;
+  std::string                                       msg_topic_global_;
+  void                                              callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg);
+  bool                                              _use_global_pose_;
+  bool                                              global_origin_shift_set_ = false;
+  geometry_msgs::Point                              global_origin_shift_;
+  geographic_msgs::GeoPoint                         _global_origin_;
+
 
   bool isConverged();
 

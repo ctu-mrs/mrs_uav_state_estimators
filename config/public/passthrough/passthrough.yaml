@@ -5,3 +5,13 @@ mrs_uav_managers:
 
       message:
         topic: "hw_api/odometry"
+
+      message_global:
+        topic: "hw_api/gnss"
+
+      use_global_pose: true # if true, the 
+
+      global_origin: 
+        latitude: 47.397743
+        longitude: 8.545594
+        altitude: 47.0
