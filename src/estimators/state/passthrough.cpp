@@ -256,6 +256,9 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
   // change the frame_ids
   odom.header.frame_id = ns_frame_id_;
   odom.child_frame_id  = ch_->frames.ns_fcu;
+  odom.pose.pose.position.x += global_origin_shift_.x;
+  odom.pose.pose.position.y += global_origin_shift_.y;
+  odom.pose.pose.position.z += global_origin_shift_.z;
 
   mrs_msgs::UavState uav_state = uav_state_init_;
 
@@ -264,9 +267,9 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
   /* const ros::Time time_now = ros::Time::now(); */
   /* uav_state.header.stamp = time_now; */
 
-  uav_state.pose.position.x  = odom.pose.pose.position.x + global_origin_shift_.x;
-  uav_state.pose.position.y  = odom.pose.pose.position.y + global_origin_shift_.y;
-  uav_state.pose.position.z  = odom.pose.pose.position.z + global_origin_shift_.z;
+  uav_state.pose.position.x  = odom.pose.pose.position.x;
+  uav_state.pose.position.y  = odom.pose.pose.position.y;
+  uav_state.pose.position.z  = odom.pose.pose.position.z;
   uav_state.pose.orientation = odom.pose.pose.orientation;
   uav_state.velocity.angular = odom.twist.twist.angular;
 
