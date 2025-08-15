@@ -237,6 +237,13 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
 
   counter_odom_msgs_++;
 
+  if (!local_origin_shift_set_) {
+    local_origin_shift_.x = msg->pose.pose.position.x;
+    local_origin_shift_.y = msg->pose.pose.position.y;
+    local_origin_shift_.z = msg->pose.pose.position.z;
+    local_origin_shift_set_ = true;
+  }
+  
   if (!isInitialized()) {
     return;
   }
@@ -322,6 +329,10 @@ void Passthrough::callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg)
     return;
   }
 
+  if (!local_origin_shift_set_) { 
+    return;
+  }
+
   // convert to utm
   double      utm_current_pos_x, utm_current_pos_y;
   std::string utm_zone;
@@ -330,9 +341,9 @@ void Passthrough::callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg)
   double utm_global_pos_x, utm_global_pos_y;
   mrs_lib::LLtoUTM(_global_origin_.latitude, _global_origin_.longitude, utm_global_pos_y, utm_global_pos_x, utm_zone);
 
-  global_origin_shift_.x = utm_current_pos_x - utm_global_pos_x;
-  global_origin_shift_.y = utm_current_pos_y - utm_global_pos_y;
-  global_origin_shift_.z = msg->altitude - _global_origin_.altitude;
+  global_origin_shift_.x = utm_current_pos_x - utm_global_pos_x - local_origin_shift_.x;
+  global_origin_shift_.y = utm_current_pos_y - utm_global_pos_y - local_origin_shift_.y;
+  global_origin_shift_.z = msg->altitude - _global_origin_.altitude - local_origin_shift_.z;
 
   global_origin_shift_set_ = true;
   ROS_INFO("[%s]: Global origin shift set.", getPrintName().c_str());

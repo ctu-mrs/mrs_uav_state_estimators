@@ -72,7 +72,9 @@ private:
   void                                              callbackGlobalOdom(const sensor_msgs::NavSatFix::ConstPtr msg);
   bool                                              _use_global_pose_;
   bool                                              global_origin_shift_set_ = false;
+  bool                                              local_origin_shift_set_ = false;
   geometry_msgs::Point                              global_origin_shift_;
+  geometry_msgs::Point                              local_origin_shift_;
   geographic_msgs::GeoPoint                         _global_origin_;
 
 
