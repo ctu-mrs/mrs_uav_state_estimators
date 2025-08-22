@@ -313,7 +313,8 @@ void F9P::updateUavState() {
 
     gnss_x_                    = (gnss_x_ - msg->pose.pose.position.x) - ch_->world_origin.x;
     gnss_y_                    = (gnss_y_ - msg->pose.pose.position.y) - ch_->world_origin.y;
-    gnss_z_                    = gnss_z_ - msg->pose.pose.position.z; 
+    /* gnss_z_                    = gnss_z_ - msg->pose.pose.position.z; */ // absolute AMSL altitude
+    gnss_z_                    = -msg->pose.pose.position.z; // relative altitude to start
 
     prev_msg_   = msg;
     first_iter_ = false;
