@@ -195,7 +195,10 @@ void GroundTruth::timerUpdate() {
     return;
   }
 
-  updateUavState();
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
@@ -215,8 +218,6 @@ void GroundTruth::updateUavState() {
   if (!isInitialized()) {
     return;
   }
-
-  RCLCPP_INFO(node_->get_logger(), "[%s]: updateUavState run: %d", getName().c_str(), n_update_uav_state_run_++);
 
   const rclcpp::Time time_now = clock_->now();
 

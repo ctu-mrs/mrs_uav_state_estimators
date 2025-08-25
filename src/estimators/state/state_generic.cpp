@@ -356,7 +356,10 @@ void StateGeneric::timerUpdate() {
     return;
   }
 
-  updateUavState();
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
@@ -437,8 +440,6 @@ bool StateGeneric::isConverged() {
 void StateGeneric::updateUavState() {
 
   std::scoped_lock lock(mutex_update_uav_state_);
-
-  RCLCPP_INFO(node_->get_logger(), "[%s]: updateUavState run: %d", getName().c_str(), n_update_uav_state_run_++);
 
   if (!sh_hw_api_orient_.hasMsg()) {
     RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: has not received orientation on topic %s yet", getPrintName().c_str(),

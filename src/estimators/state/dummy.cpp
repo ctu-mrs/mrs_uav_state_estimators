@@ -191,7 +191,10 @@ void Dummy::timerUpdate() {
     return;
   }
 
-  updateUavState();
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
