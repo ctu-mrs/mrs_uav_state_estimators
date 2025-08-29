@@ -52,6 +52,7 @@ set(LIBRARIES
   MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_GarminAgl
   MrsUavStateEstimators_Passthrough
+  MrsUavStateEstimators_F9P
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
   MrsUavStateEstimators_GroundTruth
@@ -148,6 +149,22 @@ ament_target_dependencies(MrsUavStateEstimators_Passthrough
   )
 
 target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+# F9P
+
+add_library(MrsUavStateEstimators_F9P SHARED
+  src/estimators/state/f9p.cpp
+  )
+
+target_link_libraries(MrsUavStateEstimators_F9P
+  MrsUavStateEstimators_Common
+  )
+
+ament_target_dependencies(MrsUavStateEstimators_F9P
+  ${DEPENDENCIES}
+  )
+
+target_compile_definitions(MrsUavStateEstimators_F9P PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
 # Rtk
 
