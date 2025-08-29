@@ -68,6 +68,8 @@ private:
 
   void waitForEstimationInitialization();
 
+  void updateUavState();
+
 public:
   Passthrough() : StateEstimator(passthrough::name, passthrough::frame_id, passthrough::package_name), is_core_plugin_(is_core_plugin) {
   }

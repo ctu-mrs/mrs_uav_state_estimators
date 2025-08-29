@@ -49,12 +49,15 @@ private:
   void       timerUpdate(const ros::TimerEvent &event);
   bool       first_iter_ = true;
 
+
   ros::Timer timer_check_health_;
   void       timerCheckHealth(const ros::TimerEvent &event);
 
   bool isConverged();
 
   void waitForEstimationInitialization();
+
+  void updateUavState();
 
 public:
   Dummy() : StateEstimator(dummy::name, dummy::frame_id, dummy::package_name) {
