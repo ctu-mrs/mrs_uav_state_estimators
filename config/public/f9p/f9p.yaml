@@ -1,0 +1,12 @@
+mrs_uav_managers:
+
+  estimation_manager:
+
+    f9p:
+      max_flight_z: 100.0 # [m] maximum allowed flight Z (in the estimator frame)
+
+      message:
+        topic: "hw_api/odometry"
+
+      gnss:
+        topic: "hw_api/gnss"
