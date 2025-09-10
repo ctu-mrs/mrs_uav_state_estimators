@@ -146,7 +146,10 @@ void Dummy::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
     return;
   }
 
-  updateUavState();
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
