@@ -179,7 +179,6 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
         // the states would then be interpolated by ZOH (bleeh)
-        /* timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &Passthrough::timerUpdate, this); */
         return;
       }
     }
@@ -188,32 +187,6 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
     ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
     timer_check_passthrough_odom_hz_.stop();
   }
-}
-/*//}*/
-
-/* timerUpdate() //{*/
-void Passthrough::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
-
-  if (!isInitialized()) {
-    return;
-  }
-
-  if (isInState(STARTED_STATE)) {
-
-    changeState(RUNNING_STATE);
-  }
-
-  // If the estimator is active the updateUavState is triggered directly by estimation manager
-  if (!is_active_) {
-    updateUavState();
-  }
-
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-
 }
 /*//}*/
 
@@ -236,62 +209,16 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
     first_iter_ = false;
   }
 
-  nav_msgs::Odometry odom = *msg;
-
-  // change the frame_ids
-  odom.header.frame_id = ns_frame_id_;
-  odom.child_frame_id  = ch_->frames.ns_fcu;
-
-  mrs_msgs::UavState uav_state = uav_state_init_;
-
-  // here we are assuming the passthrough odometry has correct timestamp
-  uav_state.header.stamp = odom.header.stamp;
-  /* const ros::Time time_now = ros::Time::now(); */
-  /* uav_state.header.stamp = time_now; */
-
-  uav_state.pose.position    = odom.pose.pose.position;
-  uav_state.pose.orientation = odom.pose.pose.orientation;
-  uav_state.velocity.angular = odom.twist.twist.angular;
-
-  // uav_state has velocities in the parent frame
-  uav_state.velocity.linear = Support::rotateVector(odom.twist.twist.linear, odom.pose.pose.orientation);
-
-
-  nav_msgs::Odometry innovation = innovation_init_;
-  innovation.header.stamp       = odom.header.stamp;
-
-  innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
-  innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
-  innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
-
-  mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
-  pose_covariance.header.stamp  = odom.header.stamp;
-  twist_covariance.header.stamp = odom.header.stamp;
-
-  const int n_states = 6;  // TODO this should be defined somewhere else
-  pose_covariance.values.resize(n_states * n_states);
-  pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
-  pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
-  pose_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
-
-  twist_covariance.values.resize(n_states * n_states);
-  twist_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
-  twist_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
-  twist_covariance.values.at(n_states * AXIS_Z + AXIS_Z) = 1e-10;
-
-  mrs_lib::set_mutexed(mtx_uav_state_, uav_state, uav_state_);
-  mrs_lib::set_mutexed(mtx_odom_, odom, odom_);
-  mrs_lib::set_mutexed(mtx_innovation_, innovation, innovation_);
-  mrs_lib::set_mutexed(mtx_covariance_, pose_covariance, pose_covariance_);
-  mrs_lib::set_mutexed(mtx_covariance_, twist_covariance, twist_covariance_);
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
   publishCovariance();
   publishInnovation();
   publishDiagnostics();
-
-  prev_msg_ = msg;
 }
 /*//}*/
 
@@ -325,9 +252,12 @@ void Passthrough::updateUavState() {
     return;
   }
 
-  const ros::Time time_now = ros::Time::now();
 
   nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();
+
+  /* const ros::Time time_now = ros::Time::now(); */
+  // here we are assuming the passthrough odometry has correct timestamp
+  const ros::Time time_now = msg->header.stamp;
 
   if (first_iter_) {
     prev_msg_   = msg;
