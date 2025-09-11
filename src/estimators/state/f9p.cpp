@@ -185,7 +185,6 @@ void F9P::timerCheckF9POdomHz([[maybe_unused]] const ros::TimerEvent &event) {
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
         // the states would then be interpolated by ZOH (bleeh)
-        /* timer_update_       = nh.createTimer(ros::Rate(ch_->desired_uav_state_rate), &F9P::timerUpdate, this); */
         return;
       }
     }
@@ -194,29 +193,6 @@ void F9P::timerCheckF9POdomHz([[maybe_unused]] const ros::TimerEvent &event) {
     ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
     timer_check_f9p_odom_hz_.stop();
   }
-}
-/*//}*/
-
-/* timerUpdate() //{*/
-void F9P::timerUpdate([[maybe_unused]] const ros::TimerEvent &event) {
-
-  if (!isInitialized()) {
-    return;
-  }
-
-  if (isInState(STARTED_STATE)) {
-
-    changeState(RUNNING_STATE);
-  }
-
-  updateUavState();
-
-  publishUavState();
-  publishOdom();
-  publishCovariance();
-  publishInnovation();
-  publishDiagnostics();
-
 }
 /*//}*/
 
@@ -229,7 +205,10 @@ void F9P::callbackF9POdom([[maybe_unused]] const nav_msgs::Odometry::ConstPtr ms
     return;
   }
 
-  updateUavState();
+  // If the estimator is active the updateUavState is triggered directly by estimation manager
+  if (!is_active_) {
+    updateUavState();
+  }
 
   publishUavState();
   publishOdom();
