@@ -1,0 +1,16 @@
+mrs_uav_managers:
+  estimation_manager:
+    f9p:
+      requires: # data required from the hw api
+        gnss: true
+        rtk: false
+        imu: false
+        distance_sensor: false
+        altitude: false
+        magnetometer_heading: false
+        position: false
+        orientation: false
+        velocity: false
+        angular_velocity: false
+        ground_truth: false
+        odometry: true

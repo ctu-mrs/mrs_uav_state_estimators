@@ -49,6 +49,7 @@ set(LIBRARIES
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
   MrsUavStateEstimators_Passthrough
+  MrsUavStateEstimators_F9P
   MrsUavStateEstimators_GroundTruth
   MrsUavStateEstimators_Dummy
   MrsUavStateEstimators_GarminAgl
@@ -185,6 +186,22 @@ target_link_libraries(MrsUavStateEstimators_Passthrough
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(MrsUavStateEstimators_Passthrough
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
+
+add_library(MrsUavStateEstimators_F9P
+  src/estimators/state/f9p.cpp
+  )
+
+target_link_libraries(MrsUavStateEstimators_F9P
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(MrsUavStateEstimators_F9P
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg

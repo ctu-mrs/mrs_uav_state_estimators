@@ -1,17 +1,17 @@
 /* includes //{ */
 
-#include <mrs_uav_state_estimators/estimators/state/passthrough.h>
+#include <mrs_uav_state_estimators/estimators/state/f9p.h>
 
 //}
 
 namespace mrs_uav_state_estimators
 {
 
-namespace passthrough
+namespace f9p
 {
 
 /* initialize() //{*/
-void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
+void F9P::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
   ch_ = ch;
   ph_ = ph;
@@ -36,6 +36,10 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   ph_->param_loader->loadParam("kickoff", kickoff_, false);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
 
+  ph->param_loader->loadParam("gnss/topic", gnss_topic_);
+
+  gnss_topic_ = "/" + ch->uav_name + "/" + gnss_topic_;
+
   // | --------------- subscribers initialization --------------- |
   mrs_lib::SubscribeHandlerOptions shopts;
   shopts.nh                 = nh;
@@ -46,12 +50,14 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
   shopts.queue_size         = 10;
   shopts.transport_hints    = ros::TransportHints().tcpNoDelay();
 
-  sh_passthrough_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &Passthrough::callbackPassthroughOdom, this);
+  sh_f9p_odom_ = mrs_lib::SubscribeHandler<nav_msgs::Odometry>(shopts, msg_topic_, &F9P::callbackF9POdom, this);
+
+  sh_gnss_ = mrs_lib::SubscribeHandler<sensor_msgs::NavSatFix>(shopts, gnss_topic_, &F9P::callbackGnss, this);
 
   // | ------------------ timers initialization ----------------- |
   t_check_hz_last_                 = ros::Time::now();
   prev_avg_hz_                     = 0;
-  timer_check_passthrough_odom_hz_ = nh.createTimer(ros::Rate(1.0), &Passthrough::timerCheckPassthroughOdomHz, this);
+  timer_check_f9p_odom_hz_ = nh.createTimer(ros::Rate(1.0), &F9P::timerCheckF9POdomHz, this);
 
   // | ---------------- publishers initialization --------------- |
   ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::Odometry>(nh, Support::toSnakeCase(getName()) + "/odom", 10);  // needed for tf
@@ -92,7 +98,7 @@ void Passthrough::initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<C
 /*//}*/
 
 /*//{ start() */
-bool Passthrough::start(void) {
+bool F9P::start(void) {
 
 
   if (isInState(READY_STATE)) {
@@ -113,7 +119,7 @@ bool Passthrough::start(void) {
 /*//}*/
 
 /*//{ pause() */
-bool Passthrough::pause(void) {
+bool F9P::pause(void) {
 
   if (isInState(RUNNING_STATE)) {
     changeState(STOPPED_STATE);
@@ -124,7 +130,7 @@ bool Passthrough::pause(void) {
 /*//}*/
 
 /*//{ reset() */
-bool Passthrough::reset(void) {
+bool F9P::reset(void) {
 
   if (!isInitialized()) {
     ROS_ERROR("[%s]: Cannot reset uninitialized estimator", getPrintName().c_str());
@@ -139,8 +145,8 @@ bool Passthrough::reset(void) {
 }
 /*//}*/
 
-/* timerCheckPassthroughOdomHz() //{*/
-void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerEvent &event) {
+/* timerCheckF9POdomHz() //{*/
+void F9P::timerCheckF9POdomHz([[maybe_unused]] const ros::TimerEvent &event) {
 
   if (!isInitialized()) {
     return;
@@ -149,8 +155,8 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
   if (isInState(INITIALIZED_STATE)) {
 
     // first wait for a message
-    if (!sh_passthrough_odom_.hasMsg()) {
-      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_passthrough_odom_.topicName().c_str());
+    if (!sh_f9p_odom_.hasMsg()) {
+      ROS_INFO_THROTTLE(1.0, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_f9p_odom_.topicName().c_str());
       return;
     }
 
@@ -161,11 +167,11 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       double        avg_hz = counter_odom_msgs_ / dt;
       t_check_hz_last_     = t_now;
       counter_odom_msgs_   = 0;
-      ROS_INFO("[%s]: rate of passthrough odom: %.2f Hz", getPrintName().c_str(), avg_hz);
+      ROS_INFO("[%s]: rate of f9p odom: %.2f Hz", getPrintName().c_str(), avg_hz);
 
       // check message rate stability
       if (abs(avg_hz - prev_avg_hz_) >= 5) {
-        ROS_INFO("[%s]: %s stable passthrough odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(), Support::waiting_for_string.c_str(), avg_hz,
+        ROS_INFO("[%s]: %s stable f9p odometry rate. now: %.2f Hz prev: %.2f Hz", getPrintName().c_str(), Support::waiting_for_string.c_str(), avg_hz,
                  prev_avg_hz_);
         prev_avg_hz_ = avg_hz;
         return;
@@ -174,7 +180,7 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
       // the message rate must be higher than required by the control manager
       if (!kickoff_ && avg_hz < ch_->desired_uav_state_rate * 0.9) {
         ROS_ERROR(
-            "[%s]: rate of passthrough odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher passthrough odometry rate "
+            "[%s]: rate of f9p odom: %.2f Hz is lower than desired uav_state rate: %.2f Hz. Flight not allowed. Provide higher f9p odometry rate "
             "or use a higher-level controller.",
             getPrintName().c_str(), avg_hz, ch_->desired_uav_state_rate);
         // note: might run the publishing asynchronously on the desired rate in this case to still be able to fly
@@ -185,28 +191,18 @@ void Passthrough::timerCheckPassthroughOdomHz([[maybe_unused]] const ros::TimerE
 
     changeState(READY_STATE);
     ROS_INFO_THROTTLE(1.0, "[%s]: Estimator is ready to start", getPrintName().c_str());
-    timer_check_passthrough_odom_hz_.stop();
+    timer_check_f9p_odom_hz_.stop();
   }
 }
 /*//}*/
 
-/*//{ callbackPassthroughOdom() */
-void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg) {
+/*//{ callbackF9POdom() */
+void F9P::callbackF9POdom([[maybe_unused]] const nav_msgs::Odometry::ConstPtr msg) {
 
   counter_odom_msgs_++;
 
   if (!isInitialized()) {
     return;
-  }
-
-  if (isInState(STARTED_STATE)) {
-
-    changeState(RUNNING_STATE);
-  }
-
-  if (first_iter_) {
-    prev_msg_   = msg;
-    first_iter_ = false;
   }
 
   // If the estimator is active the updateUavState is triggered directly by estimation manager
@@ -222,8 +218,36 @@ void Passthrough::callbackPassthroughOdom(const nav_msgs::Odometry::ConstPtr msg
 }
 /*//}*/
 
+/*//{ callbackGnss() */
+void F9P::callbackGnss(const sensor_msgs::NavSatFix::ConstPtr msg) {
+
+  if (!isInitialized()) {
+    return;
+  }
+
+  if (got_gnss_) {
+    return;
+  }
+
+  if (!std::isfinite(msg->latitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->latitude\"!!!", getPrintName().c_str());
+    return;
+  }
+
+  if (!std::isfinite(msg->longitude)) {
+    ROS_ERROR_THROTTLE(1.0, "[%s] NaN detected in GNSS variable \"msg->longitude\"!!!", getPrintName().c_str());
+    return;
+  }
+
+  mrs_lib::UTM(msg->latitude, msg->longitude, &gnss_x_, &gnss_y_);
+  gnss_z_ = msg->altitude;
+  ROS_INFO("[%s]: First GNSS obtained: %.2f %.2f %.2f", getPrintName().c_str(), gnss_x_, gnss_y_, gnss_z_);
+  got_gnss_ = true;
+}
+/*//}*/
+
 /*//{ isConverged() */
-bool Passthrough::isConverged() {
+bool F9P::isConverged() {
 
   // TODO: check convergence by rate of change of determinant
   // most likely not used in top-level estimator
@@ -233,7 +257,7 @@ bool Passthrough::isConverged() {
 /*//}*/
 
 /*//{ setUavState() */
-bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
+bool F9P::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_state) {
 
   if (!isInState(STOPPED_STATE)) {
     ROS_WARN("[%s]: Estimator state can be set only in the STOPPED state", getPrintName().c_str());
@@ -246,46 +270,65 @@ bool Passthrough::setUavState([[maybe_unused]] const mrs_msgs::UavState &uav_sta
 /*//}*/
 
 /*//{ updateUavState() */
-void Passthrough::updateUavState() {
+void F9P::updateUavState() {
 
   if (!isInitialized()) {
     return;
   }
 
+  if (!got_gnss_) {
+    ROS_WARN_THROTTLE(1.0, "[%s]: Missing GNSS data on topic: %s", getPrintName().c_str(), gnss_topic_.c_str());
+    return;
+  }
 
-  nav_msgs::OdometryConstPtr msg = sh_passthrough_odom_.getMsg();
+  if (isInState(STARTED_STATE)) {
 
-  /* const ros::Time time_now = ros::Time::now(); */
-  // here we are assuming the passthrough odometry has correct timestamp
-  const ros::Time time_now = msg->header.stamp;
+    changeState(RUNNING_STATE);
+  }
+
+  nav_msgs::OdometryConstPtr msg = sh_f9p_odom_.getMsg();
 
   if (first_iter_) {
+
+    gnss_x_                    = (gnss_x_ - msg->pose.pose.position.x) - ch_->world_origin.x;
+    gnss_y_                    = (gnss_y_ - msg->pose.pose.position.y) - ch_->world_origin.y;
+    /* gnss_z_                    = gnss_z_ - msg->pose.pose.position.z; */ // absolute AMSL altitude
+    gnss_z_                    = -msg->pose.pose.position.z; // relative altitude to start
+
     prev_msg_   = msg;
     first_iter_ = false;
   }
 
   mrs_msgs::UavState uav_state = uav_state_init_;
 
-  uav_state.header.stamp = time_now;
+  /* const ros::Time time_now = ros::Time::now(); */
+  /* uav_state.header.stamp = time_now; */
 
-  uav_state.pose.position    = msg->pose.pose.position;
+  // here we are assuming the f9p odometry has correct timestamp
+  uav_state.header.stamp = msg->header.stamp;
+
+  uav_state.pose.position.x = msg->pose.pose.position.x + gnss_x_;
+  uav_state.pose.position.y = msg->pose.pose.position.y + gnss_y_;
+  uav_state.pose.position.z = msg->pose.pose.position.z + gnss_z_;
+
   uav_state.pose.orientation = msg->pose.pose.orientation;
 
+  // uav_state has velocities in the parent frame
   uav_state.velocity.linear  = Support::rotateVector(msg->twist.twist.linear, msg->pose.pose.orientation);
   uav_state.velocity.angular = msg->twist.twist.angular;
 
   const nav_msgs::Odometry odom = Support::uavStateToOdom(uav_state);
 
   nav_msgs::Odometry innovation = innovation_init_;
-  innovation.header.stamp       = time_now;
+  innovation.header.stamp       = odom.header.stamp;
 
   innovation.pose.pose.position.x = prev_msg_->pose.pose.position.x - msg->pose.pose.position.x;
   innovation.pose.pose.position.y = prev_msg_->pose.pose.position.y - msg->pose.pose.position.y;
   innovation.pose.pose.position.z = prev_msg_->pose.pose.position.z - msg->pose.pose.position.z;
 
   mrs_msgs::Float64ArrayStamped pose_covariance, twist_covariance;
-  pose_covariance.header.stamp  = time_now;
-  twist_covariance.header.stamp = time_now;
+  pose_covariance.header.stamp  = odom.header.stamp;
+  twist_covariance.header.stamp = odom.header.stamp;
 
   const int n_states = 6;  // TODO this should be defined somewhere else
   pose_covariance.values.resize(n_states * n_states);
@@ -308,9 +351,9 @@ void Passthrough::updateUavState() {
 }
 /*//}*/
 
-}  // namespace passthrough
+}  // namespace f9p
 
 }  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::passthrough::Passthrough, mrs_uav_managers::StateEstimator)
+PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::f9p::F9P, mrs_uav_managers::StateEstimator)

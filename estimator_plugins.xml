@@ -28,6 +28,12 @@
   </class>
 </library>
 
+<library path="lib/libMrsUavStateEstimators_F9P">
+  <class name="mrs_uav_state_estimators/F9P" type="mrs_uav_state_estimators::f9p::F9P" base_class_type="mrs_uav_managers::StateEstimator">
+    <description>F9P state estimator</description>
+  </class>
+</library>
+
 <library path="lib/libMrsUavStateEstimators_GroundTruth">
   <class name="mrs_uav_state_estimators/GroundTruth" type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
     <description>GroundTruth state estimator</description>
