@@ -32,6 +32,8 @@ public:
   void                   reset();
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+
   bool is_initialized_ = false;
 
   bool        use_gnss_msg_;
@@ -52,7 +54,10 @@ ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::Share
                                                        const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
-  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
+  cbkgrp_subs_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+   */
 
   ph->param_loader->loadParam("use_gnss_msg", use_gnss_msg_);
   if (use_gnss_msg_) {
@@ -73,11 +78,12 @@ ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::Share
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node;
-  shopts.node_name          = Processor<n_measurements>::getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node;
+  shopts.node_name                           = Processor<n_measurements>::getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_gnss_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, gnss_topic_, &ProcMagDeclination::callbackGnss, this);
 

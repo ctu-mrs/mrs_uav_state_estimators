@@ -47,6 +47,8 @@ const bool is_core_plugin = true;
 class GarminAgl : public mrs_uav_managers::AglEstimator {
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+
   std::unique_ptr<AltGeneric> est_agl_garmin_;
   const std::string           est_agl_name_ = "garmin_agl";
 

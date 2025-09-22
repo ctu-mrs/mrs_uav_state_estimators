@@ -16,6 +16,9 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
   node_  = node;
   clock_ = node->get_clock();
 
+  cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -39,13 +42,15 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
 
   mrs_lib::TimerHandlerOptions opts_no_autostart;
 
-  opts_no_autostart.node      = node_;
-  opts_no_autostart.autostart = false;
+  opts_no_autostart.node           = node_;
+  opts_no_autostart.autostart      = false;
+  opts_no_autostart.callback_group = cbkgrp_timers_;
 
   mrs_lib::TimerHandlerOptions opts_autostart;
 
-  opts_autostart.node      = node_;
-  opts_autostart.autostart = true;
+  opts_autostart.node           = node_;
+  opts_autostart.autostart      = true;
+  opts_autostart.callback_group = cbkgrp_timers_;
 
   {
     std::function<void()> callback_fcn = std::bind(&GroundTruth::timerUpdate, this);
@@ -63,11 +68,12 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
 
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node_;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node_;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_gt_odom_ = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, msg_topic_);
 
@@ -287,7 +293,8 @@ void GroundTruth::timerCheckHealth() {
       changeState(READY_STATE);
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), sh_gt_odom_.topicName().c_str());
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                           sh_gt_odom_.topicName().c_str());
       return;
     }
   }

@@ -30,6 +30,9 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   clock_ = node->get_clock();
 
+  cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -54,8 +57,10 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
   }
 
   /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
@@ -73,30 +78,19 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   for (auto corr_name : correction_names_) {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(corr_name);
-    auto corr_ph = std::make_shared<PrivateHandlers_t>();
-    corr_ph->loadConfigFile = ph_->loadConfigFile;
-    corr_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    corr_ph = std::make_shared<PrivateHandlers_t>();
+    corr_ph->loadConfigFile         = ph_->loadConfigFile;
+    corr_ph->param_loader           = std::make_unique<mrs_lib::ParamLoader>(subnode);
     corr_ph->param_loader->copyYamls(*ph->param_loader);
     corr_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
-    auto fun_get_state = [this](int a, int b) { return this->getState(a, b); };
-    auto fun_get_correction = [this](const Correction<hdg_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state)
-        {
-          return this->doCorrection(meas, R, state);
-        };
+    auto fun_get_state      = [this](int a, int b) { return this->getState(a, b); };
+    auto fun_get_correction = [this](const Correction<hdg_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
+      return this->doCorrection(meas, R, state);
+    };
 
-    auto corr = std::make_shared<Correction<hdg_generic::n_measurements>>
-        (
-          subnode,
-          getNamespacedName(),
-          corr_name,
-          ns_frame_id_,
-          EstimatorType_t::HEADING,
-          ch_,
-          corr_ph,
-          fun_get_state,
-          fun_get_correction
-        );
+    auto corr = std::make_shared<Correction<hdg_generic::n_measurements>>(subnode, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_,
+                                                                          corr_ph, fun_get_state, fun_get_correction);
 
     corrections_.push_back(corr);
   }
@@ -121,8 +115,10 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mtx_Q_);
 
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION),
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY),
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | --------------- Kalman filter intialization -------------- |
   const x_t        x0 = x_t::Zero();
@@ -146,8 +142,9 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   mrs_lib::TimerHandlerOptions opts;
 
-  opts.node      = node_;
-  opts.autostart = true;
+  opts.node           = node_;
+  opts.autostart      = true;
+  opts.callback_group = cbkgrp_timers_;
 
   {
     std::function<void()> callback_fcn = std::bind(&HdgGeneric::timerUpdate, this);
@@ -162,11 +159,12 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   // subscriber to odometry
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node_;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node_;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 

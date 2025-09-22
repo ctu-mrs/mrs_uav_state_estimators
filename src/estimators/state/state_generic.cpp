@@ -29,6 +29,9 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   node_  = node;
   clock_ = node->get_clock();
 
+  cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -68,8 +71,9 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   mrs_lib::TimerHandlerOptions opts;
 
-  opts.node      = node_;
-  opts.autostart = true;
+  opts.node           = node_;
+  opts.autostart      = true;
+  opts.callback_group = cbkgrp_timers_;
 
   {
     std::function<void()> callback_fcn = std::bind(&StateGeneric::timerUpdate, this);
@@ -87,11 +91,12 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_hw_api_orient_  = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, topic_orientation_);
   sh_hw_api_ang_vel_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, topic_angular_velocity_);
@@ -124,9 +129,9 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_hdg_name_);
-    auto est_ph = std::make_shared<PrivateHandlers_t>();
-    est_ph->loadConfigFile = ph_->loadConfigFile;
-    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    est_ph  = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile          = ph_->loadConfigFile;
+    est_ph->param_loader            = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
     est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
@@ -141,9 +146,9 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_lat_name_);
-    auto est_ph = std::make_shared<PrivateHandlers_t>();
-    est_ph->loadConfigFile = ph_->loadConfigFile;
-    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    est_ph  = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile          = ph_->loadConfigFile;
+    est_ph->param_loader            = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
     est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
@@ -154,9 +159,9 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(est_alt_name_);
-    auto est_ph = std::make_shared<PrivateHandlers_t>();
-    est_ph->loadConfigFile = ph_->loadConfigFile;
-    est_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    est_ph  = std::make_shared<PrivateHandlers_t>();
+    est_ph->loadConfigFile          = ph_->loadConfigFile;
+    est_ph->param_loader            = std::make_unique<mrs_lib::ParamLoader>(subnode);
     est_ph->param_loader->copyYamls(*ph_->param_loader);
     est_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 

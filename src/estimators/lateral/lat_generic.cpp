@@ -24,9 +24,13 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   node_ = node;
 
-  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(), node_->get_sub_namespace().c_str());
+  RCLCPP_INFO(node_->get_logger(), "initializing %s %s %s %s", getNamespacedName().c_str(), node_->get_name(), node_->get_namespace(),
+              node_->get_sub_namespace().c_str());
 
   clock_ = node->get_clock();
+
+  cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   ch_ = ch;
   ph_ = ph;
@@ -54,8 +58,10 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() + ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
+    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
+                                  ".yaml");
   }
 
   /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
@@ -76,30 +82,19 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   for (auto corr_name : correction_names_) {
     rclcpp::Node::SharedPtr subnode = node_->create_sub_node(corr_name);
-    auto corr_ph = std::make_shared<PrivateHandlers_t>();
-    corr_ph->loadConfigFile = ph_->loadConfigFile;
-    corr_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+    auto                    corr_ph = std::make_shared<PrivateHandlers_t>();
+    corr_ph->loadConfigFile         = ph_->loadConfigFile;
+    corr_ph->param_loader           = std::make_unique<mrs_lib::ParamLoader>(subnode);
     corr_ph->param_loader->copyYamls(*ph->param_loader);
     corr_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
-    auto fun_get_state = [this](int a, int b) { return this->getState(a, b); };
-    auto fun_get_correction = [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state)
-        {
-          return this->doCorrection(meas, R, state);
-        };
+    auto fun_get_state      = [this](int a, int b) { return this->getState(a, b); };
+    auto fun_get_correction = [this](const Correction<lat_generic::n_measurements>::MeasurementStamped &meas, const double R, const StateId_t state) {
+      return this->doCorrection(meas, R, state);
+    };
 
-    auto corr = std::make_shared<Correction<lat_generic::n_measurements>>
-        (
-          subnode,
-          getNamespacedName(),
-          corr_name,
-          ns_frame_id_,
-          EstimatorType_t::LATERAL,
-          ch_,
-          corr_ph,
-          fun_get_state,
-          fun_get_correction
-        );
+    auto corr = std::make_shared<Correction<lat_generic::n_measurements>>(subnode, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::LATERAL, ch_,
+                                                                          corr_ph, fun_get_state, fun_get_correction);
 
     corrections_.push_back(corr);
   }
@@ -129,9 +124,12 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   dynparam_mgr_ = std::make_shared<mrs_lib::DynparamMgr>(node_, mtx_Q_);
 
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/acc", &Q_(ACCELERATION, ACCELERATION), Q_(ACCELERATION, ACCELERATION), mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/pos", &Q_(POSITION, POSITION), Q_(POSITION, POSITION),
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/vel", &Q_(VELOCITY, VELOCITY), Q_(VELOCITY, VELOCITY),
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/acc", &Q_(ACCELERATION, ACCELERATION), Q_(ACCELERATION, ACCELERATION),
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | --------------- Kalman filter intialization -------------- |
 
@@ -156,8 +154,9 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   mrs_lib::TimerHandlerOptions opts;
 
-  opts.node      = node_;
-  opts.autostart = true;
+  opts.node           = node_;
+  opts.autostart      = true;
+  opts.callback_group = cbkgrp_timers_;
 
   {
     std::function<void()> callback_fcn = std::bind(&LatGeneric::timerUpdate, this);
@@ -171,11 +170,12 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   // subscriber to odometry
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node_;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node_;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 
@@ -304,9 +304,11 @@ void LatGeneric::timerUpdate() {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
           setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(), measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(),
+                               measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
         } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                               correction->getNamespacedName().c_str());
           return;
         }
       }
@@ -328,7 +330,8 @@ void LatGeneric::timerUpdate() {
     case RUNNING_STATE: {
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           changeState(ERROR_STATE);
         }
       }
@@ -356,7 +359,8 @@ void LatGeneric::timerUpdate() {
       bool all_corrections_healthy = true;
       for (auto correction : corrections_) {
         if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(), correction->getNamespacedName().c_str());
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                                correction->getNamespacedName().c_str());
           all_corrections_healthy = false;
         }
       }
@@ -384,7 +388,8 @@ void LatGeneric::timerUpdate() {
 
   // check age of input
   if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
-    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(), (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
+    RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
+                         (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
   }
 
@@ -434,7 +439,8 @@ void LatGeneric::timerUpdate() {
     u(1) = des_acc_global.getY();
 
   } else {  // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
-    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable", getPrintName().c_str());
+    RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable",
+                          getPrintName().c_str());
     input_stamp = clock_->now();
     if (input_coeff_ != 0) {
       setInputCoeff(0);
@@ -509,7 +515,8 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
       innovation_(1)      = z(1) - getState(POSITION, AXIS_Y);
 
       if (fabs(innovation_(0)) > pos_innovation_limit_ || fabs(innovation_(1)) > pos_innovation_limit_) {
-        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f %.2f] lim: %.2f", getPrintName().c_str(), innovation_(0), innovation_(1), pos_innovation_limit_);
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation too large - [%.2f %.2f] lim: %.2f", getPrintName().c_str(), innovation_(0),
+                             innovation_(1), pos_innovation_limit_);
         innovation_ok_ = false;
         switch (exc_innovation_action_) {
           case ExcInnoAction_t::ELAND: {

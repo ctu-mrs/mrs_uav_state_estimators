@@ -55,6 +55,9 @@ class Passthrough : public mrs_uav_managers::StateEstimator {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_passthrough";

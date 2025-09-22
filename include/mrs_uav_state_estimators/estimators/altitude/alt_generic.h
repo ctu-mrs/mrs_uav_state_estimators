@@ -68,6 +68,10 @@ class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
   std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
 
 private:
+
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+
   std::string parent_state_est_name_;
 
   double                                      dt_;

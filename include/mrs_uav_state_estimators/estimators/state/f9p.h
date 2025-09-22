@@ -57,6 +57,9 @@ class F9P : public mrs_uav_managers::StateEstimator {
   using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_f9p";
@@ -73,10 +76,10 @@ private:
   std::string                                         msg_topic_;
 
   mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix> sh_gnss_;
-  void                                                   callbackGnss(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
-  double                                                 gnss_x_, gnss_y_, gnss_z_;
-  bool                                                   got_gnss_ = false;
-  std::string                                            gnss_topic_;
+  void                                                    callbackGnss(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
+  double                                                  gnss_x_, gnss_y_, gnss_z_;
+  bool                                                    got_gnss_ = false;
+  std::string                                             gnss_topic_;
 
   std::shared_ptr<TimerType> timer_check_f9p_odom_hz_;
   void                       timerCheckF9POdomHz();

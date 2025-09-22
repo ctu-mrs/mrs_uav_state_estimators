@@ -54,6 +54,9 @@ const char package_name[] = "mrs_uav_state_estimators";
 class StateGeneric : public mrs_uav_managers::StateEstimator {
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+
   std::unique_ptr<LatGeneric> est_lat_;
   std::string                 est_lat_name_;
 

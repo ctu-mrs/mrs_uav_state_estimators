@@ -35,6 +35,8 @@ private:
 
   std::string                                                       orientation_topic_;
   mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;
+
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
 };
 
 /*//{ constructor */
@@ -43,8 +45,11 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedP
                                                      const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
+  cbkgrp_subs_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   // | --------------------- load parameters -------------------- |
-  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+   */
 
   ph->param_loader->loadParam("orientation_topic", orientation_topic_);
   double max_tilt;
@@ -63,11 +68,12 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedP
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node;
-  shopts.node_name          = Processor<n_measurements>::getPrintName();
-  shopts.no_message_timeout = rclcpp::Duration(std::chrono::duration<double>(1.0));
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node;
+  shopts.node_name                           = Processor<n_measurements>::getPrintName();
+  shopts.no_message_timeout                  = rclcpp::Duration(std::chrono::duration<double>(1.0));
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_orientation_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, "/" + ch->uav_name + "/" + orientation_topic_);
 }

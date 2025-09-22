@@ -32,6 +32,8 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
   node_  = node;
   clock_ = node->get_clock();
 
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -57,8 +59,9 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
   {
     mrs_lib::TimerHandlerOptions opts;
 
-    opts.node      = node_;
-    opts.autostart = false;
+    opts.node           = node_;
+    opts.autostart      = false;
+    opts.callback_group = cbkgrp_timers_;
 
     std::function<void()> callback_fcn = std::bind(&GarminAgl::timerUpdate, this);
 
@@ -69,8 +72,9 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
   {
     mrs_lib::TimerHandlerOptions opts;
 
-    opts.node      = node_;
-    opts.autostart = true;
+    opts.node           = node_;
+    opts.autostart      = true;
+    opts.callback_group = cbkgrp_timers_;
 
     std::function<void()> callback_fcn = std::bind(&GarminAgl::timerCheckHealth, this);
 

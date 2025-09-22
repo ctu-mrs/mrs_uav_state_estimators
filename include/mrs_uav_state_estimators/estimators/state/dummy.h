@@ -55,6 +55,8 @@ using CommonHandlers_t = mrs_uav_managers::estimation_manager::CommonHandlers_t;
 class Dummy : public mrs_uav_managers::StateEstimator {
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_dummy";

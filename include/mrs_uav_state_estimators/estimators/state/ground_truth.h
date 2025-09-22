@@ -53,6 +53,9 @@ const bool is_core_plugin = true;
 class GroundTruth : public mrs_uav_managers::StateEstimator {
 
 private:
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+
   const std::string package_name_ = "mrs_uav_state_estimators";
 
   const std::string est_lat_name_ = "lat_gt";

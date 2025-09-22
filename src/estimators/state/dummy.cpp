@@ -26,6 +26,8 @@ void Dummy::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_pt
   node_  = node;
   clock_ = node->get_clock();
 
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -47,13 +49,15 @@ void Dummy::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_pt
   //
   mrs_lib::TimerHandlerOptions opts_no_autostart;
 
-  opts_no_autostart.node      = node_;
-  opts_no_autostart.autostart = false;
+  opts_no_autostart.node           = node_;
+  opts_no_autostart.autostart      = false;
+  opts_no_autostart.callback_group = cbkgrp_timers_;
 
   mrs_lib::TimerHandlerOptions opts_autostart;
 
-  opts_autostart.node      = node_;
-  opts_autostart.autostart = true;
+  opts_autostart.node           = node_;
+  opts_autostart.autostart      = true;
+  opts_autostart.callback_group = cbkgrp_timers_;
 
   {
     std::function<void()> callback_fcn = std::bind(&Dummy::timerUpdate, this);
