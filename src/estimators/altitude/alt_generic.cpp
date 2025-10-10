@@ -299,7 +299,7 @@ void AltGeneric::timerUpdate(void) {
         if (res) {
           auto measurement_stamped = res.value();
           setState(measurement_stamped.value(0), correction->getStateId());
-          RCLCPP_INF_THROTTLEO(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(), measurement_stamped.value(0));
         } else {
           RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                                correction->getNamespacedName().c_str());
