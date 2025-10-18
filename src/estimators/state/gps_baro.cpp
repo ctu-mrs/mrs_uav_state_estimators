@@ -16,6 +16,7 @@ public:
 };
 
 }  // namespace gps_baro
+
 }  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>

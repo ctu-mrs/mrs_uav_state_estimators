@@ -64,8 +64,6 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
                                   ".yaml");
   }
 
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
-
   // | --------------------- load parameters -------------------- |
   ph->param_loader->loadParam("hdg_source_topic", hdg_source_topic_);
   ph->param_loader->loadParam("max_flight_z", max_flight_z_);
@@ -104,8 +102,6 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     rclcpp::shutdown();
   }
-
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   // | ----------- initialize process noise covariance ---------- |
   Q_ = Q_t::Zero();
@@ -754,7 +750,7 @@ std::string LatGeneric::getNamespacedName() const {
 
 /*//{ getPrintName() */
 std::string LatGeneric::getPrintName() const {
-  return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
+  return parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
 

@@ -63,8 +63,6 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
                                   ".yaml");
   }
 
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
-
   // | --------------------- load parameters -------------------- |
   ph->param_loader->loadParam("max_flight_z", max_flight_z_);
   ph->param_loader->loadParam("position_innovation_limit", pos_innovation_limit_);
@@ -94,8 +92,6 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
     corrections_.push_back(corr);
   }
-
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getNamespacedName() + "/"); */
 
   // | ----------- initialize process noise covariance ---------- |
   Q_ = Q_t::Zero();
@@ -665,7 +661,7 @@ std::string HdgGeneric::getNamespacedName() const {
 
 /*//{ getPrintName() */
 std::string HdgGeneric::getPrintName() const {
-  return ch_->nodelet_name + "/" + parent_state_est_name_ + "/" + getName();
+  return parent_state_est_name_ + "/" + getName();
 }
 /*//}*/
 

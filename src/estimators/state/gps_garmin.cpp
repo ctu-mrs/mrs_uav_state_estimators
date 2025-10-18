@@ -16,6 +16,7 @@ public:
 };
 
 }  // namespace gps_garmin
+
 }  // namespace mrs_uav_state_estimators
 
 

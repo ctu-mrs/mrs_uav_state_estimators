@@ -16,6 +16,7 @@ public:
 };
 
 }  // namespace rtk
+
 }  // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>

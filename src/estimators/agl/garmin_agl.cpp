@@ -41,8 +41,6 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
 
   // | --------------------- load parameters -------------------- |
 
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
-
   if (is_core_plugin_) {
 
     ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");

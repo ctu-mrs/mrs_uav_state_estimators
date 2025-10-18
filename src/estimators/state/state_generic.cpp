@@ -41,8 +41,6 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
   }
 
-  /* ph->param_loader->setPrefix(ch_->package_name + "/" + Support::toSnakeCase(ch_->nodelet_name) + "/" + getName() + "/"); */
-
   ph->param_loader->loadParam("estimators/lateral/name", est_lat_name_);
   ph->param_loader->loadParam("estimators/altitude/name", est_alt_name_);
   ph->param_loader->loadParam("estimators/heading/name", est_hdg_name_);
