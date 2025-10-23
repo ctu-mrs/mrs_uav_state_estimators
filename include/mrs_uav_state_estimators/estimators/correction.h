@@ -14,6 +14,7 @@
 #include <mrs_lib/mutex.h>
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/dynparam_mgr.h>
+#include <mrs_lib/service_server_handler.h>
 
 #include <mrs_msgs/msg/rtk_gps.hpp>
 #include <mrs_msgs/msg/estimator_correction.hpp>
@@ -191,10 +192,10 @@ private:
   std::optional<measurement_t>                                getCorrectionFromMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg);
   void                                                        callbackMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg);
 
-  mrs_lib::SubscriberHandler<sensor_msgs::msg::Range> sh_range_;
-  std::optional<measurement_t>                        getCorrectionFromRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
-  void                                                callbackRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
-  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr  ser_toggle_range_;
+  mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>   sh_range_;
+  std::optional<measurement_t>                          getCorrectionFromRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
+  void                                                  callbackRange(const sensor_msgs::msg::Range::ConstSharedPtr msg);
+  mrs_lib::ServiceServerHandler<std_srvs::srv::SetBool> ss_toggle_range_;
   bool callbackToggleRange(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, const std::shared_ptr<std_srvs::srv::SetBool::Response> response);
   bool range_enabled_ = true;
 
@@ -357,7 +358,8 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
 
   // TODO the parameter name needs fixing to reflect the ROS1 naming
   drs_params_.sensor_noise = R_;
-  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/noise", &drs_params_.sensor_noise, drs_params_.sensor_noise, mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
+  dynparam_mgr_->register_param(node_->get_sub_namespace() + "/noise", &drs_params_.sensor_noise, drs_params_.sensor_noise,
+                                mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | -------------- initialize subscribe handlers ------------- |
   mrs_lib::SubscriberHandlerOptions shopts;
@@ -386,8 +388,8 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
 
       sh_range_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
 
-      ser_toggle_range_ = node_->create_service<std_srvs::srv::SetBool>(
-          std::string(node_->get_namespace()) + "/" + std::string(node_->get_name()) + "/" + getNamespacedName() + "/toggle_range",
+      ss_toggle_range_ = mrs_lib::ServiceServerHandler<std_srvs::srv::SetBool>(
+          node_, std::string(node_->get_namespace()) + "/" + std::string(node_->get_name()) + "/" + getNamespacedName() + "/toggle_range",
           std::bind(&Correction::callbackToggleRange, this, std::placeholders::_1, std::placeholders::_2));
 
       break;
@@ -2295,7 +2297,6 @@ void Correction<n_measurements>::applyCorrection(const measurement_t& meas, cons
     publishCorrection(meas_stamped, ph_correction_proc_);
     fun_apply_correction_(meas_stamped, getR(), getStateId());
   }
-
 }
 /*//}*/
 
@@ -2586,11 +2587,12 @@ bool Correction<n_measurements>::isMsgComing() {
 
 /*//{ createProcessorFromName() */
 template <int n_measurements>
-std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& subnode) {
+std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string&             name,
+                                                                                               const rclcpp::Node::SharedPtr& subnode) {
 
-  auto proc_ph = std::make_shared<PrivateHandlers_t>();
+  auto proc_ph            = std::make_shared<PrivateHandlers_t>();
   proc_ph->loadConfigFile = ph_->loadConfigFile;
-  proc_ph->param_loader = std::make_unique<mrs_lib::ParamLoader>(subnode);
+  proc_ph->param_loader   = std::make_unique<mrs_lib::ParamLoader>(subnode);
   proc_ph->param_loader->copyYamls(*ph_->param_loader);
   proc_ph->param_loader->setPrefix(ph_->param_loader->getPrefix());
 
