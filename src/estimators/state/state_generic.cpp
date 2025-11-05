@@ -105,7 +105,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   ph_attitude_ = mrs_lib::PublisherHandler<geometry_msgs::msg::QuaternionStamped>(node_, Support::toSnakeCase("~/" + getName()) + "/attitude");
 
   if (ch_->debug_topics.state) {
-    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, Support::toSnakeCase(getName()) + "/uav_state");
+    ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, Support::toSnakeCase("~/" + getName()) + "/uav_state");
   }
 
   if (ch_->debug_topics.covariance) {
