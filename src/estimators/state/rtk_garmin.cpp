@@ -7,7 +7,7 @@ namespace rtk_garmin
 {
 
 const char estimator_name[] = "rtk_garmin";
-const bool is_core_plugin = true;
+const bool is_core_plugin   = true;
 
 class RtkGarmin : public StateGeneric {
 public:
@@ -15,9 +15,9 @@ public:
   }
 };
 
-}  // namespace rtk_garmin
+} // namespace rtk_garmin
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::rtk_garmin::RtkGarmin, mrs_uav_managers::StateEstimator)

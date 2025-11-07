@@ -279,103 +279,103 @@ void LatGeneric::timerUpdate() {
 
   switch (getCurrentSmState()) {
 
-    case UNINITIALIZED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      break;
-    }
+  case UNINITIALIZED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    break;
+  }
 
-    case READY_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      break;
-    }
+  case READY_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    break;
+  }
 
-    case INITIALIZED_STATE: {
+  case INITIALIZED_STATE: {
 
-      // initialize the estimator with current corrections
-      for (auto correction : corrections_) {
+    // initialize the estimator with current corrections
+    for (auto correction : corrections_) {
 
-        auto res = correction->getProcessedCorrection();
+      auto res = correction->getProcessedCorrection();
 
-        if (res) {
-          auto measurement_stamped = res.value();
-          setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
-          setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(),
-                               measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
-        } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                               correction->getNamespacedName().c_str());
-          return;
-        }
-      }
-
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
-      changeState(READY_STATE);
-      break;
-    }
-
-    case STARTED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      if (isConverged()) {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
-        changeState(RUNNING_STATE);
-      }
-      break;
-    }
-
-    case RUNNING_STATE: {
-      for (auto correction : corrections_) {
-        if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
-          changeState(ERROR_STATE);
-        }
-      }
-      break;
-    }
-
-    case STOPPED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
-      break;
-    }
-
-    case ERROR_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
-
-      rclcpp::Time t_now = clock_->now();
-      if (is_error_state_first_time_) {
-        prev_time_in_error_state_  = t_now;
-        is_error_state_first_time_ = false;
-        error_state_duration_      = 0;
-      }
-      error_state_duration_ += t_now.seconds() - prev_time_in_error_state_.seconds();
-
-
-      // check if all corrections are healthy now
-      bool all_corrections_healthy = true;
-      for (auto correction : corrections_) {
-        if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
-          all_corrections_healthy = false;
-        }
-      }
-
-      if (all_corrections_healthy && innovation_ok_) {
-        // initialize the estimator again if corrections become healthy
-        if (error_state_duration_ > 5.0) {
-          RCLCPP_INFO(node_->get_logger(), "[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_);
-          changeState(INITIALIZED_STATE);
-          is_error_state_first_time_ = true;
-        }
+      if (res) {
+        auto measurement_stamped = res.value();
+        setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
+        setState(measurement_stamped.value(AXIS_Y), correction->getStateId(), AXIS_Y);
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f %.2f", getPrintName().c_str(),
+                             measurement_stamped.value(AXIS_X), measurement_stamped.value(AXIS_Y));
       } else {
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                             correction->getNamespacedName().c_str());
+        return;
+      }
+    }
+
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
+    changeState(READY_STATE);
+    break;
+  }
+
+  case STARTED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    if (isConverged()) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
+      changeState(RUNNING_STATE);
+    }
+    break;
+  }
+
+  case RUNNING_STATE: {
+    for (auto correction : corrections_) {
+      if (!correction->isHealthy()) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                              correction->getNamespacedName().c_str());
+        changeState(ERROR_STATE);
+      }
+    }
+    break;
+  }
+
+  case STOPPED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
+    break;
+  }
+
+  case ERROR_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+
+    rclcpp::Time t_now = clock_->now();
+    if (is_error_state_first_time_) {
+      prev_time_in_error_state_  = t_now;
+      is_error_state_first_time_ = false;
+      error_state_duration_      = 0;
+    }
+    error_state_duration_ += t_now.seconds() - prev_time_in_error_state_.seconds();
+
+
+    // check if all corrections are healthy now
+    bool all_corrections_healthy = true;
+    for (auto correction : corrections_) {
+      if (!correction->isHealthy()) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                              correction->getNamespacedName().c_str());
+        all_corrections_healthy = false;
+      }
+    }
+
+    if (all_corrections_healthy && innovation_ok_) {
+      // initialize the estimator again if corrections become healthy
+      if (error_state_duration_ > 5.0) {
+        RCLCPP_INFO(node_->get_logger(), "[%s]: corrections healthy for %.2f s", getPrintName().c_str(), error_state_duration_);
+        changeState(INITIALIZED_STATE);
         is_error_state_first_time_ = true;
       }
-
-      prev_time_in_error_state_ = t_now;
-
-      break;
+    } else {
+      is_error_state_first_time_ = true;
     }
+
+    prev_time_in_error_state_ = t_now;
+
+    break;
+  }
   }
 
   if (sh_control_input_.newMsg()) {
@@ -383,7 +383,7 @@ void LatGeneric::timerUpdate() {
   }
 
   // check age of input
-  if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) {  // TODO: parametrize, if older than say 1 second, eland
+  if (is_input_ready_ && (clock_->now() - sh_control_input_.lastMsgTime()).seconds() > 0.1) { // TODO: parametrize, if older than say 1 second, eland
     RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: input too old (%.4f s), using zero input instead", getPrintName().c_str(),
                          (clock_->now() - sh_control_input_.lastMsgTime()).seconds());
     is_input_ready_ = false;
@@ -407,12 +407,12 @@ void LatGeneric::timerUpdate() {
 
   timer_update_last_time_ = clock_->now();
 
-  if (dt <= 0.0 || dt > 1.0) {  // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick, in case of stopping and starting
-                                // the timer, the last_real is 0
+  if (dt <= 0.0 || dt > 1.0) { // sometimes the timer ticks twice simultaneously in simulation - we ignore the second tick, in case of stopping and starting
+                               // the timer, the last_real is 0
     return;
   }
 
-  if (!is_repredictor_enabled_) {  // repredictor calculates dt on its own
+  if (!is_repredictor_enabled_) { // repredictor calculates dt on its own
     setDt(dt);
   }
 
@@ -434,7 +434,7 @@ void LatGeneric::timerUpdate() {
     u(0) = des_acc_global.getX();
     u(1) = des_acc_global.getY();
 
-  } else {  // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
+  } else { // this is ok before the controller starts controlling but bad during actual flight (causes delayed estimated acceleration and velocity)
     RCLCPP_DEBUG_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: not receiving control input, estimation suboptimal, potentially unstable",
                           getPrintName().c_str());
     input_stamp = clock_->now();
@@ -515,31 +515,31 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
                              innovation_(1), pos_innovation_limit_);
         innovation_ok_ = false;
         switch (exc_innovation_action_) {
-          case ExcInnoAction_t::ELAND: {
-            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
-            changeState(ERROR_STATE);
-            break;
-          }
-          case ExcInnoAction_t::SWITCH: {
-            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
-            innovation_(0) = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
-            innovation_(1) = 0.0;
-            changeState(ERROR_STATE);
-            break;
-          }
-          case ExcInnoAction_t::MITIGATE: {
-            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
-            innovation_(0)      = 0.0;  // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
-            innovation_(1)      = 0.0;
-            is_mitigating_jump_ = true;
-            setState(z(0), POSITION, AXIS_X);
-            setState(z(1), POSITION, AXIS_Y);
-            break;
-          }
-          case ExcInnoAction_t::NONE: {
-            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation ignored", getPrintName().c_str());
-            break;
-          }
+        case ExcInnoAction_t::ELAND: {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger eland in control manager", getPrintName().c_str());
+          changeState(ERROR_STATE);
+          break;
+        }
+        case ExcInnoAction_t::SWITCH: {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: innovation should trigger estimator switch but no eland", getPrintName().c_str());
+          innovation_(0) = 0.0; // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+          innovation_(1) = 0.0;
+          changeState(ERROR_STATE);
+          break;
+        }
+        case ExcInnoAction_t::MITIGATE: {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation should trigger estimate jump mitigation", getPrintName().c_str());
+          innovation_(0)      = 0.0; // this is quite hacky but is there other way to switch estimators and not trigger eland by the large innovation?
+          innovation_(1)      = 0.0;
+          is_mitigating_jump_ = true;
+          setState(z(0), POSITION, AXIS_X);
+          setState(z(1), POSITION, AXIS_Y);
+          break;
+        }
+        case ExcInnoAction_t::NONE: {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: large innovation ignored", getPrintName().c_str());
+          break;
+        }
         }
       }
       innovation_ok_ = true;
@@ -568,7 +568,7 @@ void LatGeneric::doCorrection(const z_t &z, const double R, const StateId_t &sta
   }
 
   mrs_lib::set_mutexed(mutex_sc_, sc, sc_);
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ isConverged() */
@@ -754,4 +754,4 @@ std::string LatGeneric::getPrintName() const {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimators
+}; // namespace mrs_uav_state_estimators

@@ -292,67 +292,67 @@ void StateGeneric::timerUpdate() {
 
   switch (getCurrentSmState()) {
 
-    case UNINITIALIZED_STATE: {
-      break;
-    }
-    case INITIALIZED_STATE: {
+  case UNINITIALIZED_STATE: {
+    break;
+  }
+  case INITIALIZED_STATE: {
 
-      if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
-        if (est_lat_->isInitialized() && est_alt_->isInitialized() && est_hdg_->isInitialized()) {
-          changeState(READY_STATE);
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is ready to start", getPrintName().c_str());
-        } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s subestimators to be initialized", getPrintName().c_str(),
-                               Support::waiting_for_string.c_str());
-          return;
-        }
-      } else {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                             sh_hw_api_orient_.topicName().c_str());
-        return;
-      }
-
-      break;
-    }
-
-    case READY_STATE: {
-      break;
-    }
-
-    case STARTED_STATE: {
-
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
-
-      if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
-        changeState(ERROR_STATE);
-      }
-
-      if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
-        changeState(RUNNING_STATE);
-      } else {
-        return;
-      }
-      break;
-    }
-
-    case RUNNING_STATE: {
-      if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
-        changeState(ERROR_STATE);
-      }
-      break;
-    }
-
-    case STOPPED_STATE: {
-      break;
-    }
-
-    case ERROR_STATE: {
-      if ((est_lat_->isReady() || est_lat_->isRunning()) && (est_alt_->isReady() || est_alt_->isRunning()) && (est_hdg_->isReady() || est_hdg_->isRunning())) {
+    if (sh_hw_api_orient_.hasMsg() && sh_hw_api_ang_vel_.hasMsg()) {
+      if (est_lat_->isInitialized() && est_alt_->isInitialized() && est_hdg_->isInitialized()) {
         changeState(READY_STATE);
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is ready to start", getPrintName().c_str());
+      } else {
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s subestimators to be initialized", getPrintName().c_str(),
+                             Support::waiting_for_string.c_str());
+        return;
       }
-      break;
+    } else {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                           sh_hw_api_orient_.topicName().c_str());
+      return;
     }
+
+    break;
+  }
+
+  case READY_STATE: {
+    break;
+  }
+
+  case STARTED_STATE: {
+
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+    if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
+      changeState(ERROR_STATE);
+    }
+
+    if (est_lat_->isRunning() && est_alt_->isRunning() && est_hdg_->isRunning()) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
+      changeState(RUNNING_STATE);
+    } else {
+      return;
+    }
+    break;
+  }
+
+  case RUNNING_STATE: {
+    if (est_lat_->isError() || est_alt_->isError() || est_hdg_->isError()) {
+      changeState(ERROR_STATE);
+    }
+    break;
+  }
+
+  case STOPPED_STATE: {
+    break;
+  }
+
+  case ERROR_STATE: {
+    if ((est_lat_->isReady() || est_lat_->isRunning()) && (est_alt_->isReady() || est_alt_->isRunning()) && (est_hdg_->isReady() || est_hdg_->isRunning())) {
+      changeState(READY_STATE);
+    }
+    break;
+  }
   }
 
   if (!isRunning() && !isStarted()) {
@@ -490,13 +490,13 @@ void StateGeneric::updateUavState() {
   uav_state.pose.position.y = est_lat_->getState(POSITION, AXIS_Y);
   uav_state.pose.position.z = est_alt_->getState(POSITION);
 
-  uav_state.velocity.linear.x = est_lat_->getState(VELOCITY, AXIS_X);  // in global frame
-  uav_state.velocity.linear.y = est_lat_->getState(VELOCITY, AXIS_Y);  // in global frame
-  uav_state.velocity.linear.z = est_alt_->getState(VELOCITY);          // in global frame
+  uav_state.velocity.linear.x = est_lat_->getState(VELOCITY, AXIS_X); // in global frame
+  uav_state.velocity.linear.y = est_lat_->getState(VELOCITY, AXIS_Y); // in global frame
+  uav_state.velocity.linear.z = est_alt_->getState(VELOCITY);         // in global frame
 
-  uav_state.acceleration.linear.x = est_lat_->getState(ACCELERATION, AXIS_X);  // in global frame
-  uav_state.acceleration.linear.y = est_lat_->getState(ACCELERATION, AXIS_Y);  // in global frame
-  uav_state.acceleration.linear.z = est_alt_->getState(ACCELERATION);          // in global frame
+  uav_state.acceleration.linear.x = est_lat_->getState(ACCELERATION, AXIS_X); // in global frame
+  uav_state.acceleration.linear.y = est_lat_->getState(ACCELERATION, AXIS_Y); // in global frame
+  uav_state.acceleration.linear.z = est_alt_->getState(ACCELERATION);         // in global frame
 
   scope_timer.checkpoint("fill uav state");
 
@@ -518,7 +518,7 @@ void StateGeneric::updateUavState() {
   pose_covariance.header.stamp  = time_now;
   twist_covariance.header.stamp = time_now;
 
-  const int n_states = 6;  // TODO this should be defined somewhere else
+  const int n_states = 6; // TODO this should be defined somewhere else
   pose_covariance.values.resize(n_states * n_states);
   pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = est_lat_->getCovariance(POSITION, AXIS_X);
   pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = est_lat_->getCovariance(POSITION, AXIS_Y);
@@ -562,5 +562,4 @@ bool StateGeneric::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &u
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
-
+} // namespace mrs_uav_state_estimators

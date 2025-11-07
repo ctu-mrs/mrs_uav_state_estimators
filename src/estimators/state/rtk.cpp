@@ -7,7 +7,7 @@ namespace rtk
 {
 
 const char estimator_name[] = "rtk";
-const bool is_core_plugin = true;
+const bool is_core_plugin   = true;
 
 class Rtk : public StateGeneric {
 public:
@@ -15,9 +15,9 @@ public:
   }
 };
 
-}  // namespace rtk
+} // namespace rtk
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::rtk::Rtk, mrs_uav_managers::StateEstimator)

@@ -201,7 +201,7 @@ void GarminAgl::timerUpdate() {
   mrs_msgs::msg::Float64ArrayStamped agl_height_cov;
   agl_height_cov.header.stamp = time_now;
 
-  const int n_states = 2;  // TODO this should be defined somewhere else
+  const int n_states = 2; // TODO this should be defined somewhere else
   agl_height_cov.values.resize(n_states * n_states);
   agl_height_cov.values.at(n_states * POSITION + POSITION) = est_agl_garmin_->getCovariance(POSITION);
   agl_height_cov.values.at(n_states * VELOCITY + VELOCITY) = est_agl_garmin_->getCovariance(VELOCITY);
@@ -224,60 +224,60 @@ void GarminAgl::timerCheckHealth() {
 
   switch (getCurrentSmState()) {
 
-    case UNINITIALIZED_STATE: {
-      break;
+  case UNINITIALIZED_STATE: {
+    break;
+  }
+
+  case INITIALIZED_STATE: {
+
+    if (est_agl_garmin_->isInitialized()) {
+      changeState(READY_STATE);
+      RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator is ready to start", getPrintName().c_str());
+    } else {
+      RCLCPP_INFO(node_->get_logger(), "[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      return;
+    }
+    break;
+  }
+
+  case READY_STATE: {
+    break;
+  }
+
+  case STARTED_STATE: {
+
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+
+    if (est_agl_garmin_->isError()) {
+      changeState(ERROR_STATE);
     }
 
-    case INITIALIZED_STATE: {
-
-      if (est_agl_garmin_->isInitialized()) {
-        changeState(READY_STATE);
-        RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator is ready to start", getPrintName().c_str());
-      } else {
-        RCLCPP_INFO(node_->get_logger(), "[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
-        return;
-      }
-      break;
+    if (est_agl_garmin_->isRunning()) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
+      changeState(RUNNING_STATE);
+    } else {
+      return;
     }
+    break;
+  }
 
-    case READY_STATE: {
-      break;
+  case RUNNING_STATE: {
+    if (est_agl_garmin_->isError()) {
+      changeState(ERROR_STATE);
     }
+    break;
+  }
 
-    case STARTED_STATE: {
+  case STOPPED_STATE: {
+    break;
+  }
 
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s for convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
-
-      if (est_agl_garmin_->isError()) {
-        changeState(ERROR_STATE);
-      }
-
-      if (est_agl_garmin_->isRunning()) {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
-        changeState(RUNNING_STATE);
-      } else {
-        return;
-      }
-      break;
+  case ERROR_STATE: {
+    if (est_agl_garmin_->isReady()) {
+      changeState(READY_STATE);
     }
-
-    case RUNNING_STATE: {
-      if (est_agl_garmin_->isError()) {
-        changeState(ERROR_STATE);
-      }
-      break;
-    }
-
-    case STOPPED_STATE: {
-      break;
-    }
-
-    case ERROR_STATE: {
-      if (est_agl_garmin_->isReady()) {
-        changeState(READY_STATE);
-      }
-      break;
-    }
+    break;
+  }
   }
 }
 /*//}*/
@@ -304,9 +304,9 @@ std::vector<double> GarminAgl::getHeightCovariance() const {
 }
 /*//}*/
 
-}  // namespace garmin_agl
+} // namespace garmin_agl
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::garmin_agl::GarminAgl, mrs_uav_managers::AglEstimator)

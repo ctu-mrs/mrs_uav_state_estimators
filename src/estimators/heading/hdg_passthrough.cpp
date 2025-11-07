@@ -17,7 +17,6 @@ typedef mrs_lib::ThreadTimer TimerType;
 //}
 
 namespace mrs_uav_state_estimators
-
 {
 
 /* initialize() //{*/
@@ -350,4 +349,4 @@ std::string HdgPassthrough::getPrintName() const {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimators
+}; // namespace mrs_uav_state_estimators

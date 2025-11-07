@@ -73,7 +73,7 @@ void Dummy::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_pt
 
   // | ---------------- publishers initialization --------------- |
 
-  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom");  // needed for tf
+  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom"); // needed for tf
 
   if (ch_->debug_topics.state) {
     ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, "~/" + Support::toSnakeCase(getName()) + "/uav_state");
@@ -239,7 +239,7 @@ void Dummy::updateUavState() {
   pose_covariance_.header.stamp  = time_now;
   twist_covariance_.header.stamp = time_now;
 
-  const int n_states = 6;  // TODO this should be defined somewhere else
+  const int n_states = 6; // TODO this should be defined somewhere else
   pose_covariance.values.resize(n_states * n_states);
   twist_covariance.values.resize(n_states * n_states);
 
@@ -295,9 +295,9 @@ bool Dummy::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &uav_stat
 }
 /*//}*/
 
-}  // namespace dummy
+} // namespace dummy
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::dummy::Dummy, mrs_uav_managers::StateEstimator)

@@ -15,9 +15,9 @@ public:
   }
 };
 
-}  // namespace gps_baro
+} // namespace gps_baro
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::gps_baro::GpsBaro, mrs_uav_managers::StateEstimator)

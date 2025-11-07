@@ -84,8 +84,8 @@ void F9P::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<
 
   // | ---------------- publishers initialization --------------- |
 
-  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom");  // needed for tf
-                                                                                                                           //
+  ph_odom_ = mrs_lib::PublisherHandler<nav_msgs::msg::Odometry>(node_, "~/" + Support::toSnakeCase(getName()) + "/odom"); // needed for tf
+                                                                                                                          //
   if (ch_->debug_topics.state) {
     ph_uav_state_ = mrs_lib::PublisherHandler<mrs_msgs::msg::UavState>(node_, "~/" + Support::toSnakeCase(getName()) + "/uav_state");
   }
@@ -286,9 +286,9 @@ void F9P::updateUavState() {
 
     gnss_x_ = (gnss_x_ - msg->pose.pose.position.x) - ch_->world_origin.x;
     gnss_y_ = (gnss_y_ - msg->pose.pose.position.y) - ch_->world_origin.y;
-    /* gnss_z_                    = gnss_z_ - msg->pose.pose.position.z; */  // absolute AMSL altitude
-    gnss_z_ = -msg->pose.pose.position.z;                                    // relative altitude to start
-                                                                             //
+    /* gnss_z_                    = gnss_z_ - msg->pose.pose.position.z; */ // absolute AMSL altitude
+    gnss_z_ = -msg->pose.pose.position.z;                                   // relative altitude to start
+                                                                            //
     prev_msg_   = msg;
     first_iter_ = false;
   }
@@ -324,7 +324,7 @@ void F9P::updateUavState() {
   pose_covariance.header.stamp  = time_now;
   twist_covariance.header.stamp = time_now;
 
-  const int n_states = 6;  // TODO this should be defined somewhere else
+  const int n_states = 6; // TODO this should be defined somewhere else
   pose_covariance.values.resize(n_states * n_states);
   pose_covariance.values.at(n_states * AXIS_X + AXIS_X) = 1e-10;
   pose_covariance.values.at(n_states * AXIS_Y + AXIS_Y) = 1e-10;
@@ -416,9 +416,9 @@ bool F9P::setUavState([[maybe_unused]] const mrs_msgs::msg::UavState &uav_state)
 }
 /*//}*/
 
-}  // namespace f9p
+} // namespace f9p
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(mrs_uav_state_estimators::f9p::F9P, mrs_uav_managers::StateEstimator)

@@ -17,7 +17,6 @@ typedef mrs_lib::ThreadTimer TimerType;
 //}
 
 namespace mrs_uav_state_estimators
-
 {
 
 /* initialize() //{*/
@@ -268,77 +267,77 @@ void HdgGeneric::timerUpdate() {
 
   switch (getCurrentSmState()) {
 
-    case UNINITIALIZED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      break;
-    }
+  case UNINITIALIZED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s initialization", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    break;
+  }
 
-    case READY_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      break;
-    }
+  case READY_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s estimator start", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    break;
+  }
 
-    case INITIALIZED_STATE: {
-      // initialize the estimator with current corrections
-      for (auto correction : corrections_) {
-        auto res = correction->getProcessedCorrection();
-        if (res) {
-          auto measurement_stamped = res.value();
-          setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(),
-                               measurement_stamped.value(AXIS_X));
-        } else {
-          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
-                               correction->getNamespacedName().c_str());
-          return;
-        }
+  case INITIALIZED_STATE: {
+    // initialize the estimator with current corrections
+    for (auto correction : corrections_) {
+      auto res = correction->getProcessedCorrection();
+      if (res) {
+        auto measurement_stamped = res.value();
+        setState(measurement_stamped.value(AXIS_X), correction->getStateId(), AXIS_X);
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Setting initial state to: %.2f", getPrintName().c_str(),
+                             measurement_stamped.value(AXIS_X));
+      } else {
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
+                             correction->getNamespacedName().c_str());
+        return;
       }
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
-      changeState(READY_STATE);
-      break;
     }
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Ready to start", getPrintName().c_str());
+    changeState(READY_STATE);
+    break;
+  }
 
-    case STARTED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
-      if (isConverged()) {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
-        changeState(RUNNING_STATE);
-      }
-      break;
+  case STARTED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s convergence of LKF", getPrintName().c_str(), Support::waiting_for_string.c_str());
+    if (isConverged()) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: LKF converged", getPrintName().c_str());
+      changeState(RUNNING_STATE);
     }
+    break;
+  }
 
-    case RUNNING_STATE: {
-      for (auto correction : corrections_) {
-        if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
-          changeState(ERROR_STATE);
-        }
+  case RUNNING_STATE: {
+    for (auto correction : corrections_) {
+      if (!correction->isHealthy()) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                              correction->getNamespacedName().c_str());
+        changeState(ERROR_STATE);
       }
-      break;
     }
+    break;
+  }
 
-    case STOPPED_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
-      break;
-    }
+  case STOPPED_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is stopped", getPrintName().c_str());
+    break;
+  }
 
-    case ERROR_STATE: {
-      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
-      bool all_corrections_healthy = true;
-      for (auto correction : corrections_) {
-        if (!correction->isHealthy()) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
-                                correction->getNamespacedName().c_str());
-          all_corrections_healthy = false;
-        }
+  case ERROR_STATE: {
+    RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Estimator is in ERROR state", getPrintName().c_str());
+    bool all_corrections_healthy = true;
+    for (auto correction : corrections_) {
+      if (!correction->isHealthy()) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
+                              correction->getNamespacedName().c_str());
+        all_corrections_healthy = false;
       }
-      // initialize the estimator again if corrections become healthy
-      if (all_corrections_healthy && innovation_ok_) {
-        changeState(INITIALIZED_STATE);
-      }
-      break;
     }
+    // initialize the estimator again if corrections become healthy
+    if (all_corrections_healthy && innovation_ok_) {
+      changeState(INITIALIZED_STATE);
+    }
+    break;
+  }
   }
 
   if (sh_control_input_.newMsg()) {
@@ -369,7 +368,7 @@ void HdgGeneric::timerUpdate() {
     return;
   }
 
-  if (!is_repredictor_enabled_) {  // repredictor calculates dt on its own
+  if (!is_repredictor_enabled_) { // repredictor calculates dt on its own
     setDt(dt);
   }
 
@@ -665,4 +664,4 @@ std::string HdgGeneric::getPrintName() const {
 }
 /*//}*/
 
-};  // namespace mrs_uav_state_estimators
+}; // namespace mrs_uav_state_estimators
