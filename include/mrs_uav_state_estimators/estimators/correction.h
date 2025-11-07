@@ -449,12 +449,13 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
     ph->param_loader->loadParam("init_hdg_in_zero", init_hdg_in_zero_, false);
   }
 
-
   // | --------------- initialize publish handlers -------------- |
+
   if (ch_->debug_topics.correction) {
     ph_correction_raw_  = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>(node_, "~/" + est_name_ + "/correction/" + getName() + "/raw");
     ph_correction_proc_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>(node, "~/" + est_name_ + "/correction/" + getName() + "/proc");
   }
+
   if (ch_->debug_topics.corr_delay) {
     ph_delay_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64Stamped>(node_, "~/" + est_name_ + "/correction/" + getName() + "/delay");
   }
@@ -463,12 +464,14 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
   if (!ph->param_loader->loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
     rclcpp::shutdown();
+    exit(1);
   }
 
   healthy_time_ = rclcpp::Time(0, 0, clock_->get_clock_type());
 
   is_initialized_ = true;
 }
+
 /*//}*/
 
 /*//{ getName() */
