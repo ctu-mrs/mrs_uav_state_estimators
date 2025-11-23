@@ -1,1 +1,1 @@
-add_subdirectory(./garmin_agl_basic)
+add_subdirectory(garmin_agl_basic)

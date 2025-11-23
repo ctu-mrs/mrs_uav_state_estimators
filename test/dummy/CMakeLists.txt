@@ -1,1 +1,1 @@
-add_subdirectory(./dummy_basic)
+add_subdirectory(dummy_basic)

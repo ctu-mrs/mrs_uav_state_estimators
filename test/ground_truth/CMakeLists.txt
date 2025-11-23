@@ -1,1 +1,1 @@
-add_subdirectory(./ground_truth_basic)
+add_subdirectory(ground_truth_basic)

@@ -1,1 +1,1 @@
-add_subdirectory(./passthrough_basic)
+add_subdirectory(passthrough_basic)

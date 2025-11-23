@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.28)
 project(mrs_uav_state_estimators)
 
 # set the correct standards
@@ -46,6 +46,10 @@ set(DEPENDENCIES
   mrs_uav_testing
 )
 
+foreach(DEP IN LISTS DEPENDENCIES)
+  find_package(${DEP} REQUIRED)
+endforeach()
+
 set(LIBRARIES
   MrsUavStateEstimators_Common
   MrsUavStateEstimators_GpsBaro
@@ -57,31 +61,69 @@ set(LIBRARIES
   MrsUavStateEstimators_RtkGarmin
   MrsUavStateEstimators_GroundTruth
   MrsUavStateEstimators_Dummy
-  )
-
-foreach(DEP IN LISTS DEPENDENCIES)
-  find_package(${DEP} REQUIRED)
-endforeach()
-
-include_directories(
-  include
-  ${rclcpp_INCLUDE_DIRS}
-  ${mrs_lib_INCLUDE_DIRS}
-  ${mrs_uav_managers_INCLUDE_DIRS}
 )
 
 # Common estimators
 
-add_library(MrsUavStateEstimators_Common SHARED
-  src/estimators/state/state_generic.cpp
-  src/estimators/altitude/alt_generic.cpp
-  src/estimators/lateral/lat_generic.cpp
-  src/estimators/heading/hdg_generic.cpp
-  src/estimators/heading/hdg_passthrough.cpp
-  )
+add_library(MrsUavStateEstimators_Common SHARED)
+add_library(mrs_uav_state_estimators::common ALIAS MrsUavStateEstimators_Common)
 
-ament_target_dependencies(MrsUavStateEstimators_Common
-  ${DEPENDENCIES}
+target_sources(MrsUavStateEstimators_Common
+  PRIVATE
+    src/estimators/state/state_generic.cpp
+    src/estimators/altitude/alt_generic.cpp
+    src/estimators/lateral/lat_generic.cpp
+    src/estimators/heading/hdg_generic.cpp
+    src/estimators/heading/hdg_passthrough.cpp
+  PUBLIC FILE_SET HEADERS BASE_DIRS "include"
+  FILES
+    # include/mrs_uav_state_estimators
+    # include/mrs_uav_state_estimators/estimators
+    "include/mrs_uav_state_estimators/estimators/correction.h"
+    "include/mrs_uav_state_estimators/estimators/partial_estimator.h"
+    # include/mrs_uav_state_estimators/estimators/agl
+    "include/mrs_uav_state_estimators/estimators/agl/garmin_agl.h"
+    # include/mrs_uav_state_estimators/estimators/altitude
+    "include/mrs_uav_state_estimators/estimators/altitude/alt_generic.h"
+    "include/mrs_uav_state_estimators/estimators/altitude/altitude_estimator.h"
+    # include/mrs_uav_state_estimators/estimators/heading
+    "include/mrs_uav_state_estimators/estimators/heading/hdg_generic.h"
+    "include/mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h"
+    "include/mrs_uav_state_estimators/estimators/heading/heading_estimator.h"
+    # include/mrs_uav_state_estimators/estimators/lateral
+    "include/mrs_uav_state_estimators/estimators/lateral/lat_generic.h"
+    "include/mrs_uav_state_estimators/estimators/lateral/lateral_estimator.h"
+    # include/mrs_uav_state_estimators/estimators/state
+    "include/mrs_uav_state_estimators/estimators/state/dummy.h"
+    "include/mrs_uav_state_estimators/estimators/state/f9p.h"
+    "include/mrs_uav_state_estimators/estimators/state/ground_truth.h"
+    "include/mrs_uav_state_estimators/estimators/state/passthrough.h"
+    "include/mrs_uav_state_estimators/estimators/state/state_generic.h"
+    # include/mrs_uav_state_estimators/processors
+    "include/mrs_uav_state_estimators/processors/proc_excessive_tilt.h"
+    "include/mrs_uav_state_estimators/processors/proc_mag_declination.h"
+    "include/mrs_uav_state_estimators/processors/proc_median_filter.h"
+    "include/mrs_uav_state_estimators/processors/proc_saturate.h"
+    "include/mrs_uav_state_estimators/processors/proc_tf_to_world.h"
+    "include/mrs_uav_state_estimators/processors/processor.h"
+    # include/mrs_uav_state_estimators/processors/mag_declination
+    "include/mrs_uav_state_estimators/processors/mag_declination/geo_mag_declination.h"
+    "include/mrs_uav_state_estimators/processors/mag_declination/geo_magnetic_tables.hpp"
+)
+
+target_link_libraries(MrsUavStateEstimators_Common
+  PUBLIC
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_Common PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -90,15 +132,23 @@ target_compile_definitions(MrsUavStateEstimators_Common PRIVATE USE_ROS_TIMER=${
 
 add_library(MrsUavStateEstimators_GpsBaro SHARED
   src/estimators/state/gps_baro.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_GpsBaro
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_GpsBaro
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_GpsBaro PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -106,15 +156,23 @@ target_compile_definitions(MrsUavStateEstimators_GpsBaro PRIVATE USE_ROS_TIMER=$
 
 add_library(MrsUavStateEstimators_GpsGarmin SHARED
   src/estimators/state/gps_garmin.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_GpsGarmin
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_GpsGarmin
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_GpsGarmin PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -122,15 +180,23 @@ target_compile_definitions(MrsUavStateEstimators_GpsGarmin PRIVATE USE_ROS_TIMER
 
 add_library(MrsUavStateEstimators_GarminAgl SHARED
   src/estimators/agl/garmin_agl.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_GarminAgl
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_GarminAgl
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_GarminAgl PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -138,15 +204,23 @@ target_compile_definitions(MrsUavStateEstimators_GarminAgl PRIVATE USE_ROS_TIMER
 
 add_library(MrsUavStateEstimators_Passthrough SHARED
   src/estimators/state/passthrough.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_Passthrough
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_Passthrough
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -154,15 +228,23 @@ target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIM
 
 add_library(MrsUavStateEstimators_F9P SHARED
   src/estimators/state/f9p.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_F9P
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_F9P
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_F9P PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -170,15 +252,23 @@ target_compile_definitions(MrsUavStateEstimators_F9P PRIVATE USE_ROS_TIMER=${USE
 
 add_library(MrsUavStateEstimators_Rtk SHARED
   src/estimators/state/rtk.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_Rtk
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_Rtk
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_Rtk PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -186,15 +276,23 @@ target_compile_definitions(MrsUavStateEstimators_Rtk PRIVATE USE_ROS_TIMER=${USE
 
 add_library(MrsUavStateEstimators_RtkGarmin SHARED
   src/estimators/state/rtk_garmin.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_RtkGarmin
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_RtkGarmin
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_RtkGarmin PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -202,15 +300,23 @@ target_compile_definitions(MrsUavStateEstimators_RtkGarmin PRIVATE USE_ROS_TIMER
 
 add_library(MrsUavStateEstimators_GroundTruth SHARED
   src/estimators/state/ground_truth.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_GroundTruth
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_GroundTruth
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_GroundTruth PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
 
@@ -218,17 +324,42 @@ target_compile_definitions(MrsUavStateEstimators_GroundTruth PRIVATE USE_ROS_TIM
 
 add_library(MrsUavStateEstimators_Dummy SHARED
   src/estimators/state/dummy.cpp
-  )
+)
 
 target_link_libraries(MrsUavStateEstimators_Dummy
-  MrsUavStateEstimators_Common
-  )
-
-ament_target_dependencies(MrsUavStateEstimators_Dummy
-  ${DEPENDENCIES}
-  )
+  PUBLIC
+    mrs_uav_state_estimators::common
+    rclcpp::rclcpp
+    mrs_lib::mrs_lib
+    pluginlib::pluginlib
+    mrs_uav_managers::mrs_uav_managers
+    Eigen3::Eigen
+    ${mrs_msgs_TARGETS}
+    ${geometry_msgs_TARGETS}
+    ${nav_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+)
 
 target_compile_definitions(MrsUavStateEstimators_Dummy PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
+
+# Interface
+
+add_library(MrsUavStateEstimators_MrsUavStateEstimators INTERFACE)
+add_library(mrs_uav_state_estimators::mrs_uav_state_estimators ALIAS
+  MrsUavStateEstimators_MrsUavStateEstimators
+)
+set_target_properties(MrsUavStateEstimators_MrsUavStateEstimators
+  PROPERTIES
+    EXPORT_NAME mrs_uav_state_estimators
+    OUTPUT_NAME mrs_uav_state_estimators
+)
+
+target_link_libraries(MrsUavStateEstimators_MrsUavStateEstimators
+  INTERFACE
+    ${LIBRARIES}
+)
 
 ## --------------------------------------------------------------
 ## |                       export plugins                       |
@@ -251,21 +382,15 @@ endif()
 ## |                           install                          |
 ## --------------------------------------------------------------
 
-ament_export_libraries(
-  ${LIBRARIES}
-)
-
 install(
-  TARGETS ${LIBRARIES}
+  TARGETS
+    MrsUavStateEstimators_MrsUavStateEstimators
+    ${LIBRARIES}
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-)
-
-install(
-  DIRECTORY include
-  DESTINATION .
+  FILE_SET HEADERS DESTINATION "include/${PROJECT_NAME}"
 )
 
 install(
@@ -279,12 +404,16 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
-ament_export_include_directories(
-  include
-)
-
 ament_export_targets(
   export_${PROJECT_NAME} HAS_LIBRARY_TARGET
+)
+
+ament_export_include_directories(
+  "include/${PROJECT_NAME}"
+)
+
+ament_export_libraries(
+  ${LIBRARIES}
 )
 
 ament_export_dependencies(
