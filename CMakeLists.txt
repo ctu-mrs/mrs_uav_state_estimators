@@ -137,17 +137,6 @@ add_library(MrsUavStateEstimators_GpsBaro SHARED
 target_link_libraries(MrsUavStateEstimators_GpsBaro
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_GpsBaro PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -161,17 +150,6 @@ add_library(MrsUavStateEstimators_GpsGarmin SHARED
 target_link_libraries(MrsUavStateEstimators_GpsGarmin
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_GpsGarmin PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -185,17 +163,6 @@ add_library(MrsUavStateEstimators_GarminAgl SHARED
 target_link_libraries(MrsUavStateEstimators_GarminAgl
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_GarminAgl PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -209,17 +176,6 @@ add_library(MrsUavStateEstimators_Passthrough SHARED
 target_link_libraries(MrsUavStateEstimators_Passthrough
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_Passthrough PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -233,17 +189,6 @@ add_library(MrsUavStateEstimators_F9P SHARED
 target_link_libraries(MrsUavStateEstimators_F9P
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_F9P PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -257,17 +202,6 @@ add_library(MrsUavStateEstimators_Rtk SHARED
 target_link_libraries(MrsUavStateEstimators_Rtk
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_Rtk PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -281,17 +215,6 @@ add_library(MrsUavStateEstimators_RtkGarmin SHARED
 target_link_libraries(MrsUavStateEstimators_RtkGarmin
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_RtkGarmin PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -305,17 +228,6 @@ add_library(MrsUavStateEstimators_GroundTruth SHARED
 target_link_libraries(MrsUavStateEstimators_GroundTruth
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_GroundTruth PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
@@ -329,17 +241,6 @@ add_library(MrsUavStateEstimators_Dummy SHARED
 target_link_libraries(MrsUavStateEstimators_Dummy
   PUBLIC
     mrs_uav_state_estimators::common
-    rclcpp::rclcpp
-    mrs_lib::mrs_lib
-    pluginlib::pluginlib
-    mrs_uav_managers::mrs_uav_managers
-    Eigen3::Eigen
-    ${mrs_msgs_TARGETS}
-    ${geometry_msgs_TARGETS}
-    ${nav_msgs_TARGETS}
-    ${std_msgs_TARGETS}
-    ${sensor_msgs_TARGETS}
-    ${tf2_geometry_msgs_TARGETS}
 )
 
 target_compile_definitions(MrsUavStateEstimators_Dummy PRIVATE USE_ROS_TIMER=${USE_ROS_TIMER})
