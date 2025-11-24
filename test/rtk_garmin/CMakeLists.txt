@@ -1,1 +1,1 @@
-add_subdirectory(./rtk_garmin_basic)
+add_subdirectory(rtk_garmin_basic)

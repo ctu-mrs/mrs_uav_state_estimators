@@ -7,18 +7,11 @@ function(add_ros_isolated_launch_test path)
   add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
 endfunction()
 
-add_subdirectory(./gps_baro)
-
-add_subdirectory(./gps_garmin)
-
-add_subdirectory(./rtk)
-
-add_subdirectory(./rtk_garmin)
-
-add_subdirectory(./ground_truth)
-
-add_subdirectory(./passthrough)
-
-add_subdirectory(./garmin_agl)
-
-add_subdirectory(./dummy)
+add_subdirectory(dummy)
+add_subdirectory(garmin_agl)
+add_subdirectory(gps_baro)
+add_subdirectory(gps_garmin)
+add_subdirectory(ground_truth)
+add_subdirectory(passthrough)
+add_subdirectory(rtk_garmin)
+add_subdirectory(rtk)
