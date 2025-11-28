@@ -15,6 +15,7 @@
 #include <mrs_lib/geometry/cyclic.h>
 #include <mrs_lib/dynparam_mgr.h>
 #include <mrs_lib/service_server_handler.h>
+#include <mrs_lib/errorgraph/error_publisher.h>
 
 #include <mrs_msgs/msg/rtk_gps.hpp>
 #include <mrs_msgs/msg/estimator_correction.hpp>
@@ -108,13 +109,14 @@ public:
   };
 
 public:
-  Correction(const rclcpp::Node::SharedPtr &node, const std::string &est_name, const std::string &name, const std::string &frame_id,
-             const EstimatorType_t &est_type, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph,
-             std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
+  Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name, const std::string& frame_id,
+             const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph,
+             std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction, mrs_lib::errorgraph::ErrorPublisher* error_publisher);
 
   std::string getName() const;
   std::string getNamespacedName() const;
   std::string getPrintName() const;
+  mrs_lib::errorgraph::node_id_t getSourceNodeId() const;
 
   double    getR();
   void      setR(const double R);
@@ -262,7 +264,22 @@ private:
   std::function<double(int, int)>                            fun_get_state_;
   std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction_;
 
-  void publishCorrection(const MeasurementStamped &measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> &ph_corr);
+  enum class error_type_t : uint16_t
+  {
+    no_imu_msgs,
+    no_imu_correction,
+    no_rtk_msgs,
+    no_rtk_correction,
+    no_navsatfix_msgs,
+    no_navsatfix_correction,
+    nan_correction,
+  };
+
+  // non-owning pointer, hence don't manage lifetime (DO NOT DELETE) 
+  mrs_lib::errorgraph::ErrorPublisher* error_pub_ptr; 
+  mrs_lib::errorgraph::node_id_t       source_node_id_;
+
+  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr);
   void publishDelay(const double delay);
 
   std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
@@ -278,12 +295,20 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, const std::string &est_name, const std::string &name,
-                                       const std::string &ns_frame_id, const EstimatorType_t &est_type, const std::shared_ptr<CommonHandlers_t> &ch,
-                                       const std::shared_ptr<PrivateHandlers_t> &ph, std::function<double(int, int)> fun_get_state,
-                                       std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
-    : node_(node), est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch), ph_(ph), fun_get_state_(fun_get_state),
-      fun_apply_correction_(fun_apply_correction) {
+Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name,
+                                       const std::string& ns_frame_id, const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
+                                       const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
+                                       std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction, mrs_lib::errorgraph::ErrorPublisher* error_publisher)
+    : node_(node),
+      est_name_(est_name),
+      name_(name),
+      ns_frame_id_(ns_frame_id),
+      est_type_(est_type),
+      ch_(ch),
+      ph_(ph),
+      fun_get_state_(fun_get_state),
+      fun_apply_correction_(fun_apply_correction) ,
+      error_pub_ptr(error_publisher) {
 
   clock_ = node->get_clock();
 
@@ -297,7 +322,8 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, cons
   if (map_msg_type.find(msg_type_string) == map_msg_type.end()) {
     RCLCPP_ERROR(this->node_->get_logger(), "[%s]: wrong message type: %s of correction %s", getPrintName().c_str(), msg_type_string.c_str(),
                  getName().c_str());
-    rclcpp::shutdown();
+    error_pub_ptr->addOneshotError("Wrong correction message type");
+    error_pub_ptr->flushAndShutdown();
   }
   msg_type_ = map_msg_type.at(msg_type_string);
 
@@ -307,13 +333,17 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, cons
   msg_delay_warn_limit_ = msg_delay_limit_ / 2; // maybe specify this as a param?
   ph->param_loader->loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
 
+  ph->param_loader->loadParam("source/node", source_node_id_.node);
+  ph->param_loader->loadParam("source/component", source_node_id_.component);
+
   int state_id_tmp;
   ph->param_loader->loadParam("state_id", state_id_tmp);
   if (state_id_tmp < n_StateId_t) {
     state_id_ = static_cast<StateId_t>(state_id_tmp);
   } else {
     RCLCPP_ERROR(node_->get_logger(), "[%s]: wrong state id: %d of correction %s", getPrintName().c_str(), state_id_tmp, getName().c_str());
-    rclcpp::shutdown();
+    error_pub_ptr->addOneshotError("Wrong state ID of correction");
+    error_pub_ptr->flushAndShutdown();
   }
 
   ph->param_loader->loadParam("transform/enabled", transform_to_frame_enabled_);
@@ -488,6 +518,13 @@ std::string Correction<n_measurements>::getPrintName() const {
 }
 /*//}*/
 
+/*//{ getSourceNodeId() */
+template <int n_measurements>
+mrs_lib::errorgraph::node_id_t Correction<n_measurements>::getSourceNodeId() const {
+  return source_node_id_;
+}
+/*//}*/
+
 /*//{ getR() */
 template <int n_measurements>
 double Correction<n_measurements>::getR() {
@@ -561,7 +598,291 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
   case MessageType_t::ODOMETRY: {
 
-    if (!sh_odom_.hasMsg()) {
+      if (!sh_odom_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_odom_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+      /*   return {}; */
+      /* } */
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromOdometry(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::POSE: {
+
+      if (!sh_pose_s_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_pose_s_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+      /*   return {}; */
+      /* } */
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromPoseStamped(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::POSECOV: {
+      // TODO implement
+      /* return getCorrectionFromPoseWCS(msg); */
+      is_healthy_ = false;
+      return {};
+      break;
+    }
+
+    case MessageType_t::RANGE: {
+
+      if (!range_enabled_) {
+        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "fusing range corrections is disabled");
+        return {};
+      }
+
+      if (!sh_range_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_range_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromRange(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::IMU: {
+
+      if (!sh_imu_.hasMsg()) {
+        error_pub_ptr->addGeneralError(error_type_t::no_imu_msgs, "No IMU messages received");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no imu msgs so far");
+        return {};
+      }
+
+      auto msg                  = sh_imu_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromImu(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        error_pub_ptr->addGeneralError(error_type_t::no_imu_correction, "Could not get IMU correction");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get imu correction");
+        return {};
+      }
+
+      break;
+    }
+
+    case MessageType_t::RTK_GPS: {
+
+      if (!sh_rtk_.hasMsg()) {
+        error_pub_ptr->addGeneralError(error_type_t::no_rtk_msgs, "No RTK messages received");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no rtk msgs so far");
+        return {};
+      }
+
+      auto msg                  = sh_rtk_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromRtk(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        error_pub_ptr->addGeneralError(error_type_t::no_rtk_correction, "Could not get RTK correction");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get rtk correction");
+        return {};
+      }
+
+      break;
+    }
+
+    case MessageType_t::NAVSATFIX: {
+
+      if (!sh_navsatfix_.hasMsg()) {
+        error_pub_ptr->addGeneralError(error_type_t::no_navsatfix_msgs, "No NavSatFix messages received");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "no navsatfix msgs so far");
+        return {};
+      }
+
+      auto msg                  = sh_navsatfix_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+      /*   return {}; */
+      /* } */
+
+      auto res = getCorrectionFromNavSatFix(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        error_pub_ptr->addGeneralError(error_type_t::no_navsatfix_correction, "Could not get NavSatFix correction");
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get navsatfix correction");
+        return {};
+      }
+
+      break;
+    }
+
+    case MessageType_t::MAG_HDG: {
+
+      if (!sh_mag_hdg_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_mag_hdg_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromMagHeading(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::MAG_FIELD: {
+
+      if (!sh_mag_field_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_mag_field_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromMagField(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::POINT: {
+
+      if (!sh_point_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_point_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromPoint(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::VECTOR: {
+
+      if (!sh_vector_.hasMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_vector_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromVector(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    case MessageType_t::QUAT: {
+
+      if (!sh_quat_.newMsg()) {
+        return {};
+      }
+
+      auto msg                  = sh_quat_.getMsg();
+      measurement_stamped.stamp = msg->header.stamp;
+      /* checkMsgDelay(measurement_stamped.stamp); */
+
+      /* if (!is_delay_ok_) { */
+      /*   return {}; */
+      /* } */
+      auto res = getCorrectionFromQuat(msg);
+      if (res) {
+        measurement_stamped.value = res.value();
+      } else {
+        return {};
+      }
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()",
+                            getPrintName().c_str());
+      is_healthy_ = false;
       return {};
     }
 
@@ -849,6 +1170,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   for (int i = 0; i < measurement_stamped.value.rows(); i++) {
     if (!std::isfinite(measurement_stamped.value(i))) {
       RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: NaN detected in correction. Total NaNs: %d", getPrintName().c_str(), ++counter_nan_);
+      error_pub_ptr->addGeneralError(error_type_t::nan_correction, "NaN detected in correction");
       is_nan_free_ = false;
       return {};
     }

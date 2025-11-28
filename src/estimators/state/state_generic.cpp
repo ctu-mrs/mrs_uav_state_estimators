@@ -35,6 +35,8 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
+
   if (is_core_plugin_) {
 
     ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
@@ -60,7 +62,8 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   if (!ph->param_loader->loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
-    rclcpp::shutdown();
+    error_publisher_->addOneshotError("Could not load all non-optional parameters");
+    error_publisher_->flushAndShutdown();
   }
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
@@ -188,6 +191,7 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
     RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator initialized", getPrintName().c_str());
   } else {
     RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator could not be initialized", getPrintName().c_str());
+    error_publisher_->addOneshotError("Estimator could not be initialized");
   }
 }
 /*//}*/
@@ -226,9 +230,21 @@ bool StateGeneric::start(void) {
       changeState(STARTED_STATE);
       return true;
     }
+    else {
+      if (!est_lat_start_successful) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+      }
+      if (!est_alt_start_successful) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+      }
+      if (!est_hdg_start_successful) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+      }
+    }
 
   } else {
     RCLCPP_WARN(node_->get_logger(), "[%s]: Estimator must be in READY_STATE to start it", getPrintName().c_str());
+    error_publisher_->addGeneralError(error_type_t::not_in_ready_state, "Estimator must be in READY_STATE to start it");
     clock_->sleep_for(1s);
   }
   return false;
@@ -304,11 +320,21 @@ void StateGeneric::timerUpdate() {
       } else {
         RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s subestimators to be initialized", getPrintName().c_str(),
                              Support::waiting_for_string.c_str());
+        if (!est_lat_->isInitialized()) {
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+        }
+        if (!est_alt_->isInitialized()) {
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+        }
+        if (!est_hdg_->isInitialized()) {
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+        }
         return;
       }
     } else {
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                            sh_hw_api_orient_.topicName().c_str());
+      error_publisher_->addWaitingForNodeError({"HwApiManager", "main"});
       return;
     }
 
@@ -331,6 +357,15 @@ void StateGeneric::timerUpdate() {
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
       changeState(RUNNING_STATE);
     } else {
+      if (!est_lat_->isRunning()) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+      }
+      if (!est_alt_->isRunning()) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+      }
+      if (!est_hdg_->isRunning()) {
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+      }
       return;
     }
     break;
