@@ -29,6 +29,8 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
+
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   hdg_state_      = states_t::Zero();
@@ -346,6 +348,12 @@ std::string HdgPassthrough::getNamespacedName() const {
 /*//{ getPrintName() */
 std::string HdgPassthrough::getPrintName() const {
   return parent_state_est_name_ + "/" + getName();
+}
+/*//}*/
+
+/*//{ getSourceNodeId() */
+mrs_lib::errorgraph::node_id_t HdgPassthrough::getSourceNodeId() const {
+  return source_node_id_; 
 }
 /*//}*/
 
