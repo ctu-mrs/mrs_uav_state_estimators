@@ -275,8 +275,8 @@ private:
     nan_correction,
   };
 
-  // non-owning pointer, hence don't manage lifetime (DO NOT DELETE) 
-  mrs_lib::errorgraph::ErrorPublisher* error_pub_ptr; 
+  // non-owning pointer, hence don't manage lifetime (DO NOT DELETE)
+  mrs_lib::errorgraph::ErrorPublisher* error_pub_ptr;
   mrs_lib::errorgraph::node_id_t       source_node_id_;
 
   void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr);
@@ -307,7 +307,7 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
       ch_(ch),
       ph_(ph),
       fun_get_state_(fun_get_state),
-      fun_apply_correction_(fun_apply_correction) ,
+      fun_apply_correction_(fun_apply_correction),
       error_pub_ptr(error_publisher) {
 
   clock_ = node->get_clock();

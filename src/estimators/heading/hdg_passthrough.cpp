@@ -353,7 +353,7 @@ std::string HdgPassthrough::getPrintName() const {
 
 /*//{ getSourceNodeId() */
 mrs_lib::errorgraph::node_id_t HdgPassthrough::getSourceNodeId() const {
-  return source_node_id_; 
+  return source_node_id_;
 }
 /*//}*/
 
