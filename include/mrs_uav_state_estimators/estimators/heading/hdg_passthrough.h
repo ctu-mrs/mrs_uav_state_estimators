@@ -65,7 +65,7 @@ private:
   const bool is_core_plugin_;
 
   enum class error_type_t : uint16_t {
-    not_in_ready_state, 
+    not_in_ready_state,
   };
 
   std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
