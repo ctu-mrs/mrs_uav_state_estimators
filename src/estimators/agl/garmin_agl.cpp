@@ -32,6 +32,8 @@ void GarminAgl::initialize(const rclcpp::Node::SharedPtr &node, const std::share
   node_  = node;
   clock_ = node->get_clock();
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", name_);
+
   cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   ch_ = ch;
