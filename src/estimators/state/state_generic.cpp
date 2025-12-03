@@ -229,8 +229,7 @@ bool StateGeneric::start(void) {
 
       changeState(STARTED_STATE);
       return true;
-    }
-    else {
+    } else {
       if (!est_lat_start_successful) {
         error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
       }
