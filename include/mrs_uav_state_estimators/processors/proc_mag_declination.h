@@ -25,10 +25,10 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcMagDeclination(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                     const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph);
+  ProcMagDeclination(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                     const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph);
 
-  std::tuple<bool, bool> process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t &measurement) override;
   void                   reset();
 
 private:
@@ -50,8 +50,8 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                                                       const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+ProcMagDeclination<n_measurements>::ProcMagDeclination(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                                                       const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   cbkgrp_subs_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -126,7 +126,7 @@ void ProcMagDeclination<n_measurements>::callbackGnss(const sensor_msgs::msg::Na
 
 /*//{ process() */
 template <int n_measurements>
-std::tuple<bool, bool> ProcMagDeclination<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcMagDeclination<n_measurements>::process(measurement_t &measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
     return {true, true};
@@ -154,6 +154,6 @@ void ProcMagDeclination<n_measurements>::reset() {
   got_gnss_ = false;
 }
 /*//}*/
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // PROCESSORS_PROC_MAG_DECLINATION
+#endif // PROCESSORS_PROC_MAG_DECLINATION

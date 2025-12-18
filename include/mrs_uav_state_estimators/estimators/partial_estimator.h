@@ -172,6 +172,6 @@ void PartialEstimator<n_states, n_axes>::publishInput(const u_t &u, const rclcpp
 
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_PARTIAL_ESTIMATOR_H
+#endif // ESTIMATORS_PARTIAL_ESTIMATOR_H

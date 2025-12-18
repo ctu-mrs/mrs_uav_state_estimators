@@ -42,7 +42,7 @@ const int n_states       = 2;
 const int n_inputs       = 1;
 const int n_measurements = 1;
 
-}  // namespace hdg_generic
+} // namespace hdg_generic
 
 class HdgGeneric : public HeadingEstimator<hdg_generic::n_states> {
 
@@ -159,6 +159,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_HEADING_HDG_GENERIC_H
+#endif // ESTIMATORS_HEADING_HDG_GENERIC_H

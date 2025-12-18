@@ -108,8 +108,8 @@ public:
   };
 
 public:
-  Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name, const std::string& frame_id,
-             const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph,
+  Correction(const rclcpp::Node::SharedPtr &node, const std::string &est_name, const std::string &name, const std::string &frame_id,
+             const EstimatorType_t &est_type, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph,
              std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction);
 
   std::string getName() const;
@@ -169,7 +169,7 @@ private:
   std::optional<measurement_t>                                   getCorrectionFromVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
   void                                                           callbackVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg);
 
-  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;  // for obtaining heading rate
+  mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_; // for obtaining heading rate
   std::string                                                       orientation_topic_;
 
   mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_quat_;
@@ -199,7 +199,7 @@ private:
   bool callbackToggleRange(const std::shared_ptr<std_srvs::srv::SetBool::Request> request, const std::shared_ptr<std_srvs::srv::SetBool::Response> response);
   bool range_enabled_ = true;
 
-  void applyCorrection(const measurement_t& meas, const rclcpp::Time& stamp);
+  void applyCorrection(const measurement_t &meas, const rclcpp::Time &stamp);
 
   mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> ph_correction_raw_;
   mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> ph_correction_proc_;
@@ -230,24 +230,24 @@ private:
   std::string transform_from_frame_;
 
   std::optional<measurement_t>               getCorrectionFromQuat(const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg);
-  std::optional<measurement_t>               getZVelUntilted(const geometry_msgs::msg::Vector3& msg, const std_msgs::msg::Header& header);
-  std::optional<measurement_t>               getVecInFrame(const geometry_msgs::msg::Vector3& vec_in, const std_msgs::msg::Header& source_header,
+  std::optional<measurement_t>               getZVelUntilted(const geometry_msgs::msg::Vector3 &msg, const std_msgs::msg::Header &header);
+  std::optional<measurement_t>               getVecInFrame(const geometry_msgs::msg::Vector3 &vec_in, const std_msgs::msg::Header &source_header,
                                                            const std::string target_frame);
-  std::optional<geometry_msgs::msg::Vector3> transformVecToFrame(const geometry_msgs::msg::Vector3& vec_in, const std_msgs::msg::Header& source_header,
+  std::optional<geometry_msgs::msg::Vector3> transformVecToFrame(const geometry_msgs::msg::Vector3 &vec_in, const std_msgs::msg::Header &source_header,
                                                                  const std::string target_frame);
-  std::optional<geometry_msgs::msg::Point>   getInFrame(const geometry_msgs::msg::Point& vec_in, const std_msgs::msg::Header& source_header,
+  std::optional<geometry_msgs::msg::Point>   getInFrame(const geometry_msgs::msg::Point &vec_in, const std_msgs::msg::Header &source_header,
                                                         const std::string target_frame);
 
-  std::optional<geometry_msgs::msg::Pose> transformRtkToFcu(const geometry_msgs::msg::PoseStamped& pose_in) const;
+  std::optional<geometry_msgs::msg::Pose> transformRtkToFcu(const geometry_msgs::msg::PoseStamped &pose_in) const;
 
-  void   checkMsgDelay(const rclcpp::Time& msg_time);
+  void   checkMsgDelay(const rclcpp::Time &msg_time);
   double msg_delay_limit_;
   double msg_delay_warn_limit_;
 
   double time_since_last_msg_limit_;
 
-  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string& name, const rclcpp::Node::SharedPtr& subnode);
-  bool                                       process(measurement_t& measurement);
+  std::shared_ptr<Processor<n_measurements>> createProcessorFromName(const std::string &name, const rclcpp::Node::SharedPtr &subnode);
+  bool                                       process(measurement_t &measurement);
 
   bool             isTimestampOk();
   bool             isMsgComing();
@@ -262,7 +262,7 @@ private:
   std::function<double(int, int)>                            fun_get_state_;
   std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction_;
 
-  void publishCorrection(const MeasurementStamped& measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr);
+  void publishCorrection(const MeasurementStamped &measurement_stamped, mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> &ph_corr);
   void publishDelay(const double delay);
 
   std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
@@ -278,18 +278,11 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, const std::string& est_name, const std::string& name,
-                                       const std::string& ns_frame_id, const EstimatorType_t& est_type, const std::shared_ptr<CommonHandlers_t>& ch,
-                                       const std::shared_ptr<PrivateHandlers_t>& ph, std::function<double(int, int)> fun_get_state,
+Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, const std::string &est_name, const std::string &name,
+                                       const std::string &ns_frame_id, const EstimatorType_t &est_type, const std::shared_ptr<CommonHandlers_t> &ch,
+                                       const std::shared_ptr<PrivateHandlers_t> &ph, std::function<double(int, int)> fun_get_state,
                                        std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction)
-    : node_(node),
-      est_name_(est_name),
-      name_(name),
-      ns_frame_id_(ns_frame_id),
-      est_type_(est_type),
-      ch_(ch),
-      ph_(ph),
-      fun_get_state_(fun_get_state),
+    : node_(node), est_name_(est_name), name_(name), ns_frame_id_(ns_frame_id), est_type_(est_type), ch_(ch), ph_(ph), fun_get_state_(fun_get_state),
       fun_apply_correction_(fun_apply_correction) {
 
   clock_ = node->get_clock();
@@ -311,7 +304,7 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
   ph->param_loader->loadParam("message/topic", msg_topic_);
   msg_topic_ = "/" + ch_->uav_name + "/" + msg_topic_;
   ph->param_loader->loadParam("message/limit/delay", msg_delay_limit_);
-  msg_delay_warn_limit_ = msg_delay_limit_ / 2;  // maybe specify this as a param?
+  msg_delay_warn_limit_ = msg_delay_limit_ / 2; // maybe specify this as a param?
   ph->param_loader->loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
 
   int state_id_tmp;
@@ -371,71 +364,71 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr& node, cons
   shopts.autostart          = true;
 
   switch (msg_type_) {
-    case MessageType_t::ODOMETRY: {
-      sh_odom_ = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, msg_topic_, &Correction::callbackOdometry, this);
-      break;
-    }
-    case MessageType_t::POSE: {
-      sh_pose_s_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseStamped>(shopts, msg_topic_, &Correction::callbackPoseStamped, this);
-      break;
-    }
-    case MessageType_t::POSECOV: {
-      // TODO implement
-      /* sh_pose_wcs_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseWithCovarianceStamped>(shopts, msg_topic_); */
-      break;
-    }
-    case MessageType_t::RANGE: {
+  case MessageType_t::ODOMETRY: {
+    sh_odom_ = mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry>(shopts, msg_topic_, &Correction::callbackOdometry, this);
+    break;
+  }
+  case MessageType_t::POSE: {
+    sh_pose_s_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseStamped>(shopts, msg_topic_, &Correction::callbackPoseStamped, this);
+    break;
+  }
+  case MessageType_t::POSECOV: {
+    // TODO implement
+    /* sh_pose_wcs_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PoseWithCovarianceStamped>(shopts, msg_topic_); */
+    break;
+  }
+  case MessageType_t::RANGE: {
 
-      sh_range_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
+    sh_range_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Range>(shopts, msg_topic_, &Correction::callbackRange, this);
 
-      ss_toggle_range_ = mrs_lib::ServiceServerHandler<std_srvs::srv::SetBool>(
-          node_, std::string(node_->get_namespace()) + "/" + std::string(node_->get_name()) + "/" + getNamespacedName() + "/toggle_range",
-          std::bind(&Correction::callbackToggleRange, this, std::placeholders::_1, std::placeholders::_2));
+    ss_toggle_range_ = mrs_lib::ServiceServerHandler<std_srvs::srv::SetBool>(
+        node_, std::string(node_->get_namespace()) + "/" + std::string(node_->get_name()) + "/" + getNamespacedName() + "/toggle_range",
+        std::bind(&Correction::callbackToggleRange, this, std::placeholders::_1, std::placeholders::_2));
 
-      break;
-    }
-    case MessageType_t::IMU: {
-      sh_imu_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Imu>(shopts, msg_topic_, &Correction::callbackImu, this);
-      break;
-    }
-    case MessageType_t::RTK_GPS: {
-      sh_rtk_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
-      break;
-    }
-    case MessageType_t::NAVSATFIX: {
-      sh_navsatfix_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, msg_topic_, &Correction::callbackNavSatFix, this);
-      break;
-    }
-    case MessageType_t::MAG_HDG: {
-      sh_mag_hdg_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
-      break;
-    }
-    case MessageType_t::MAG_FIELD: {
-      sh_mag_field_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
-      ph_mag_field_untilted_ =
-          mrs_lib::PublisherHandler<geometry_msgs::msg::PointStamped>(node_, "~/" + est_name_ + "/correction/" + getName() + "/fcu_untilted");
+    break;
+  }
+  case MessageType_t::IMU: {
+    sh_imu_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::Imu>(shopts, msg_topic_, &Correction::callbackImu, this);
+    break;
+  }
+  case MessageType_t::RTK_GPS: {
+    sh_rtk_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::RtkGps>(shopts, msg_topic_, &Correction::callbackRtk, this);
+    break;
+  }
+  case MessageType_t::NAVSATFIX: {
+    sh_navsatfix_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::NavSatFix>(shopts, msg_topic_, &Correction::callbackNavSatFix, this);
+    break;
+  }
+  case MessageType_t::MAG_HDG: {
+    sh_mag_hdg_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::Float64Stamped>(shopts, msg_topic_, &Correction::callbackMagHeading, this);
+    break;
+  }
+  case MessageType_t::MAG_FIELD: {
+    sh_mag_field_ = mrs_lib::SubscriberHandler<sensor_msgs::msg::MagneticField>(shopts, msg_topic_, &Correction::callbackMagField, this);
+    ph_mag_field_untilted_ =
+        mrs_lib::PublisherHandler<geometry_msgs::msg::PointStamped>(node_, "~/" + est_name_ + "/correction/" + getName() + "/fcu_untilted");
 
-      break;
-    }
-    case MessageType_t::POINT: {
-      sh_point_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
-      break;
-    }
-    case MessageType_t::VECTOR: {
-      sh_vector_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, msg_topic_, &Correction::callbackVector, this);
-      break;
-    }
-    case MessageType_t::QUAT: {
-      sh_quat_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, msg_topic_);
-      break;
-    }
-    case MessageType_t::UNKNOWN: {
-      RCLCPP_ERROR(node_->get_logger(), "[%s]: UNKNOWN message type of correction", getPrintName().c_str());
-      break;
-    }
-    default: {
-      RCLCPP_ERROR(node_->get_logger(), "[%s]: unhandled message type", getPrintName().c_str());
-    }
+    break;
+  }
+  case MessageType_t::POINT: {
+    sh_point_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::PointStamped>(shopts, msg_topic_, &Correction::callbackPoint, this);
+    break;
+  }
+  case MessageType_t::VECTOR: {
+    sh_vector_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::Vector3Stamped>(shopts, msg_topic_, &Correction::callbackVector, this);
+    break;
+  }
+  case MessageType_t::QUAT: {
+    sh_quat_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, msg_topic_);
+    break;
+  }
+  case MessageType_t::UNKNOWN: {
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: UNKNOWN message type of correction", getPrintName().c_str());
+    break;
+  }
+  default: {
+    RCLCPP_ERROR(node_->get_logger(), "[%s]: unhandled message type", getPrintName().c_str());
+  }
   }
 
   // | ------ subscribe orientation for obtaingin hdg rate ------ |
@@ -566,289 +559,289 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
 
   switch (msg_type_) {
 
-    case MessageType_t::ODOMETRY: {
+  case MessageType_t::ODOMETRY: {
 
-      if (!sh_odom_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_odom_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
-      /*   return {}; */
-      /* } */
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromOdometry(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::POSE: {
-
-      if (!sh_pose_s_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_pose_s_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* if (!isTimestampOk(measurement_stamped.stamp)) { */
-      /*   return {}; */
-      /* } */
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromPoseStamped(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::POSECOV: {
-      // TODO implement
-      /* return getCorrectionFromPoseWCS(msg); */
-      is_healthy_ = false;
-      return {};
-      break;
-    }
-
-    case MessageType_t::RANGE: {
-
-      if (!range_enabled_) {
-        RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "fusing range corrections is disabled");
-        return {};
-      }
-
-      if (!sh_range_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_range_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-
-      auto res = getCorrectionFromRange(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::IMU: {
-
-      if (!sh_imu_.hasMsg()) {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no imu msgs so far");
-        return {};
-      }
-
-      auto msg                  = sh_imu_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
-      /*   return {}; */
-      /* } */
-
-      auto res = getCorrectionFromImu(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get imu correction");
-        return {};
-      }
-
-      break;
-    }
-
-    case MessageType_t::RTK_GPS: {
-
-      if (!sh_rtk_.hasMsg()) {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no rtk msgs so far");
-        return {};
-      }
-
-      auto msg                  = sh_rtk_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
-      /*   return {}; */
-      /* } */
-
-      auto res = getCorrectionFromRtk(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get rtk correction");
-        return {};
-      }
-
-      break;
-    }
-
-    case MessageType_t::NAVSATFIX: {
-
-      if (!sh_navsatfix_.hasMsg()) {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "no navsatfix msgs so far");
-        return {};
-      }
-
-      auto msg                  = sh_navsatfix_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
-      /*   return {}; */
-      /* } */
-
-      auto res = getCorrectionFromNavSatFix(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get navsatfix correction");
-        return {};
-      }
-
-      break;
-    }
-
-    case MessageType_t::MAG_HDG: {
-
-      if (!sh_mag_hdg_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_mag_hdg_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromMagHeading(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::MAG_FIELD: {
-
-      if (!sh_mag_field_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_mag_field_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromMagField(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::POINT: {
-
-      if (!sh_point_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_point_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromPoint(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::VECTOR: {
-
-      if (!sh_vector_.hasMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_vector_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromVector(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    case MessageType_t::QUAT: {
-
-      if (!sh_quat_.newMsg()) {
-        return {};
-      }
-
-      auto msg                  = sh_quat_.getMsg();
-      measurement_stamped.stamp = msg->header.stamp;
-      /* checkMsgDelay(measurement_stamped.stamp); */
-
-      /* if (!is_delay_ok_) { */
-      /*   return {}; */
-      /* } */
-      auto res = getCorrectionFromQuat(msg);
-      if (res) {
-        measurement_stamped.value = res.value();
-      } else {
-        return {};
-      }
-      break;
-    }
-
-    default: {
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()",
-                            getPrintName().c_str());
-      is_healthy_ = false;
+    if (!sh_odom_.hasMsg()) {
       return {};
     }
+
+    auto msg                  = sh_odom_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+    /*   return {}; */
+    /* } */
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromOdometry(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::POSE: {
+
+    if (!sh_pose_s_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_pose_s_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* if (!isTimestampOk(measurement_stamped.stamp)) { */
+    /*   return {}; */
+    /* } */
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromPoseStamped(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::POSECOV: {
+    // TODO implement
+    /* return getCorrectionFromPoseWCS(msg); */
+    is_healthy_ = false;
+    return {};
+    break;
+  }
+
+  case MessageType_t::RANGE: {
+
+    if (!range_enabled_) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "fusing range corrections is disabled");
+      return {};
+    }
+
+    if (!sh_range_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_range_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+
+    auto res = getCorrectionFromRange(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::IMU: {
+
+    if (!sh_imu_.hasMsg()) {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no imu msgs so far");
+      return {};
+    }
+
+    auto msg                  = sh_imu_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+    /*   return {}; */
+    /* } */
+
+    auto res = getCorrectionFromImu(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get imu correction");
+      return {};
+    }
+
+    break;
+  }
+
+  case MessageType_t::RTK_GPS: {
+
+    if (!sh_rtk_.hasMsg()) {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no rtk msgs so far");
+      return {};
+    }
+
+    auto msg                  = sh_rtk_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+    /*   return {}; */
+    /* } */
+
+    auto res = getCorrectionFromRtk(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get rtk correction");
+      return {};
+    }
+
+    break;
+  }
+
+  case MessageType_t::NAVSATFIX: {
+
+    if (!sh_navsatfix_.hasMsg()) {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "no navsatfix msgs so far");
+      return {};
+    }
+
+    auto msg                  = sh_navsatfix_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   ROS_ERROR("[%s]: rtk msg delay not ok", ros::this_node::getName().c_str()); */
+    /*   return {}; */
+    /* } */
+
+    auto res = getCorrectionFromNavSatFix(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "could not get navsatfix correction");
+      return {};
+    }
+
+    break;
+  }
+
+  case MessageType_t::MAG_HDG: {
+
+    if (!sh_mag_hdg_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_mag_hdg_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromMagHeading(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::MAG_FIELD: {
+
+    if (!sh_mag_field_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_mag_field_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromMagField(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::POINT: {
+
+    if (!sh_point_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_point_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromPoint(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::VECTOR: {
+
+    if (!sh_vector_.hasMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_vector_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromVector(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  case MessageType_t::QUAT: {
+
+    if (!sh_quat_.newMsg()) {
+      return {};
+    }
+
+    auto msg                  = sh_quat_.getMsg();
+    measurement_stamped.stamp = msg->header.stamp;
+    /* checkMsgDelay(measurement_stamped.stamp); */
+
+    /* if (!is_delay_ok_) { */
+    /*   return {}; */
+    /* } */
+    auto res = getCorrectionFromQuat(msg);
+    if (res) {
+      measurement_stamped.value = res.value();
+    } else {
+      return {};
+    }
+    break;
+  }
+
+  default: {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: this type of correction is not implemented in getCorrectionFromMessage()",
+                          getPrintName().c_str());
+    is_healthy_ = false;
+    return {};
+  }
   }
 
   // check for nans
@@ -880,12 +873,12 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
       publishCorrection(measurement_stamped, ph_correction_proc_);
       return measurement_stamped;
     } else {
-      return {};  // invalid correction
+      return {}; // invalid correction
     }
   } else {
-    return {};  // invalid correction
+    return {}; // invalid correction
   }
-}  // namespace mrs_uav_state_estimation
+} // namespace mrs_uav_state_estimation
 /*//}*/
 
 /*//{ callbackOdometry() */
@@ -905,264 +898,263 @@ void Correction<n_measurements>::callbackOdometry(const nav_msgs::msg::Odometry:
 
 /*//{ getCorrectionFromOdometry() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromOdometry(
-    const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      if (transform_to_frame_enabled_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = transform_from_frame_;
+        auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+        if (res) {
           measurement_t measurement;
-          if (transform_to_frame_enabled_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = transform_from_frame_;
-            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
-            if (res) {
-              measurement_t measurement;
-              measurement(0) = res.value().x;
-              measurement(1) = res.value().y;
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
-              return {};
-            }
-
-          } else {
-            measurement(0) = msg->pose.pose.position.x;
-            measurement(1) = msg->pose.pose.position.y;
-          }
+          measurement(0) = res.value().x;
+          measurement(1) = res.value().y;
           return measurement;
-          break;
-        }
-
-        case StateId_t::VELOCITY: {
-          if (is_in_body_frame_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = ch_->frames.ns_fcu;  // message in odometry is published in body frame
-            auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->twist.twist.linear.x;
-            measurement(1) = msg->twist.twist.linear.y;
-            return measurement;
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
           return {};
         }
+
+      } else {
+        measurement(0) = msg->pose.pose.position.x;
+        measurement(1) = msg->pose.pose.position.y;
       }
+      return measurement;
       break;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
+    case StateId_t::VELOCITY: {
+      if (is_in_body_frame_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = ch_->frames.ns_fcu; // message in odometry is published in body frame
+        auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+        if (res) {
           measurement_t measurement;
-          if (transform_to_frame_enabled_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = transform_from_frame_;
-            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
-            if (res) {
-              measurement_t measurement;
-              measurement(0) = res.value().z;
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
-              return {};
-            }
-
-          } else {
-            measurement(0) = msg->pose.pose.position.z;
-          }
+          measurement = res.value();
           return measurement;
-          break;
-        }
-
-        case StateId_t::VELOCITY: {
-          if (is_in_body_frame_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = ch_->frames.ns_fcu;
-            auto res                     = getZVelUntilted(msg->twist.twist.linear, header);
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              return measurement;
-            } else {
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->twist.twist.linear.z;
-            return measurement;
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
           return {};
         }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->twist.twist.linear.x;
+        measurement(1) = msg->twist.twist.linear.y;
+        return measurement;
       }
       break;
     }
 
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement_t                               measurement;
-          std::unique_ptr<mrs_lib::AttitudeConverter> attitude;
-
-          if (transform_to_frame_enabled_) {
-
-            auto res = ch_->transformer->getTransform(transform_from_frame_, transform_to_frame_, msg->header.stamp);
-            if (!res) {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not find transform from '%s' to '%s'", transform_from_frame_.c_str(),
-                                   transform_to_frame_.c_str());
-              return {};
-            }
-
-            // R_to_from = R^to_from
-            Eigen::Matrix3d R_to_from = mrs_lib::AttitudeConverter(res.value().transform.rotation);
-
-            Eigen::Matrix3d R_odom = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
-
-            // obtain heading from orientation
-            attitude = std::make_unique<mrs_lib::AttitudeConverter>(R_to_from * R_odom);
-
-          } else {
-            attitude = std::make_unique<mrs_lib::AttitudeConverter>(msg->pose.pose.orientation);
-          }
-
-          try {
-            // obtain heading from orientation
-            measurement(StateId_t::POSITION) = attitude->getHeading();
-
-            // subtract initial heading to start with zero heading
-            if (init_hdg_in_zero_ && got_first_hdg_measurement_) {
-              measurement(StateId_t::POSITION) = measurement(StateId_t::POSITION) - first_hdg_measurement_;
-            }
-
-            // unwrap heading wrt previous measurement
-            if (got_first_hdg_measurement_) {
-              measurement(StateId_t::POSITION) =
-                  mrs_lib::geometry::radians::unwrap(measurement(StateId_t::POSITION), prev_hdg_measurement_(StateId_t::POSITION));
-            } else {
-              first_hdg_measurement_     = measurement(StateId_t::POSITION);
-              got_first_hdg_measurement_ = true;
-            }
-            prev_hdg_measurement_ = measurement;
-            return measurement;
-          }
-          catch (...) {
-            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
-
-          /* case StateId_t::VELOCITY: { */
-          /*   try { */
-          /*     measurement_t measurement; */
-          /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
-          /*     return measurement; */
-          /*   } */
-          /*   catch (...) { */
-          /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
-          /*     return {}; */
-          /*   } */
-          /*   break; */
-          /* } */
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      return {};
     }
+    }
+    break;
+  }
 
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      if (transform_to_frame_enabled_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = transform_from_frame_;
+        auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+        if (res) {
           measurement_t measurement;
-          if (transform_to_frame_enabled_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = transform_from_frame_;
-            auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
-            if (res) {
-              measurement_t measurement;
-              measurement(0) = res.value().x;
-              measurement(1) = res.value().y;
-              measurement(2) = res.value().z;
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
-              return {};
-            }
-
-          } else {
-            measurement(0) = msg->pose.pose.position.x;
-            measurement(1) = msg->pose.pose.position.y;
-            measurement(2) = msg->pose.pose.position.z;
-          }
+          measurement(0) = res.value().z;
           return measurement;
-          break;
-        }
-
-        case StateId_t::VELOCITY: {
-          if (is_in_body_frame_) {
-            std_msgs::msg::Header header = msg->header;
-            header.frame_id              = ch_->frames.ns_fcu;  // message in odometry is published in body frame
-            auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->twist.twist.linear.x;
-            measurement(1) = msg->twist.twist.linear.y;
-            measurement(2) = msg->twist.twist.linear.z;
-            return measurement;
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
           return {};
         }
+
+      } else {
+        measurement(0) = msg->pose.pose.position.z;
+      }
+      return measurement;
+      break;
+    }
+
+    case StateId_t::VELOCITY: {
+      if (is_in_body_frame_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = ch_->frames.ns_fcu;
+        auto res                     = getZVelUntilted(msg->twist.twist.linear, header);
+        if (res) {
+          measurement_t measurement;
+          measurement = res.value();
+          return measurement;
+        } else {
+          return {};
+        }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->twist.twist.linear.z;
+        return measurement;
       }
       break;
     }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t                               measurement;
+      std::unique_ptr<mrs_lib::AttitudeConverter> attitude;
+
+      if (transform_to_frame_enabled_) {
+
+        auto res = ch_->transformer->getTransform(transform_from_frame_, transform_to_frame_, msg->header.stamp);
+        if (!res) {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not find transform from '%s' to '%s'", transform_from_frame_.c_str(),
+                               transform_to_frame_.c_str());
+          return {};
+        }
+
+        // R_to_from = R^to_from
+        Eigen::Matrix3d R_to_from = mrs_lib::AttitudeConverter(res.value().transform.rotation);
+
+        Eigen::Matrix3d R_odom = mrs_lib::AttitudeConverter(msg->pose.pose.orientation);
+
+        // obtain heading from orientation
+        attitude = std::make_unique<mrs_lib::AttitudeConverter>(R_to_from * R_odom);
+
+      } else {
+        attitude = std::make_unique<mrs_lib::AttitudeConverter>(msg->pose.pose.orientation);
+      }
+
+      try {
+        // obtain heading from orientation
+        measurement(StateId_t::POSITION) = attitude->getHeading();
+
+        // subtract initial heading to start with zero heading
+        if (init_hdg_in_zero_ && got_first_hdg_measurement_) {
+          measurement(StateId_t::POSITION) = measurement(StateId_t::POSITION) - first_hdg_measurement_;
+        }
+
+        // unwrap heading wrt previous measurement
+        if (got_first_hdg_measurement_) {
+          measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(StateId_t::POSITION), prev_hdg_measurement_(StateId_t::POSITION));
+        } else {
+          first_hdg_measurement_     = measurement(StateId_t::POSITION);
+          got_first_hdg_measurement_ = true;
+        }
+        prev_hdg_measurement_ = measurement;
+        return measurement;
+      }
+      catch (...) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
+        return {};
+      }
+      break;
+    }
+
+      /* case StateId_t::VELOCITY: { */
+      /*   try { */
+      /*     measurement_t measurement; */
+      /*     measurement(0) = mrs_lib::AttitudeConverter(msg->pose.pose.orientation).getHeadingRate(msg->twist.twist.angular); */
+      /*     return measurement; */
+      /*   } */
+      /*   catch (...) { */
+      /*     ROS_ERROR_THROTTLE(1.0, "[%s]: Exception caught during getting heading rate (getCorrectionFromOdometry())", getPrintName().c_str()); */
+      /*     return {}; */
+      /*   } */
+      /*   break; */
+      /* } */
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      if (transform_to_frame_enabled_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = transform_from_frame_;
+        auto res                     = getInFrame(msg->pose.pose.position, header, transform_to_frame_);
+        if (res) {
+          measurement_t measurement;
+          measurement(0) = res.value().x;
+          measurement(1) = res.value().y;
+          measurement(2) = res.value().z;
+          return measurement;
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "could not transform vel from odom");
+          return {};
+        }
+
+      } else {
+        measurement(0) = msg->pose.pose.position.x;
+        measurement(1) = msg->pose.pose.position.y;
+        measurement(2) = msg->pose.pose.position.z;
+      }
+      return measurement;
+      break;
+    }
+
+    case StateId_t::VELOCITY: {
+      if (is_in_body_frame_) {
+        std_msgs::msg::Header header = msg->header;
+        header.frame_id              = ch_->frames.ns_fcu; // message in odometry is published in body frame
+        auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+        if (res) {
+          measurement_t measurement;
+          measurement = res.value();
+          return measurement;
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform vel from odom", getPrintName().c_str());
+          return {};
+        }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->twist.twist.linear.x;
+        measurement(1) = msg->twist.twist.linear.y;
+        measurement(2) = msg->twist.twist.linear.z;
+        return measurement;
+      }
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1187,107 +1179,107 @@ void Correction<n_measurements>::callbackPoseStamped(const geometry_msgs::msg::P
 
 /*//{ getCorrectionFromPoseStamped() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoseStamped(
-    const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromPoseStamped(const geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->pose.position.x;
-          measurement(1) = msg->pose.position.y;
-          return measurement;
-          break;
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->pose.position.x;
+      measurement(1) = msg->pose.position.y;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->pose.position.z;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      try {
+        // obtain heading from orientation
+        measurement(StateId_t::POSITION) = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
+        // unwrap heading wrt previous measurement
+        if (got_first_hdg_measurement_) {
+          measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
+        } else {
+          got_first_hdg_measurement_ = true;
         }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
-          return {};
-        }
+        prev_hdg_measurement_ = measurement;
+        return measurement;
+      }
+      catch (...) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
+        return {};
       }
       break;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
 
-      switch (state_id_) {
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
 
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->pose.position.z;
-          return measurement;
-          break;
-        }
+    switch (state_id_) {
 
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
-          return {};
-        }
-      }
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->pose.position.x;
+      measurement(1) = msg->pose.position.y;
+      measurement(2) = msg->pose.position.z;
+      return measurement;
       break;
     }
 
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          try {
-            // obtain heading from orientation
-            measurement(StateId_t::POSITION) = mrs_lib::AttitudeConverter(msg->pose.orientation).getHeading();
-            // unwrap heading wrt previous measurement
-            if (got_first_hdg_measurement_) {
-              measurement(StateId_t::POSITION) = mrs_lib::geometry::radians::unwrap(measurement(POSITION), prev_hdg_measurement_(POSITION));
-            } else {
-              got_first_hdg_measurement_ = true;
-            }
-            prev_hdg_measurement_ = measurement;
-            return measurement;
-          }
-          catch (...) {
-            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: failed to obtain heading", getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
+      return {};
     }
-
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->pose.position.x;
-          measurement(1) = msg->pose.position.y;
-          measurement(2) = msg->pose.position.z;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoseStamped() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
     }
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1312,8 +1304,8 @@ void Correction<n_measurements>::callbackRange(const sensor_msgs::msg::Range::Co
 
 /*//{ getCorrectionFromRange() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRange(
-    const sensor_msgs::msg::Range::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromRange(const sensor_msgs::msg::Range::ConstSharedPtr msg) {
 
   if (!range_enabled_) {
     RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: fusing range corrections is disabled", getPrintName().c_str());
@@ -1374,142 +1366,142 @@ void Correction<n_measurements>::callbackImu(const sensor_msgs::msg::Imu::ConstS
 
 /*//{ getCorrectionFromImu() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromImu(
-    const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromImu(const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::ACCELERATION: {
-          if (is_in_body_frame_) {
-            auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
-                                   (ns_frame_id_ + "_att_only").c_str());
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->linear_acceleration.x;
-            measurement(1) = msg->linear_acceleration.y;
-            return measurement;
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
-
-      switch (state_id_) {
-
-        case StateId_t::ACCELERATION: {
-          if (is_in_body_frame_) {
-            auto res = getZVelUntilted(msg->linear_acceleration, msg->header);
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              measurement(0) -= gravity_norm_;
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU Z acceleration", getPrintName().c_str());
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->linear_acceleration.z - gravity_norm_;
-            return measurement;
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
-
-      switch (state_id_) {
-
-        case StateId_t::VELOCITY: {
-          geometry_msgs::msg::Quaternion orientation;
-          auto                           res = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, clock_->now());
-          if (res) {
-            orientation = res.value().transform.rotation;
-          } else {
-            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain transform from %s to %s. Not using this correction.",
-                                  getPrintName().c_str(), ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
-            return {};
-          }
-
+    case StateId_t::ACCELERATION: {
+      if (is_in_body_frame_) {
+        auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
+        if (res) {
           measurement_t measurement;
-          measurement(0) = mrs_lib::AttitudeConverter(orientation).getHeadingRate(msg->angular_velocity);
+          measurement = res.value();
           return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
+                               (ns_frame_id_ + "_att_only").c_str());
           return {};
         }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->linear_acceleration.x;
+        measurement(1) = msg->linear_acceleration.y;
+        return measurement;
       }
       break;
     }
 
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
 
-      switch (state_id_) {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-        case StateId_t::ACCELERATION: {
-          if (is_in_body_frame_) {
-            auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
-            if (res) {
-              measurement_t measurement;
-              measurement = res.value();
-              return measurement;
-            } else {
-              RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
-                                   (ns_frame_id_ + "_att_only").c_str());
-              return {};
-            }
-          } else {
-            measurement_t measurement;
-            measurement(0) = msg->linear_acceleration.x;
-            measurement(1) = msg->linear_acceleration.y;
-            measurement(2) = msg->linear_acceleration.z;
-            return measurement;
-          }
-          break;
-        }
+    switch (state_id_) {
 
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+    case StateId_t::ACCELERATION: {
+      if (is_in_body_frame_) {
+        auto res = getZVelUntilted(msg->linear_acceleration, msg->header);
+        if (res) {
+          measurement_t measurement;
+          measurement = res.value();
+          measurement(0) -= gravity_norm_;
+          return measurement;
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU Z acceleration", getPrintName().c_str());
           return {};
         }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->linear_acceleration.z - gravity_norm_;
+        return measurement;
       }
       break;
     }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
+
+    switch (state_id_) {
+
+    case StateId_t::VELOCITY: {
+      geometry_msgs::msg::Quaternion orientation;
+      auto                           res = ch_->transformer->getTransform(ch_->frames.ns_fcu_untilted, ch_->frames.ns_fcu, clock_->now());
+      if (res) {
+        orientation = res.value().transform.rotation;
+      } else {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain transform from %s to %s. Not using this correction.",
+                              getPrintName().c_str(), ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str());
+        return {};
+      }
+
+      measurement_t measurement;
+      measurement(0) = mrs_lib::AttitudeConverter(orientation).getHeadingRate(msg->angular_velocity);
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    switch (state_id_) {
+
+    case StateId_t::ACCELERATION: {
+      if (is_in_body_frame_) {
+        auto res = getVecInFrame(msg->linear_acceleration, msg->header, ns_frame_id_ + "_att_only");
+        if (res) {
+          measurement_t measurement;
+          measurement = res.value();
+          return measurement;
+        } else {
+          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain IMU acceleration in frame: %s", getPrintName().c_str(),
+                               (ns_frame_id_ + "_att_only").c_str());
+          return {};
+        }
+      } else {
+        measurement_t measurement;
+        measurement(0) = msg->linear_acceleration.x;
+        measurement(1) = msg->linear_acceleration.y;
+        measurement(2) = msg->linear_acceleration.z;
+        return measurement;
+      }
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromImu() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
   }
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
   return {};
@@ -1533,8 +1525,8 @@ void Correction<n_measurements>::callbackRtk(const mrs_msgs::msg::RtkGps::ConstS
 
 /*//{ getCorrectionFromRtk() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromRtk(
-    const mrs_msgs::msg::RtkGps::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromRtk(const mrs_msgs::msg::RtkGps::ConstSharedPtr msg) {
 
   geometry_msgs::msg::PoseStamped rtk_pos;
 
@@ -1579,77 +1571,77 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement(0) = rtk_pos.pose.position.x;
-          measurement(1) = rtk_pos.pose.position.y;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
-          return {};
-        }
-      }
+    case StateId_t::POSITION: {
+      measurement(0) = rtk_pos.pose.position.x;
+      measurement(1) = rtk_pos.pose.position.y;
+      return measurement;
       break;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement(0) = rtk_pos.pose.position.z;
-          if (!got_avg_init_z_) {
-            getAvgInitZ(measurement(0));
-            return {};
-          }
-          measurement(0) -= init_z_avg_;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    case EstimatorType_t::HEADING: {
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch",
-                            getPrintName().c_str());
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
       return {};
-      break;
     }
+    }
+    break;
+  }
 
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement(0) = rtk_pos.pose.position.x;
-          measurement(1) = rtk_pos.pose.position.y;
-          measurement(2) = rtk_pos.pose.position.z;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
-          return {};
-        }
+    case StateId_t::POSITION: {
+      measurement(0) = rtk_pos.pose.position.z;
+      if (!got_avg_init_z_) {
+        getAvgInitZ(measurement(0));
+        return {};
       }
+      measurement(0) -= init_z_avg_;
+      return measurement;
       break;
     }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  case EstimatorType_t::HEADING: {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromRtk() switch",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement(0) = rtk_pos.pose.position.x;
+      measurement(1) = rtk_pos.pose.position.y;
+      measurement(2) = rtk_pos.pose.position.z;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromRtk() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1674,8 +1666,8 @@ void Correction<n_measurements>::callbackNavSatFix(const sensor_msgs::msg::NavSa
 
 /*//{ getCorrectionFromNavSatFix() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromNavSatFix(
-    const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromNavSatFix(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
 
   geometry_msgs::msg::PointStamped navsatfix_pos;
 
@@ -1711,77 +1703,77 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement(0) = navsatfix_pos.point.x;
-          measurement(1) = navsatfix_pos.point.y;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
-          return {};
-        }
-      }
+    case StateId_t::POSITION: {
+      measurement(0) = navsatfix_pos.point.x;
+      measurement(1) = navsatfix_pos.point.y;
+      return measurement;
       break;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement(0) = navsatfix_pos.point.z;
-          if (!got_avg_init_z_) {
-            getAvgInitZ(measurement(0));
-            return {};
-          }
-          measurement(0) -= init_z_avg_;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    case EstimatorType_t::HEADING: {
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromNavSatFix() switch",
-                            getPrintName().c_str());
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
       return {};
-      break;
     }
+    }
+    break;
+  }
 
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement(0) = navsatfix_pos.point.x;
-          measurement(1) = navsatfix_pos.point.y;
-          measurement(2) = navsatfix_pos.point.z;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
-          return {};
-        }
+    case StateId_t::POSITION: {
+      measurement(0) = navsatfix_pos.point.z;
+      if (!got_avg_init_z_) {
+        getAvgInitZ(measurement(0));
+        return {};
       }
+      measurement(0) -= init_z_avg_;
+      return measurement;
       break;
     }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  case EstimatorType_t::HEADING: {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: should not be possible to get into this branch of getCorrectionFromNavSatFix() switch",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement(0) = navsatfix_pos.point.x;
+      measurement(1) = navsatfix_pos.point.y;
+      measurement(2) = navsatfix_pos.point.z;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromNavSatFix() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1808,54 +1800,54 @@ void Correction<n_measurements>::callbackMagHeading(const mrs_msgs::msg::Float64
 
 /*//{ getCorrectionFromMagHeading() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagHeading(
-    const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromMagHeading(const mrs_msgs::msg::Float64Stamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagHeading() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagHeading() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
+
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
+
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagHeading() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
+
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
+
+    measurement_t measurement;
+
+    const double mag_hdg = msg->value / 180 * M_PI;
+
+    if (!got_first_mag_hdg_) {
+      mag_hdg_previous_  = mag_hdg;
+      got_first_mag_hdg_ = true;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
+    measurement(0)    = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2; // may be weirdness of px4 heading (NED vs ENU or something)
+    mag_hdg_previous_ = mag_hdg;
+    return measurement;
+  }
 
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagHeading() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
-    }
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
 
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
-
-      measurement_t measurement;
-
-      const double mag_hdg = msg->value / 180 * M_PI;
-
-      if (!got_first_mag_hdg_) {
-        mag_hdg_previous_  = mag_hdg;
-        got_first_mag_hdg_ = true;
-      }
-
-      measurement(0) = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_) + M_PI / 2;  // may be weirdness of px4 heading (NED vs ENU or something)
-      mag_hdg_previous_ = mag_hdg;
-      return measurement;
-    }
-
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
-
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagHeading() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
-    }
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagHeading() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1883,98 +1875,98 @@ void Correction<n_measurements>::callbackMagField(const sensor_msgs::msg::Magnet
 
 /*//{ getCorrectionFromMagField() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromMagField(
-    const sensor_msgs::msg::MagneticField::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromMagField(const sensor_msgs::msg::MagneticField::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagField() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
-    }
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATERAL in getCorrectionFromMagField() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagField() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
-    }
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::ALTITUDE in getCorrectionFromMagField() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
 
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
 
-      /* Eigen::Matrix3d rot; */
+    /* Eigen::Matrix3d rot; */
 
-      /* auto res = ch_->transformer->getTransform(ch_->frames.ns_fcu, ch_->frames.ns_fcu_untilted, msg->header.stamp); */
-      /* if (res) { */
-      /*   rot = Eigen::Matrix3d(mrs_lib::AttitudeConverter(res.value().transform.rotation)); */
-      /* } else { */
-      /*   ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(), */
-      /*                      ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str()); */
-      /*   return {}; */
-      /* } */
+    /* auto res = ch_->transformer->getTransform(ch_->frames.ns_fcu, ch_->frames.ns_fcu_untilted, msg->header.stamp); */
+    /* if (res) { */
+    /*   rot = Eigen::Matrix3d(mrs_lib::AttitudeConverter(res.value().transform.rotation)); */
+    /* } else { */
+    /*   ROS_ERROR_THROTTLE(1.0, "[%s]: Could not obtain transform from %s to %s. Not using this correction.", getPrintName().c_str(), */
+    /*                      ch_->frames.ns_fcu_untilted.c_str(), ch_->frames.ns_fcu.c_str()); */
+    /*   return {}; */
+    /* } */
 
-      geometry_msgs::msg::Vector3 mag_vec;
-      mag_vec.x = msg->magnetic_field.x;
-      mag_vec.y = msg->magnetic_field.y;
-      mag_vec.z = msg->magnetic_field.z;
+    geometry_msgs::msg::Vector3 mag_vec;
+    mag_vec.x = msg->magnetic_field.x;
+    mag_vec.y = msg->magnetic_field.y;
+    mag_vec.z = msg->magnetic_field.z;
 
-      if (transform_to_frame_enabled_) {
-        std_msgs::msg::Header header = msg->header;
-        header.frame_id              = transform_from_frame_;
-        auto res                     = transformVecToFrame(mag_vec, header, transform_to_frame_);
-        if (res) {
-          mag_vec.x = res.value().x;
-          mag_vec.y = res.value().y;
-          mag_vec.z = res.value().z;
-        } else {
-          RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform mag field vector", getPrintName().c_str());
-        }
+    if (transform_to_frame_enabled_) {
+      std_msgs::msg::Header header = msg->header;
+      header.frame_id              = transform_from_frame_;
+      auto res                     = transformVecToFrame(mag_vec, header, transform_to_frame_);
+      if (res) {
+        mag_vec.x = res.value().x;
+        mag_vec.y = res.value().y;
+        mag_vec.z = res.value().z;
+      } else {
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: could not transform mag field vector", getPrintName().c_str());
       }
-
-      geometry_msgs::msg::PointStamped mag_vec_msg;
-      mag_vec_msg.header.stamp    = msg->header.stamp;
-      mag_vec_msg.header.frame_id = transform_to_frame_;
-      mag_vec_msg.point.x         = mag_vec.x;
-      mag_vec_msg.point.y         = mag_vec.y;
-      mag_vec_msg.point.z         = mag_vec.z;
-      ph_mag_field_untilted_.publish(mag_vec_msg);
-      const double mag_hdg = atan2(mag_vec.y, mag_vec.x);
-      /* const Eigen::Vector3d mag_vec(mag_vec_pt.x, mag_vec_pt.y, mag_vec_pt.z); */
-      /* const Eigen::Vector3d proj_mag_field = rot * mag_vec; */
-      /* mrs_msgs::msg::Float64Stamped hdg_stamped; */
-      /* hdg_stamped.header = msg->header; */
-      /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
-      /* const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x()); */
-
-      measurement_t measurement;
-
-      /* const double mag_hdg = msg->value / 180 * M_PI; */
-
-      if (!got_first_mag_hdg_) {
-        mag_hdg_previous_  = mag_hdg;
-        got_first_mag_hdg_ = true;
-      }
-
-      measurement(0)    = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_);  // may be weirdness of px4 heading (NED vs ENU or something)
-      mag_hdg_previous_ = mag_hdg;
-      return measurement;
     }
 
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
+    geometry_msgs::msg::PointStamped mag_vec_msg;
+    mag_vec_msg.header.stamp    = msg->header.stamp;
+    mag_vec_msg.header.frame_id = transform_to_frame_;
+    mag_vec_msg.point.x         = mag_vec.x;
+    mag_vec_msg.point.y         = mag_vec.y;
+    mag_vec_msg.point.z         = mag_vec.z;
+    ph_mag_field_untilted_.publish(mag_vec_msg);
+    const double mag_hdg = atan2(mag_vec.y, mag_vec.x);
+    /* const Eigen::Vector3d mag_vec(mag_vec_pt.x, mag_vec_pt.y, mag_vec_pt.z); */
+    /* const Eigen::Vector3d proj_mag_field = rot * mag_vec; */
+    /* mrs_msgs::msg::Float64Stamped hdg_stamped; */
+    /* hdg_stamped.header = msg->header; */
+    /* hdg_stamped.value = atan2(proj_mag_field.y(), proj_mag_field.x()); */
+    /* const double mag_hdg = atan2(proj_mag_field.y(), proj_mag_field.x()); */
 
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagField() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
+    measurement_t measurement;
+
+    /* const double mag_hdg = msg->value / 180 * M_PI; */
+
+    if (!got_first_mag_hdg_) {
+      mag_hdg_previous_  = mag_hdg;
+      got_first_mag_hdg_ = true;
     }
+
+    measurement(0)    = -mrs_lib::geometry::radians::unwrap(mag_hdg, mag_hdg_previous_); // may be weirdness of px4 heading (NED vs ENU or something)
+    mag_hdg_previous_ = mag_hdg;
+    return measurement;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::LATALT in getCorrectionFromMagField() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -1999,80 +1991,21 @@ void Correction<n_measurements>::callbackPoint(const geometry_msgs::msg::PointSt
 
 /*//{ getCorrectionFromPoint() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromPoint(
-    const geometry_msgs::msg::PointStamped::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromPoint(const geometry_msgs::msg::PointStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->point.x;
-          measurement(1) = msg->point.y;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->point.z;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
-          return {};
-        }
-      }
-      break;
-    }
-
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
-
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::Heading in getCorrectionFromPoint() not implemented",
-                            getPrintName().c_str());
-      return {};
-      break;
-    }
-
-    // handle latalt estimators
-    case EstimatorType_t::LATALT: {
-
-      switch (state_id_) {
-
-        case StateId_t::POSITION: {
-          measurement_t measurement;
-          measurement(0) = msg->point.x;
-          measurement(1) = msg->point.y;
-          measurement(2) = msg->point.z;
-          return measurement;
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
-          return {};
-        }
-      }
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->point.x;
+      measurement(1) = msg->point.y;
+      return measurement;
       break;
     }
 
@@ -2080,6 +2013,65 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
       RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
       return {};
     }
+    }
+    break;
+  }
+
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->point.z;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
+
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: EstimatorType_t::Heading in getCorrectionFromPoint() not implemented",
+                          getPrintName().c_str());
+    return {};
+    break;
+  }
+
+  // handle latalt estimators
+  case EstimatorType_t::LATALT: {
+
+    switch (state_id_) {
+
+    case StateId_t::POSITION: {
+      measurement_t measurement;
+      measurement(0) = msg->point.x;
+      measurement(1) = msg->point.y;
+      measurement(2) = msg->point.z;
+      return measurement;
+      break;
+    }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
+
+  default: {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromPoint() switch", getPrintName().c_str());
+    return {};
+  }
   }
 
 
@@ -2107,118 +2099,118 @@ void Correction<n_measurements>::callbackVector(const geometry_msgs::msg::Vector
 
 /*//{ getCorrectionFromVector() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromVector(
-    const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromVector(const geometry_msgs::msg::Vector3Stamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-    // handle lateral estimators
-    case EstimatorType_t::LATERAL: {
+  // handle lateral estimators
+  case EstimatorType_t::LATERAL: {
 
-      switch (state_id_) {
+    switch (state_id_) {
 
-        case StateId_t::VELOCITY: {
-          auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
-          if (res) {
-            measurement_t measurement;
-            measurement = res.value();
-            return measurement;
-          } else {
-            return {};
-          }
-          break;
-        }
-
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
-          return {};
-        }
+    case StateId_t::VELOCITY: {
+      auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
+      if (res) {
+        measurement_t measurement;
+        measurement = res.value();
+        return measurement;
+      } else {
+        return {};
       }
       break;
     }
 
-    // handle altitude estimators
-    case EstimatorType_t::ALTITUDE: {
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
 
-      switch (state_id_) {
+  // handle altitude estimators
+  case EstimatorType_t::ALTITUDE: {
 
-        case StateId_t::VELOCITY: {
-          auto res = getZVelUntilted(msg->vector, msg->header);
-          if (res) {
-            measurement_t measurement;
-            measurement = res.value();
-            return measurement;
-          } else {
-            RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain untilted Z velocity", getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
+    switch (state_id_) {
 
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
-          return {};
-        }
+    case StateId_t::VELOCITY: {
+      auto res = getZVelUntilted(msg->vector, msg->header);
+      if (res) {
+        measurement_t measurement;
+        measurement = res.value();
+        return measurement;
+      } else {
+        RCLCPP_WARN_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Could not obtain untilted Z velocity", getPrintName().c_str());
+        return {};
       }
       break;
     }
 
-    // handle heading estimators
-    case EstimatorType_t::HEADING: {
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
 
-      switch (state_id_) {
+  // handle heading estimators
+  case EstimatorType_t::HEADING: {
 
-        case StateId_t::VELOCITY: {
-          try {
-            if (!sh_orientation_.hasMsg()) {
-              RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s orientation on topic: %s", getPrintName().c_str(),
-                                   Support::waiting_for_string.c_str(), orientation_topic_.c_str());
-              return {};
-            }
-            measurement_t measurement;
-            measurement(0) = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
-            return measurement;
-          }
-          catch (...) {
-            RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Exception caught during getting heading rate (getCorrectionFromVector())",
-                                  getPrintName().c_str());
-            return {};
-          }
-          break;
-        }
+    switch (state_id_) {
 
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+    case StateId_t::VELOCITY: {
+      try {
+        if (!sh_orientation_.hasMsg()) {
+          RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s orientation on topic: %s", getPrintName().c_str(),
+                               Support::waiting_for_string.c_str(), orientation_topic_.c_str());
           return {};
         }
+        measurement_t measurement;
+        measurement(0) = mrs_lib::AttitudeConverter(sh_orientation_.getMsg()->quaternion).getHeadingRate(msg->vector);
+        return measurement;
+      }
+      catch (...) {
+        RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Exception caught during getting heading rate (getCorrectionFromVector())",
+                              getPrintName().c_str());
+        return {};
       }
       break;
     }
 
-    // handle lateral estimators
-    case EstimatorType_t::LATALT: {
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
 
-      switch (state_id_) {
+  // handle lateral estimators
+  case EstimatorType_t::LATALT: {
 
-        case StateId_t::VELOCITY: {
-          auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
-          if (res) {
-            measurement_t measurement;
-            measurement = res.value();
-            return measurement;
-          } else {
-            return {};
-          }
-          break;
-        }
+    switch (state_id_) {
 
-        default: {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
-          return {};
-        }
+    case StateId_t::VELOCITY: {
+      auto res = getVecInFrame(msg->vector, msg->header, ns_frame_id_ + "_att_only");
+      if (res) {
+        measurement_t measurement;
+        measurement = res.value();
+        return measurement;
+      } else {
+        return {};
       }
       break;
     }
+
+    default: {
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromVector() switch", getPrintName().c_str());
+      return {};
+    }
+    }
+    break;
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -2228,43 +2220,43 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getCorrectionFromQuat() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getCorrectionFromQuat(
-    [[maybe_unused]] const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg) {
+std::optional<typename Correction<n_measurements>::measurement_t>
+Correction<n_measurements>::getCorrectionFromQuat([[maybe_unused]] const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg) {
 
   switch (est_type_) {
 
-      // handle lateral estimators
-      /* case EstimatorType_t::LATERAL: { */
+    // handle lateral estimators
+    /* case EstimatorType_t::LATERAL: { */
 
-      /*   default: { */
-      /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
-      /*     return {}; */
-      /*   } break; */
-      /* } */
+    /*   default: { */
+    /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+    /*     return {}; */
+    /*   } break; */
+    /* } */
 
-      /* // handle altitude estimators */
-      /* case EstimatorType_t::ALTITUDE: { */
+    /* // handle altitude estimators */
+    /* case EstimatorType_t::ALTITUDE: { */
 
-      /* default: { */
-      /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
-      /*     return {}; */
-      /*   } break; */
-      /* } */
+    /* default: { */
+    /*     ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+    /*     return {}; */
+    /*   } break; */
+    /* } */
 
-      /* // handle heading estimators */
-      /* case EstimatorType_t::HEADING: { */
+    /* // handle heading estimators */
+    /* case EstimatorType_t::HEADING: { */
 
-      /*   switch (state_id_) { */
+    /*   switch (state_id_) { */
 
-      /*     /1* default: { *1/ */
-      /*       ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
-      /*       return {}; */
-      /*     } */
-      /*   } */
-    default: {
-      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
-      return {};
-    }
+    /*     /1* default: { *1/ */
+    /*       ROS_ERROR_THROTTLE(1.0, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str()); */
+    /*       return {}; */
+    /*     } */
+    /*   } */
+  default: {
+    RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: unhandled case in getCorrectionFromOdometry() switch", getPrintName().c_str());
+    return {};
+  }
   }
 
   RCLCPP_ERROR(node_->get_logger(), "[%s]: FIXME: should not be possible to get into this part of code", getPrintName().c_str());
@@ -2274,7 +2266,7 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ applyCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::applyCorrection(const measurement_t& meas, const rclcpp::Time& stamp) {
+void Correction<n_measurements>::applyCorrection(const measurement_t &meas, const rclcpp::Time &stamp) {
 
   {
     std::scoped_lock lock(mtx_msg_time_);
@@ -2339,8 +2331,8 @@ bool Correction<n_measurements>::callbackToggleRange(const std::shared_ptr<std_s
 
 /*//{ getZVelUntilted() */
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::msg::Vector3& msg,
-                                                                                                              const std_msgs::msg::Header&       header) {
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getZVelUntilted(const geometry_msgs::msg::Vector3 &msg,
+                                                                                                              const std_msgs::msg::Header       &header) {
 
   // untilt the desired vector
   geometry_msgs::msg::PointStamped vel;
@@ -2367,8 +2359,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ transformVecToFrame() */
 template <int n_measurements>
-std::optional<geometry_msgs::msg::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::msg::Vector3& vec_in,
-                                                                                           const std_msgs::msg::Header&       source_header,
+std::optional<geometry_msgs::msg::Vector3> Correction<n_measurements>::transformVecToFrame(const geometry_msgs::msg::Vector3 &vec_in,
+                                                                                           const std_msgs::msg::Header       &source_header,
                                                                                            const std::string                  target_frame) {
 
   geometry_msgs::msg::Vector3Stamped vec;
@@ -2386,8 +2378,8 @@ std::optional<geometry_msgs::msg::Vector3> Correction<n_measurements>::transform
 }
 
 template <int n_measurements>
-std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::msg::Vector3& vec_in,
-                                                                                                            const std_msgs::msg::Header&       source_header,
+std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_measurements>::getVecInFrame(const geometry_msgs::msg::Vector3 &vec_in,
+                                                                                                            const std_msgs::msg::Header       &source_header,
                                                                                                             const std::string                  target_frame) {
 
   measurement_t measurement;
@@ -2408,8 +2400,8 @@ std::optional<typename Correction<n_measurements>::measurement_t> Correction<n_m
 
 /*//{ getInFrame() */
 template <int n_measurements>
-std::optional<geometry_msgs::msg::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::msg::Point& pt_in,
-                                                                                const std_msgs::msg::Header& source_header, const std::string target_frame) {
+std::optional<geometry_msgs::msg::Point> Correction<n_measurements>::getInFrame(const geometry_msgs::msg::Point &pt_in,
+                                                                                const std_msgs::msg::Header &source_header, const std::string target_frame) {
 
   geometry_msgs::msg::PointStamped pt;
   pt.header = source_header;
@@ -2432,7 +2424,7 @@ std::optional<geometry_msgs::msg::Point> Correction<n_measurements>::getInFrame(
 
 /*//{ transformRtkToFcu() */
 template <int n_measurements>
-std::optional<geometry_msgs::msg::Pose> Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::msg::PoseStamped& pose_in) const {
+std::optional<geometry_msgs::msg::Pose> Correction<n_measurements>::transformRtkToFcu(const geometry_msgs::msg::PoseStamped &pose_in) const {
 
   geometry_msgs::msg::PoseStamped pose_tmp = pose_in;
 
@@ -2503,7 +2495,7 @@ void Correction<n_measurements>::getAvgInitZ(const double z) {
 
 /*//{ checkMsgDelay() */
 template <int n_measurements>
-void Correction<n_measurements>::checkMsgDelay(const rclcpp::Time& msg_time) {
+void Correction<n_measurements>::checkMsgDelay(const rclcpp::Time &msg_time) {
 
   const double delay = (clock_->now() - msg_time).seconds();
   if (delay > msg_delay_warn_limit_) {
@@ -2559,7 +2551,7 @@ bool Correction<n_measurements>::isTimestampOk() {
   }
 
   return true;
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ isMsgComing() */
@@ -2585,13 +2577,13 @@ bool Correction<n_measurements>::isMsgComing() {
   }
 
   return true;
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 /*//}*/
 
 /*//{ createProcessorFromName() */
 template <int n_measurements>
-std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string&             name,
-                                                                                               const rclcpp::Node::SharedPtr& subnode) {
+std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createProcessorFromName(const std::string             &name,
+                                                                                               const rclcpp::Node::SharedPtr &subnode) {
 
   auto proc_ph            = std::make_shared<PrivateHandlers_t>();
   proc_ph->loadConfigFile = ph_->loadConfigFile;
@@ -2619,13 +2611,13 @@ std::shared_ptr<Processor<n_measurements>> Correction<n_measurements>::createPro
 
 /*//{ process() */
 template <int n_measurements>
-bool Correction<n_measurements>::process(Correction<n_measurements>::measurement_t& measurement) {
+bool Correction<n_measurements>::process(Correction<n_measurements>::measurement_t &measurement) {
 
   bool ok_flag   = true;
   bool fuse_flag = true;
 
   for (auto proc_name :
-       processor_names_) {  // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
+       processor_names_) { // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
     /* bool is_ok, should_fuse; */
     auto [is_ok, should_fuse] = processors_[proc_name]->process(measurement);
     ok_flag &= is_ok;
@@ -2650,7 +2642,7 @@ template <int n_measurements>
 void Correction<n_measurements>::resetProcessors() {
 
   for (auto proc_name :
-       processor_names_) {  // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
+       processor_names_) { // need to access the processors in the specific order from the config (e.g. median filter should go before saturation etc.)
     /* bool is_ok, should_fuse; */
     processors_[proc_name]->reset();
   }
@@ -2659,8 +2651,8 @@ void Correction<n_measurements>::resetProcessors() {
 
 /*//{ publishCorrection() */
 template <int n_measurements>
-void Correction<n_measurements>::publishCorrection(const MeasurementStamped&                                      measurement_stamped,
-                                                   mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection>& ph_corr) {
+void Correction<n_measurements>::publishCorrection(const MeasurementStamped                                      &measurement_stamped,
+                                                   mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorCorrection> &ph_corr) {
 
   if (!ch_->debug_topics.correction) {
     return;
@@ -2699,6 +2691,6 @@ void Correction<n_measurements>::publishDelay(const double delay) {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_CORRECTION_H
+#endif // ESTIMATORS_CORRECTION_H

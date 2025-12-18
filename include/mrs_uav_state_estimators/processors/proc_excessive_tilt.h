@@ -24,10 +24,10 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcExcessiveTilt(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                    const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph);
+  ProcExcessiveTilt(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                    const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph);
 
-  std::tuple<bool, bool> process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t &measurement) override;
   void                   reset();
 
 private:
@@ -41,8 +41,8 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                                                     const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                                                     const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   cbkgrp_subs_ = node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -81,7 +81,7 @@ ProcExcessiveTilt<n_measurements>::ProcExcessiveTilt(const rclcpp::Node::SharedP
 
 /*//{ process() */
 template <int n_measurements>
-std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process([[maybe_unused]] measurement_t& measurement) {
+std::tuple<bool, bool> ProcExcessiveTilt<n_measurements>::process([[maybe_unused]] measurement_t &measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
     return {true, true};
@@ -125,6 +125,6 @@ void ProcExcessiveTilt<n_measurements>::reset() {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // PROCESSORS_PROC_EXCESSIVE_TILT_H
+#endif // PROCESSORS_PROC_EXCESSIVE_TILT_H

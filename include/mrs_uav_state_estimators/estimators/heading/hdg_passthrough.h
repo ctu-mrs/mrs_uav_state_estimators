@@ -36,7 +36,7 @@ namespace mrs_uav_state_estimators
 namespace hdg_passthrough
 {
 const int n_states = 2;
-}  // namespace hdg_passthrough
+} // namespace hdg_passthrough
 
 using namespace mrs_uav_managers::estimation_manager;
 
@@ -113,6 +113,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_HEADING_HDG_PASSTHROUGH_H
+#endif // ESTIMATORS_HEADING_HDG_PASSTHROUGH_H

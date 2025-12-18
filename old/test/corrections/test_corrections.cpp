@@ -36,7 +36,7 @@ typedef Eigen::Matrix<double, 6, 1>              Matrix6d;
 
 /* correctionTfExpected() //{ */
 
-measurement_t correctionTfExpected(const DataPoint_t& data) {
+measurement_t correctionTfExpected(const DataPoint_t &data) {
 
   measurement_t result;
 
@@ -61,7 +61,7 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
   ros::NodeHandle   nh;
 
   std::shared_ptr<mrs_uav_managers::estimation_manager::CommonHandlers_t> ch = std::make_shared<mrs_uav_managers::estimation_manager::CommonHandlers_t>();
-  ch->transformer                      = std::make_shared<mrs_lib::Transformer>(nh, name);
+  ch->transformer                                                            = std::make_shared<mrs_lib::Transformer>(nh, name);
   ch->transformer->retryLookupNewest(true);
   ch->frames.fcu             = "fcu";
   ch->frames.ns_fcu          = ch->frames.fcu;
@@ -78,7 +78,8 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
   /* ros::AsyncSpinner spinner(10); */
   /* spinner.start(); */
 
-  mrs_uav_state_estimators::Correction<n_measurements> correction(nh, name, "lat_rtk/pos_rtk", "uav1/rtk_origin", mrs_uav_state_estimators::EstimatorType_t::LATERAL, ch);
+  mrs_uav_state_estimators::Correction<n_measurements> correction(nh, name, "lat_rtk/pos_rtk", "uav1/rtk_origin",
+                                                                  mrs_uav_state_estimators::EstimatorType_t::LATERAL, ch);
 
   DataPoint_t data;
   data.fcu_qx    = data_vec[0];
@@ -164,7 +165,7 @@ int correctionTfTestImpl(const std::vector<double> data_vec) {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimation
+} // namespace mrs_uav_state_estimation
 
 /* TEST(TESTSuite, correctionTf) //{ */
 
@@ -217,12 +218,12 @@ TEST(TESTSuite, correctionTf) {
 
 //}
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) {
 
   ros::init(argc, argv, "test_corrections");
 
   if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug)) {
-    ros::console::notifyLoggerLevelsChanged();  // To show debug output in the tests
+    ros::console::notifyLoggerLevelsChanged(); // To show debug output in the tests
   }
 
   srand(time(NULL));
@@ -231,4 +232,3 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 
   return RUN_ALL_TESTS();
 }
-
