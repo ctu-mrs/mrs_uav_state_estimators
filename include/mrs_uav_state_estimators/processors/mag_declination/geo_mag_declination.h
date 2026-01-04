@@ -73,7 +73,7 @@ public:
   /*//}*/
 
   static float getMagDeclinationRadians(float lat, float lon) {
-    return GeoMagDeclination::getTableData(lat, lon, declination_table) * 1e-4f;  // declination table stored as 10^-4 radians
+    return GeoMagDeclination::getTableData(lat, lon, declination_table) * 1e-4f; // declination table stored as 10^-4 radians
   }
 
   static float getMagDeclinationDegrees(float lat, float lon) {
@@ -84,7 +84,7 @@ private:
   GeoMagDeclination(){};
 };
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
 
 #endif

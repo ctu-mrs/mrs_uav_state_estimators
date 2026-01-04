@@ -79,8 +79,8 @@ public:
   std::vector<double>           getHeightCovariance() const override;
 };
 
-}  // namespace garmin_agl
+} // namespace garmin_agl
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_STATE_GARMIN_AGL_H
+#endif // ESTIMATORS_STATE_GARMIN_AGL_H

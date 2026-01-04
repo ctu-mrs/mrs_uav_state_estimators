@@ -24,10 +24,10 @@ public:
   typedef Eigen::Matrix<double, n_measurements, 1> measurement_t;
 
 public:
-  ProcMedianFilter(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                   const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph);
+  ProcMedianFilter(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                   const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph);
 
-  std::tuple<bool, bool> process(measurement_t& measurement) override;
+  std::tuple<bool, bool> process(measurement_t &measurement) override;
   void                   reset();
 
 private:
@@ -38,12 +38,13 @@ private:
 
 /*//{ constructor */
 template <int n_measurements>
-ProcMedianFilter<n_measurements>::ProcMedianFilter(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name,
-                                                   const std::shared_ptr<CommonHandlers_t>& ch, const std::shared_ptr<PrivateHandlers_t>& ph)
+ProcMedianFilter<n_measurements>::ProcMedianFilter(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name,
+                                                   const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph)
     : Processor<n_measurements>(node, correction_name, name, ch, ph) {
 
   // | --------------------- load parameters -------------------- |
-  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/"); */
+  /* ph->param_loader->setPrefix(ch->package_name + "/" + Support::toSnakeCase(ch->nodelet_name) + "/" + Processor<n_measurements>::getNamespacedName() + "/");
+   */
 
   ph->param_loader->loadParam("buffer_size", buffer_size_);
   ph->param_loader->loadParam("max_diff", max_diff_);
@@ -67,7 +68,7 @@ ProcMedianFilter<n_measurements>::ProcMedianFilter(const rclcpp::Node::SharedPtr
 
 /*//{ process() */
 template <int n_measurements>
-std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t& measurement) {
+std::tuple<bool, bool> ProcMedianFilter<n_measurements>::process(measurement_t &measurement) {
 
   if (!Processor<n_measurements>::enabled_) {
     return {true, true};
@@ -109,6 +110,6 @@ void ProcMedianFilter<n_measurements>::reset() {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // PROCESSORS_PROC_MEDIAN_FILTER_H
+#endif // PROCESSORS_PROC_MEDIAN_FILTER_H

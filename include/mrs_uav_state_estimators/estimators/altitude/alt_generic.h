@@ -42,7 +42,7 @@ const int n_states       = 3;
 const int n_inputs       = 1;
 const int n_measurements = 1;
 
-}  // namespace alt_generic
+} // namespace alt_generic
 
 class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
 
@@ -68,7 +68,6 @@ class AltGeneric : public AltitudeEstimator<alt_generic::n_states> {
   std::shared_ptr<mrs_lib::DynparamMgr> dynparam_mgr_;
 
 private:
-
   rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
   rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
 
@@ -164,6 +163,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_ALTITUDE_ALT_GENERIC_H
+#endif // ESTIMATORS_ALTITUDE_ALT_GENERIC_H

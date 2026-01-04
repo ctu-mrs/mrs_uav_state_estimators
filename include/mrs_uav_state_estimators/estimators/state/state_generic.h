@@ -44,7 +44,7 @@ namespace mrs_uav_state_estimators
 namespace hdg_estimator
 {
 const int n_states = 2;
-}  // namespace hdg_estimator
+} // namespace hdg_estimator
 
 namespace state_generic
 {
@@ -106,6 +106,6 @@ public:
   std::mutex mutex_update_uav_state_;
 };
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_STATE_STATE_GENERIC_H
+#endif // ESTIMATORS_STATE_STATE_GENERIC_H

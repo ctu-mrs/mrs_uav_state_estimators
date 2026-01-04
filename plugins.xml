@@ -1,53 +1,55 @@
-<library path="MrsUavStateEstimators_GpsGarmin">
-  <class type="mrs_uav_state_estimators::gps_garmin::GpsGarmin" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>GpsGarmin state estimator</description>
-  </class>
-</library>
+<class_libraries>
+  <library path="MrsUavStateEstimators_GpsGarmin">
+    <class type="mrs_uav_state_estimators::gps_garmin::GpsGarmin" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>GpsGarmin state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_GpsBaro">
-  <class type="mrs_uav_state_estimators::gps_baro::GpsBaro" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>GpsBaro state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_GpsBaro">
+    <class type="mrs_uav_state_estimators::gps_baro::GpsBaro" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>GpsBaro state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_Rtk">
-  <class type="mrs_uav_state_estimators::rtk::Rtk" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>Rtk state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_Rtk">
+    <class type="mrs_uav_state_estimators::rtk::Rtk" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>Rtk state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_RtkGarmin">
-  <class type="mrs_uav_state_estimators::rtk_garmin::RtkGarmin" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>RtkGarmin state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_RtkGarmin">
+    <class type="mrs_uav_state_estimators::rtk_garmin::RtkGarmin" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>RtkGarmin state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_Passthrough">
-  <class type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>Passthrough state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_Passthrough">
+    <class type="mrs_uav_state_estimators::passthrough::Passthrough" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>Passthrough state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_F9P">
-  <class type="mrs_uav_state_estimators::f9p::F9P" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>F9P state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_F9P">
+    <class type="mrs_uav_state_estimators::f9p::F9P" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>F9P state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_GroundTruth">
-  <class type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>GroundTruth state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_GroundTruth">
+    <class type="mrs_uav_state_estimators::ground_truth::GroundTruth" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>GroundTruth state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_Dummy">
-  <class type="mrs_uav_state_estimators::dummy::Dummy" base_class_type="mrs_uav_managers::StateEstimator">
-    <description>Dummy state estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_Dummy">
+    <class type="mrs_uav_state_estimators::dummy::Dummy" base_class_type="mrs_uav_managers::StateEstimator">
+      <description>Dummy state estimator</description>
+    </class>
+  </library>
 
-<library path="MrsUavStateEstimators_GarminAgl">
-  <class type="mrs_uav_state_estimators::garmin_agl::GarminAgl" base_class_type="mrs_uav_managers::AglEstimator">
-    <description>Garmin AGL height estimator</description>
-  </class>
-</library>
+  <library path="MrsUavStateEstimators_GarminAgl">
+    <class type="mrs_uav_state_estimators::garmin_agl::GarminAgl" base_class_type="mrs_uav_managers::AglEstimator">
+      <description>Garmin AGL height estimator</description>
+    </class>
+  </library>
+</class_libraries>

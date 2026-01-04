@@ -41,7 +41,7 @@ const int n_states       = 6;
 const int n_inputs       = 2;
 const int n_measurements = 2;
 
-}  // namespace lat_generic
+} // namespace lat_generic
 
 class LatGeneric : public LateralEstimator<lat_generic::n_states> {
 
@@ -123,9 +123,7 @@ private:
 public:
   LatGeneric(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin,
              std::function<std::optional<double>()> fun_get_hdg)
-      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id),
-        parent_state_est_name_(parent_state_est_name),
-        is_core_plugin_(is_core_plugin),
+      : LateralEstimator<lat_generic::n_states>(name, ns_frame_id), parent_state_est_name_(parent_state_est_name), is_core_plugin_(is_core_plugin),
         fun_get_hdg_(fun_get_hdg) {
   }
 
@@ -164,6 +162,6 @@ public:
 
   std::string getPrintName() const;
 };
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_LATERAL_LAT_GENERIC_H
+#endif // ESTIMATORS_LATERAL_LAT_GENERIC_H

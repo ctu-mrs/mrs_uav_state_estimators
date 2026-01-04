@@ -25,16 +25,16 @@ public:
 
   void toggle(bool enable);
 
-  virtual std::tuple<bool, bool> process(measurement_t& measurement) = 0;
+  virtual std::tuple<bool, bool> process(measurement_t &measurement) = 0;
   virtual void                   reset()                             = 0;
 
 protected:
-  Processor(const rclcpp::Node::SharedPtr& node, const std::string& correction_name, const std::string& name, const std::shared_ptr<CommonHandlers_t>& ch,
-            const std::shared_ptr<PrivateHandlers_t>& ph)
+  Processor(const rclcpp::Node::SharedPtr &node, const std::string &correction_name, const std::string &name, const std::shared_ptr<CommonHandlers_t> &ch,
+            const std::shared_ptr<PrivateHandlers_t> &ph)
       : correction_name_(correction_name), name_(name), ch_(ch), ph_(ph) {
     node_  = node;
     clock_ = node->get_clock();
-  }  // protected constructor to prevent instantiation
+  } // protected constructor to prevent instantiation
 
   const std::string correction_name_;
   const std::string name_;
@@ -77,6 +77,6 @@ void Processor<n_measurements>::toggle(bool enable) {
 }
 /*//}*/
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // PROCESSORS_PROCESSOR_H
+#endif // PROCESSORS_PROCESSOR_H

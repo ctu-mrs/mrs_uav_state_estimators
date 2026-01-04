@@ -21,13 +21,13 @@ typedef enum
   RANGE
 } MeasurementType_t;
 
-}  // namespace altitude
+} // namespace altitude
 
 template <int n_states>
 class AltitudeEstimator : public PartialEstimator<n_states, 1> {
 
 protected:
-  AltitudeEstimator(const std::string& name, const std::string& frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id) {
+  AltitudeEstimator(const std::string &name, const std::string &frame_id) : PartialEstimator<n_states, 1>(altitude::type, name, frame_id) {
   }
 
 private:
@@ -37,6 +37,6 @@ private:
   static const int _n_measurements_;
 };
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H
+#endif // ESTIMATORS_ALTITUDE_ALTITUDE_ESTIMATOR_H

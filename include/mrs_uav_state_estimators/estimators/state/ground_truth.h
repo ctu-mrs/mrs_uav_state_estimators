@@ -98,8 +98,8 @@ public:
   bool setUavState(const mrs_msgs::msg::UavState &uav_state) override;
 };
 
-}  // namespace ground_truth
+} // namespace ground_truth
 
-}  // namespace mrs_uav_state_estimators
+} // namespace mrs_uav_state_estimators
 
-#endif  // ESTIMATORS_STATE_GROUND_TRUTH_H
+#endif // ESTIMATORS_STATE_GROUND_TRUTH_H
