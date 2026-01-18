@@ -938,12 +938,12 @@ Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::msg::Odome
         std_msgs::msg::Header header = msg->header;
 
         if (transform_to_frame_enabled_) {
-          header.frame_id              = transform_from_frame_;
+          header.frame_id = transform_from_frame_;
         } else {
-          header.frame_id              = ch_->frames.ns_fcu; // message in odometry is published in body frame
+          header.frame_id = ch_->frames.ns_fcu; // message in odometry is published in body frame
         }
 
-        auto res                     = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
+        auto res = getVecInFrame(msg->twist.twist.linear, header, ns_frame_id_ + "_att_only");
 
         if (res) {
           measurement_t measurement;
@@ -1003,12 +1003,12 @@ Correction<n_measurements>::getCorrectionFromOdometry(const nav_msgs::msg::Odome
         std_msgs::msg::Header header = msg->header;
 
         if (transform_to_frame_enabled_) {
-          header.frame_id              = transform_from_frame_;
+          header.frame_id = transform_from_frame_;
         } else {
-          header.frame_id              = ch_->frames.ns_fcu; // message in odometry is published in body frame
+          header.frame_id = ch_->frames.ns_fcu; // message in odometry is published in body frame
         }
 
-        auto res                     = getZVelUntilted(msg->twist.twist.linear, header);
+        auto res = getZVelUntilted(msg->twist.twist.linear, header);
         if (res) {
           measurement_t measurement;
           measurement = res.value();
