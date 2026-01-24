@@ -259,7 +259,7 @@ bool LatGeneric::reset(void) {
   if (is_repredictor_enabled_) {
 
     const u_t          u0 = u_t::Zero();
-    const rclcpp::Time t0 = rclcpp::Time(0);
+    const rclcpp::Time t0 = rclcpp::Time(0, 0, clock_->get_clock_type());
     lkf_rep_              = std::make_unique<mrs_lib::Repredictor<varstep_lkf_t>>(x0, P0, u0, Q_, t0, models_[0], rep_buffer_size_);
   }
 
