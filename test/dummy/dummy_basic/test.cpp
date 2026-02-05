@@ -12,13 +12,13 @@ public:
   }
 
   bool test(void);
+
+  std::shared_ptr<mrs_uav_testing::UAVHandler> uh_;
 };
 
 bool Tester::test(void) {
 
   const std::string uav_name = "uav1";
-
-  std::shared_ptr<mrs_uav_testing::UAVHandler> uh;
 
   {
     auto [uhopt, message] = getUAVHandler(uav_name);
@@ -28,10 +28,10 @@ bool Tester::test(void) {
       return false;
     }
 
-    uh = uhopt.value();
+    uh_ = uhopt.value();
   }
 
-  auto res = uh->checkPreconditions();
+  auto res = uh_->checkPreconditions();
 
   if (!(std::get<0>(res))) {
     return false;
@@ -47,7 +47,7 @@ bool Tester::test(void) {
 
     RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: waiting for the MRS UAV System", name_.c_str());
 
-    if (uh->mrsSystemReady()) {
+    if (uh_->mrsSystemReady()) {
       RCLCPP_INFO(node_->get_logger(), "[%s]: MRS UAV System is ready", name_.c_str());
       break;
     }
