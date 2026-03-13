@@ -35,6 +35,8 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
+
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   // clang-format off
@@ -87,7 +89,7 @@ void HdgGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
     };
 
     auto corr = std::make_shared<Correction<hdg_generic::n_measurements>>(subnode, getNamespacedName(), corr_name, ns_frame_id_, EstimatorType_t::HEADING, ch_,
-                                                                          corr_ph, fun_get_state, fun_get_correction);
+                                                                          corr_ph, fun_get_state, fun_get_correction, error_publisher_.get());
 
     corrections_.push_back(corr);
   }
@@ -311,6 +313,7 @@ void HdgGeneric::timerUpdate() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
+        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
         changeState(ERROR_STATE);
       }
     }
@@ -329,6 +332,7 @@ void HdgGeneric::timerUpdate() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
+        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
         all_corrections_healthy = false;
       }
     }
