@@ -205,6 +205,11 @@ void F9P::callbackF9POdom([[maybe_unused]] const nav_msgs::Odometry::ConstPtr ms
     return;
   }
 
+  // Prevents publishing uninitialized odometry message when the estimator is started as active
+  if (!isRunning() && !isStarted()) {
+    return;
+  }
+
   // If the estimator is active the updateUavState is triggered directly by estimation manager
   if (!is_active_) {
     updateUavState();
