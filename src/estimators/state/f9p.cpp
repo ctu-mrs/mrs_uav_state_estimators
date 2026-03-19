@@ -355,6 +355,11 @@ void F9P::callbackF9POdom([[maybe_unused]] const nav_msgs::msg::Odometry::ConstS
     return;
   }
 
+  // Prevents publishing uninitialized odometry message when the estimator is started as active
+  if (!isRunning() && !isStarted()) {
+    return;
+  }
+
   updateUavState();
 
   publishUavState();
