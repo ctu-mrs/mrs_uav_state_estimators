@@ -17,6 +17,8 @@
 
 #include <mrs_uav_managers/state_estimator.h>
 
+#include <mrs_lib/errorgraph/error_publisher.h>
+
 #include <mrs_uav_state_estimators/estimators/lateral/lat_generic.h>
 #include <mrs_uav_state_estimators/estimators/altitude/alt_generic.h>
 #include <mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h>
@@ -65,6 +67,8 @@ private:
   const std::string est_hdg_name_ = "hdg_gt";
 
   const bool is_core_plugin_;
+
+  std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
   mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_gt_odom_;
   double                                              _critical_timeout_gt_odom_;

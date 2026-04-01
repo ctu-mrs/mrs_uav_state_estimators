@@ -35,7 +35,7 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   ch_ = ch;
   ph_ = ph;
 
-  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getNamespacedName());
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
 
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
