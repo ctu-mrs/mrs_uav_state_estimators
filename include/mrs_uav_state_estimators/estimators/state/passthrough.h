@@ -17,6 +17,8 @@
 
 #include <mrs_uav_managers/state_estimator.h>
 
+#include <mrs_lib/errorgraph/error_publisher.h>
+
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 //}
@@ -67,6 +69,8 @@ private:
   const std::string est_hdg_name_ = "hdg_passthrough";
 
   const bool is_core_plugin_;
+
+  std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
   mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_passthrough_odom_;
   void                                                callbackPassthroughOdom(const nav_msgs::msg::Odometry::ConstSharedPtr msg);

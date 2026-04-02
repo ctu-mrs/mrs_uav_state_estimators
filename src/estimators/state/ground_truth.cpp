@@ -16,6 +16,8 @@ void GroundTruth::initialize(const rclcpp::Node::SharedPtr &node, const std::sha
   node_  = node;
   clock_ = node->get_clock();
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
+
   cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
@@ -295,6 +297,7 @@ void GroundTruth::timerCheckHealth() {
     } else {
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                            sh_gt_odom_.topicName().c_str());
+      error_publisher_->addWaitingForTopicError(sh_gt_odom_.topicName());
       return;
     }
   }

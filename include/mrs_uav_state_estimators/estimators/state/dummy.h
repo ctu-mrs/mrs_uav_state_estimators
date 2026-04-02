@@ -17,6 +17,8 @@
 
 #include <mrs_uav_managers/state_estimator.h>
 
+#include <mrs_lib/errorgraph/error_publisher.h>
+
 #include <mrs_uav_state_estimators/estimators/lateral/lat_generic.h>
 #include <mrs_uav_state_estimators/estimators/altitude/alt_generic.h>
 #include <mrs_uav_state_estimators/estimators/heading/hdg_passthrough.h>
@@ -66,6 +68,8 @@ private:
   const std::string est_hdg_name_ = "hdg_dummy";
 
   const bool is_core_plugin_;
+
+  std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
   std::shared_ptr<TimerType> timer_update_;
   void                       timerUpdate();

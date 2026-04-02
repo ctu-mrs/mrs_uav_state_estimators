@@ -29,6 +29,8 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
   ch_ = ch;
   ph_ = ph;
 
+  error_publisher_ = std::make_unique<mrs_lib::errorgraph::ErrorPublisher>(node_, clock_, "EstimationManager", getPrintName());
+
   ns_frame_id_ = ch_->uav_name + "/" + frame_id_;
 
   hdg_state_      = states_t::Zero();
@@ -51,6 +53,9 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
 
   ph->param_loader->loadParam("topics/orientation", orient_topic_);
   ph->param_loader->loadParam("topics/angular_velocity", ang_vel_topic_);
+
+  ph->param_loader->loadParam("source/node", source_node_id_.node);
+  ph->param_loader->loadParam("source/component", source_node_id_.component);
 
   if (!ph->param_loader->loadedSuccessfully()) {
     RCLCPP_ERROR(node_->get_logger(), "[%s]: Could not load all non-optional parameters. Shutting down.", getPrintName().c_str());
@@ -346,6 +351,12 @@ std::string HdgPassthrough::getNamespacedName() const {
 /*//{ getPrintName() */
 std::string HdgPassthrough::getPrintName() const {
   return parent_state_est_name_ + "/" + getName();
+}
+/*//}*/
+
+/*//{ getSourceNodeId() */
+mrs_lib::errorgraph::node_id_t HdgPassthrough::getSourceNodeId() const {
+  return source_node_id_;
 }
 /*//}*/
 
