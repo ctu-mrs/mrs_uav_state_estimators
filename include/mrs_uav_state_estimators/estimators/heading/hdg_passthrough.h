@@ -70,7 +70,6 @@ private:
   };
 
   std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
-  mrs_lib::errorgraph::node_id_t                       source_node_id_;
 
   std::string                                                       orient_topic_;
   mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;
@@ -88,8 +87,6 @@ private:
 
   std::shared_ptr<TimerType> timer_check_health_;
   void                       timerCheckHealth();
-
-  mrs_lib::errorgraph::node_id_t getSourceNodeId() const;
 
 public:
   HdgPassthrough(const std::string &name, const std::string &ns_frame_id, const std::string &parent_state_est_name, const bool is_core_plugin)
