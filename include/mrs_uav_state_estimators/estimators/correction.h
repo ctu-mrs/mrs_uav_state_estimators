@@ -327,8 +327,8 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, cons
   msg_delay_warn_limit_ = msg_delay_limit_ / 2; // maybe specify this as a param?
   ph->param_loader->loadParam("message/limit/time_since_last", time_since_last_msg_limit_);
 
-  ph->param_loader->loadParam("source/node", source_node_id_.node);
-  ph->param_loader->loadParam("source/component", source_node_id_.component);
+  ph->param_loader->loadParam("source/node", source_node_id_.node, std::string("HwApiManager"));
+  ph->param_loader->loadParam("source/component", source_node_id_.component, std::string("main"));
 
   int state_id_tmp;
   ph->param_loader->loadParam("state_id", state_id_tmp);
