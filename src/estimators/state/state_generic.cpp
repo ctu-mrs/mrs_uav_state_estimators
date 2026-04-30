@@ -231,13 +231,13 @@ bool StateGeneric::start(void) {
       return true;
     } else {
       if (!est_lat_start_successful) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getPrintName()});
       }
       if (!est_alt_start_successful) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getPrintName()});
       }
       if (!est_hdg_start_successful) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getPrintName()});
       }
     }
 
@@ -320,13 +320,13 @@ void StateGeneric::timerUpdate() {
         RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s subestimators to be initialized", getPrintName().c_str(),
                              Support::waiting_for_string.c_str());
         if (!est_lat_->isInitialized()) {
-          error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getPrintName()});
         }
         if (!est_alt_->isInitialized()) {
-          error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getPrintName()});
         }
         if (!est_hdg_->isInitialized()) {
-          error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+          error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getPrintName()});
         }
         return;
       }
@@ -357,13 +357,13 @@ void StateGeneric::timerUpdate() {
       changeState(RUNNING_STATE);
     } else {
       if (!est_lat_->isRunning()) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_lat_->getPrintName()});
       }
       if (!est_alt_->isRunning()) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_alt_->getPrintName()});
       }
       if (!est_hdg_->isRunning()) {
-        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getName()});
+        error_publisher_->addWaitingForNodeError({"EstimationManager", est_hdg_->getPrintName()});
       }
       return;
     }
