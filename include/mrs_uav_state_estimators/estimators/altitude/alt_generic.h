@@ -161,7 +161,7 @@ public:
 
   std::string getNamespacedName() const;
 
-  std::string getPrintName() const;
+  std::string getPrintName() const override;
 };
 } // namespace mrs_uav_state_estimators
 
