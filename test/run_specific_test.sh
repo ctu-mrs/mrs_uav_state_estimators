@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
