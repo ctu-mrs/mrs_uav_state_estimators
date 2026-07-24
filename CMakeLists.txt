@@ -45,6 +45,7 @@ set(LIBRARIES
   MrsUavStateEstimators_Common
   MrsUavStateEstimators_GpsGarmin
   MrsUavStateEstimators_GpsBaro
+  MrsUavStateEstimators_GpsBaroOffset
   MrsUavStateEstimators_Rtk
   MrsUavStateEstimators_RtkGarmin
   MrsUavStateEstimators_Passthrough
@@ -134,6 +135,24 @@ target_link_libraries(MrsUavStateEstimators_GpsBaro
 
 ## Add configure headers for dynamic reconfigure
 add_dependencies(MrsUavStateEstimators_GpsBaro
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  )
+
+add_library(MrsUavStateEstimators_GpsBaroOffset
+  src/estimators/state/gps_baro_offset.cpp
+  )
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(MrsUavStateEstimators_GpsBaroOffset
+  MrsUavStateEstimators_Common
+  ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
+## Add configure headers for dynamic reconfigure
+add_dependencies(MrsUavStateEstimators_GpsBaroOffset
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
