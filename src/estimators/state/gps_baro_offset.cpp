@@ -24,7 +24,7 @@ public:
 
   void initialize(ros::NodeHandle &parent_nh, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
 
-  void updateUavState() override;
+  void updateUavState();
 
 private:
   std::string                                      topic_hw_api_status_;
