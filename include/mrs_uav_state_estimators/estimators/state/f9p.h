@@ -83,6 +83,7 @@ private:
   void                                                    callbackGnss(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
   double                                                  gnss_x_, gnss_y_, gnss_z_;
   bool                                                    got_gnss_ = false;
+  bool                                                    use_z_relative_to_home = true;
   std::string                                             gnss_topic_;
 
   std::shared_ptr<TimerType> timer_check_f9p_odom_hz_;
