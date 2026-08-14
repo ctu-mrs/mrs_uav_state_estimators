@@ -178,7 +178,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 
   // for transformation of desired accelerations from body to global frame
-  sh_hdg_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorOutput>(shopts, hdg_source_topic_);
+  sh_hdg_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorOutput>(shopts, "~/" + getNamespacedName() + hdg_source_topic_);
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
