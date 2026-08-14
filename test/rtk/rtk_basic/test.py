@@ -122,17 +122,6 @@ def generate_test_description():
             period=1.0, actions=[launch_testing.actions.ReadyToTest()]),
         )
 
-    ld.add_action(
-        # Nodes under test
-        launch_ros.actions.Node(
-            package='tf2_ros',
-            namespace='',
-            executable='static_transform_publisher',
-            name='fcu_to_rtk_antenna',
-            arguments=["0.0", "0.0", "0.20", "0", "0", "0", [uav_name, "/fcu"], [uav_name, "/rtk_antenna"]],
-        )
-    )
-
     return ld
 
 # #{ class PublisherHandlerTest(unittest.TestCase)
