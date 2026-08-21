@@ -39,8 +39,19 @@ void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::sh
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() + ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() + ".yaml");
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + getName() + "/" + getName() +
+                                       ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the private config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the private config file");
+      error_publisher_->flushAndShutdown();
+    }
+
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + getName() + "/" + getName() +
+                                       ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the public config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the public config file");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
   ph->param_loader->loadParam("estimators/lateral/name", est_lat_name_);
