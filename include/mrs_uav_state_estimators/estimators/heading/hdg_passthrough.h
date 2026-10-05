@@ -71,6 +71,9 @@ private:
 
   std::unique_ptr<mrs_lib::errorgraph::ErrorPublisher> error_publisher_;
 
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_timers_;
+
   std::string                                                       orient_topic_;
   mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped> sh_orientation_;
   void                                                              callbackOrientation(const geometry_msgs::msg::QuaternionStamped::ConstSharedPtr msg);
