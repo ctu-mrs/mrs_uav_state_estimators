@@ -26,6 +26,9 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
   node_  = node;
   clock_ = node->get_clock();
 
+  cbkgrp_subs_   = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  cbkgrp_timers_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   ch_ = ch;
   ph_ = ph;
 
@@ -74,8 +77,9 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
 
     mrs_lib::TimerHandlerOptions opts;
 
-    opts.node      = node_;
-    opts.autostart = false;
+    opts.node           = node_;
+    opts.autostart      = false;
+    opts.callback_group = cbkgrp_timers_;
 
     std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerUpdate, this);
 
@@ -87,8 +91,9 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
   {
     mrs_lib::TimerHandlerOptions opts;
 
-    opts.node      = node_;
-    opts.autostart = true;
+    opts.node           = node_;
+    opts.autostart      = true;
+    opts.callback_group = cbkgrp_timers_;
 
     std::function<void()> callback_fcn = std::bind(&HdgPassthrough::timerCheckHealth, this);
 
@@ -99,11 +104,12 @@ void HdgPassthrough::initialize(const rclcpp::Node::SharedPtr &node, const std::
   // subscriber to odometry
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node_;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node_;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   sh_orientation_ = mrs_lib::SubscriberHandler<geometry_msgs::msg::QuaternionStamped>(shopts, "/" + ch_->uav_name + "/" + orient_topic_,
                                                                                       &HdgPassthrough::callbackOrientation, this);
