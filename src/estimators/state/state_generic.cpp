@@ -23,6 +23,14 @@ typedef mrs_lib::ThreadTimer TimerType;
 namespace mrs_uav_state_estimators
 {
 
+/*//{ ~StateGeneric() */
+StateGeneric::~StateGeneric() {
+  est_lat_.reset();
+  est_alt_.reset();
+  est_hdg_.reset();
+}
+/*//}*/
+
 /* initialize() //{*/
 void StateGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) {
 
