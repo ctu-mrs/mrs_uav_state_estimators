@@ -22,3 +22,22 @@ mrs_uav_managers:
       after_activation:
         controller: "Se3Controller"
         tracker: "MpcTracker"
+
+mrs_uav_hw_api:
+
+  outputs:
+    distance_sensor:      true
+    gnss:                 true
+    gnss_status:          true
+    rtk:                  false
+    imu:                  true
+    altitude:             true
+    magnetometer_heading: true
+    rc_channels:          true
+    battery_state:        true
+    position:             true
+    orientation:          true
+    velocity:             true
+    angular_velocity:     true
+    odometry:             false
+    ground_truth:         false
