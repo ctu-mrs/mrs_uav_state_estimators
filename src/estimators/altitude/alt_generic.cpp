@@ -59,10 +59,19 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" +
+                                       getName() + ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the private config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the private config file");
+      error_publisher_->flushAndShutdown();
+    }
+
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" +
+                                       getName() + ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the public config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the public config file");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
   // | --------------------- load parameters -------------------- |
@@ -177,15 +186,15 @@ void AltGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
-    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, getNamespacedName() + "/input");
+    ph_input_ = mrs_lib::PublisherHandler<mrs_msgs::msg::Float64ArrayStamped>(node_, "~/" + getNamespacedName() + "/input");
   }
 
   if (ch_->debug_topics.output) {
-    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node_, getNamespacedName() + "/output");
+    ph_output_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorOutput>(node_, "~/" + getNamespacedName() + "/output");
   }
 
   if (ch_->debug_topics.diag) {
-    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, getNamespacedName() + "/diagnostics");
+    ph_diagnostics_ = mrs_lib::PublisherHandler<mrs_msgs::msg::EstimatorDiagnostics>(node_, "~/" + getNamespacedName() + "/diagnostics");
   }
 
   // | ------------------ finish initialization ----------------- |

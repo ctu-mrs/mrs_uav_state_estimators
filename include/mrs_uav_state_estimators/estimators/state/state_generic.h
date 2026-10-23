@@ -98,6 +98,7 @@ public:
   StateGeneric(const std::string &name, const bool is_core_plugin)
       : StateEstimator(name, name + "_origin", state_generic::package_name), is_core_plugin_(is_core_plugin) {
   }
+  ~StateGeneric();
 
   void initialize(const rclcpp::Node::SharedPtr &node, const std::shared_ptr<CommonHandlers_t> &ch, const std::shared_ptr<PrivateHandlers_t> &ph) override;
   bool start(void) override;

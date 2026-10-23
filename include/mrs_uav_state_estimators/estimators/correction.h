@@ -141,6 +141,8 @@ public:
 private:
   std::atomic_bool is_initialized_ = false;
 
+  rclcpp::CallbackGroup::SharedPtr cbkgrp_subs_;
+
   mrs_lib::SubscriberHandler<nav_msgs::msg::Odometry> sh_odom_;
   void                                                callbackOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
   std::optional<measurement_t>                        getCorrectionFromOdometry(const nav_msgs::msg::Odometry::ConstSharedPtr msg);
@@ -379,13 +381,16 @@ Correction<n_measurements>::Correction(const rclcpp::Node::SharedPtr &node, cons
                                 mrs_lib::DynparamMgr::range_t<double>(0.0, 100000.0));
 
   // | -------------- initialize subscribe handlers ------------- |
+  cbkgrp_subs_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   mrs_lib::SubscriberHandlerOptions shopts;
 
-  shopts.node               = node;
-  shopts.node_name          = getPrintName();
-  shopts.no_message_timeout = mrs_lib::no_timeout;
-  shopts.threadsafe         = true;
-  shopts.autostart          = true;
+  shopts.node                                = node;
+  shopts.node_name                           = getPrintName();
+  shopts.no_message_timeout                  = mrs_lib::no_timeout;
+  shopts.threadsafe                          = true;
+  shopts.autostart                           = true;
+  shopts.subscription_options.callback_group = cbkgrp_subs_;
 
   switch (msg_type_) {
   case MessageType_t::ODOMETRY: {

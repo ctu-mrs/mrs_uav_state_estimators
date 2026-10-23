@@ -60,10 +60,19 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
 
   if (is_core_plugin_) {
 
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
-    ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" + getName() +
-                                  ".yaml");
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/private/" + parent_state_est_name_ + "/" +
+                                       getName() + ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the private config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the private config file");
+      error_publisher_->flushAndShutdown();
+    }
+
+    if (!ph->param_loader->addYamlFile(ament_index_cpp::get_package_share_directory(package_name_) + "/config/public/" + parent_state_est_name_ + "/" +
+                                       getName() + ".yaml")) {
+      RCLCPP_ERROR(node_->get_logger(), "[%s]: failed to load the public config file", getPrintName().c_str());
+      error_publisher_->addOneshotError("failed to load the public config file");
+      error_publisher_->flushAndShutdown();
+    }
   }
 
   // | --------------------- load parameters -------------------- |
@@ -178,7 +187,7 @@ void LatGeneric::initialize(const rclcpp::Node::SharedPtr &node, const std::shar
   sh_control_input_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorInput>(shopts, "~/control_input_in");
 
   // for transformation of desired accelerations from body to global frame
-  sh_hdg_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorOutput>(shopts, hdg_source_topic_);
+  sh_hdg_state_ = mrs_lib::SubscriberHandler<mrs_msgs::msg::EstimatorOutput>(shopts, "~/" + getNamespacedName() + hdg_source_topic_);
 
   // | ---------------- publishers initialization --------------- |
   if (ch_->debug_topics.input) {
