@@ -316,6 +316,7 @@ void LatGeneric::timerUpdate() {
       } else {
         RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                              correction->getNamespacedName().c_str());
+        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
         return;
       }
     }

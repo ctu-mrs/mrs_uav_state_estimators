@@ -148,6 +148,8 @@ bool GarminAgl::start(void) {
 
       changeState(STARTED_STATE);
       return true;
+    } else {
+      error_publisher_->addWaitingForNodeError({"EstimationManager", est_agl_garmin_->getPrintName()});
     }
 
   } else {
@@ -248,6 +250,7 @@ void GarminAgl::timerCheckHealth() {
       RCLCPP_INFO(node_->get_logger(), "[%s]: Estimator is ready to start", getPrintName().c_str());
     } else {
       RCLCPP_INFO(node_->get_logger(), "[%s]: %s subestimators to be ready", getPrintName().c_str(), Support::waiting_for_string.c_str());
+      error_publisher_->addWaitingForNodeError({"EstimationManager", est_agl_garmin_->getPrintName()});
       return;
     }
     break;
@@ -269,6 +272,7 @@ void GarminAgl::timerCheckHealth() {
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Subestimators converged", getPrintName().c_str());
       changeState(RUNNING_STATE);
     } else {
+      error_publisher_->addWaitingForNodeError({"EstimationManager", est_agl_garmin_->getPrintName()});
       return;
     }
     break;
