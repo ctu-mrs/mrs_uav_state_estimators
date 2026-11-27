@@ -114,10 +114,12 @@ public:
              std::function<double(int, int)> fun_get_state, std::function<void(MeasurementStamped, double, StateId_t)> fun_apply_correction,
              mrs_lib::errorgraph::ErrorPublisher *error_publisher);
 
-  std::string                    getName() const;
-  std::string                    getNamespacedName() const;
-  std::string                    getPrintName() const;
-  mrs_lib::errorgraph::node_id_t getSourceNodeId() const;
+  std::string getName() const;
+  std::string getNamespacedName() const;
+  std::string getPrintName() const;
+
+  // errorgraph: waiting for the topic while its messages don't arrive, otherwise for the source node
+  void addWaitingError();
 
   double    getR();
   void      setR(const double R);
@@ -256,6 +258,7 @@ private:
 
   bool             isTimestampOk();
   bool             isMsgComing();
+  bool             isTopicMissing();
   std::atomic_bool first_timestamp_ = true;
   rclcpp::Time     msg_time_;
   rclcpp::Time     prev_msg_time_;
@@ -269,11 +272,8 @@ private:
 
   enum class error_type_t : uint16_t
   {
-    no_imu_msgs,
     no_imu_correction,
-    no_rtk_msgs,
     no_rtk_correction,
-    no_navsatfix_msgs,
     no_navsatfix_correction,
     nan_correction,
   };
@@ -517,10 +517,14 @@ std::string Correction<n_measurements>::getPrintName() const {
 }
 /*//}*/
 
-/*//{ getSourceNodeId() */
+/*//{ addWaitingError() */
 template <int n_measurements>
-mrs_lib::errorgraph::node_id_t Correction<n_measurements>::getSourceNodeId() const {
-  return source_node_id_;
+void Correction<n_measurements>::addWaitingError() {
+  if (isTopicMissing()) {
+    error_pub_ptr->addWaitingForTopicError(msg_topic_, source_node_id_);
+  } else {
+    error_pub_ptr->addWaitingForNodeError(source_node_id_);
+  }
 }
 /*//}*/
 
@@ -684,7 +688,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   case MessageType_t::IMU: {
 
     if (!sh_imu_.hasMsg()) {
-      error_pub_ptr->addGeneralError(error_type_t::no_imu_msgs, "No IMU messages received");
+      error_pub_ptr->addWaitingForTopicError(msg_topic_, source_node_id_);
       RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no imu msgs so far");
       return {};
     }
@@ -713,7 +717,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   case MessageType_t::RTK_GPS: {
 
     if (!sh_rtk_.hasMsg()) {
-      error_pub_ptr->addGeneralError(error_type_t::no_rtk_msgs, "No RTK messages received");
+      error_pub_ptr->addWaitingForTopicError(msg_topic_, source_node_id_);
       RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, " no rtk msgs so far");
       return {};
     }
@@ -742,7 +746,7 @@ std::optional<typename Correction<n_measurements>::MeasurementStamped> Correctio
   case MessageType_t::NAVSATFIX: {
 
     if (!sh_navsatfix_.hasMsg()) {
-      error_pub_ptr->addGeneralError(error_type_t::no_navsatfix_msgs, "No NavSatFix messages received");
+      error_pub_ptr->addWaitingForTopicError(msg_topic_, source_node_id_);
       RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "no navsatfix msgs so far");
       return {};
     }
@@ -2610,6 +2614,43 @@ bool Correction<n_measurements>::isTimestampOk() {
 
   return true;
 } // namespace mrs_uav_state_estimators
+/*//}*/
+
+/*//{ isTopicMissing() */
+// no message received within time_since_last_msg_limit_ (by the time of reception: a message that arrives but can't be
+// used doesn't make the topic missing)
+template <int n_measurements>
+bool Correction<n_measurements>::isTopicMissing() {
+
+  const auto missing = [this](const auto &sh) { return !sh.hasMsg() || (clock_->now() - sh.lastMsgTime()).seconds() > time_since_last_msg_limit_; };
+
+  switch (msg_type_) {
+  case MessageType_t::ODOMETRY:
+    return missing(sh_odom_);
+  case MessageType_t::POSE:
+    return missing(sh_pose_s_);
+  case MessageType_t::RANGE:
+    return missing(sh_range_);
+  case MessageType_t::IMU:
+    return missing(sh_imu_);
+  case MessageType_t::RTK_GPS:
+    return missing(sh_rtk_);
+  case MessageType_t::NAVSATFIX:
+    return missing(sh_navsatfix_);
+  case MessageType_t::MAG_HDG:
+    return missing(sh_mag_hdg_);
+  case MessageType_t::MAG_FIELD:
+    return missing(sh_mag_field_);
+  case MessageType_t::POINT:
+    return missing(sh_point_);
+  case MessageType_t::VECTOR:
+    return missing(sh_vector_);
+  case MessageType_t::QUAT:
+    return missing(sh_quat_);
+  default:
+    return false;
+  }
+}
 /*//}*/
 
 /*//{ isMsgComing() */

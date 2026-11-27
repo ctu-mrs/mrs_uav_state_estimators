@@ -300,7 +300,7 @@ void HdgGeneric::timerUpdate() {
       } else {
         RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                              correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         return;
       }
     }
@@ -323,7 +323,7 @@ void HdgGeneric::timerUpdate() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         changeState(ERROR_STATE);
       }
     }
@@ -342,7 +342,7 @@ void HdgGeneric::timerUpdate() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         all_corrections_healthy = false;
       }
     }

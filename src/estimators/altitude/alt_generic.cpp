@@ -309,7 +309,7 @@ void AltGeneric::timerUpdate(void) {
       } else {
         RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s correction %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                              correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         return;
       }
     }
@@ -331,7 +331,7 @@ void AltGeneric::timerUpdate(void) {
   case RUNNING_STATE: {
     for (auto correction : corrections_) {
       if (!correction->isHealthy()) {
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
         changeState(ERROR_STATE);
@@ -360,7 +360,7 @@ void AltGeneric::timerUpdate(void) {
     bool all_corrections_healthy = true;
     for (auto correction : corrections_) {
       if (!correction->isHealthy()) {
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
         all_corrections_healthy = false;
@@ -527,7 +527,7 @@ void AltGeneric::timerCheckHealth() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         changeState(ERROR_STATE);
       }
     }
@@ -546,7 +546,7 @@ void AltGeneric::timerCheckHealth() {
       if (!correction->isHealthy()) {
         RCLCPP_ERROR_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: Correction %s is not healthy!", getPrintName().c_str(),
                               correction->getNamespacedName().c_str());
-        error_publisher_->addWaitingForNodeError(correction->getSourceNodeId());
+        correction->addWaitingError();
         all_corrections_healthy = false;
       }
     }

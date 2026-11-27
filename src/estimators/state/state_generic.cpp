@@ -352,7 +352,12 @@ void StateGeneric::timerUpdate() {
     } else {
       RCLCPP_INFO_THROTTLE(node_->get_logger(), *clock_, 1000, "[%s]: %s msg on topic %s", getPrintName().c_str(), Support::waiting_for_string.c_str(),
                            sh_hw_api_orient_.topicName().c_str());
-      error_publisher_->addWaitingForNodeError({"HwApiManager", "main"});
+      if (!sh_hw_api_orient_.hasMsg()) {
+        error_publisher_->addWaitingForTopicError(sh_hw_api_orient_.topicName(), {"HwApiManager", "main"});
+      }
+      if (!sh_hw_api_ang_vel_.hasMsg()) {
+        error_publisher_->addWaitingForTopicError(sh_hw_api_ang_vel_.topicName(), {"HwApiManager", "main"});
+      }
       return;
     }
 
